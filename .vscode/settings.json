@@ -1,0 +1,45 @@
+{
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "cSpell.words": [
+    "apos",
+    "arcgis",
+    "arcpy",
+    "basemap",
+    "browserslist",
+    "cadastre",
+    "escaperegexp",
+    "esrijs",
+    "firebaserc",
+    "geocode",
+    "geodatabase",
+    "geodatabases",
+    "Geospatial",
+    "gnis",
+    "hostingchannels",
+    "lods",
+    "noopener",
+    "noreferrer",
+    "packagejson",
+    "sgid",
+    "sitla",
+    "srid",
+    "tagname",
+    "tailwindcss",
+    "topo",
+    "UDNR",
+    "udwr",
+    "UDWRRT",
+    "ugrc",
+    "usgs",
+    "USNG",
+    "vite",
+    "wkid"
+  ],
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true
+}

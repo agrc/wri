@@ -1,15 +1,17 @@
 import Extent from '@arcgis/core/geometry/Extent';
+import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer';
 import EsriMap from '@arcgis/core/Map';
+import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
+import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';
+import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
 import MapView from '@arcgis/core/views/MapView';
 import LayerSelector from '@ugrc/layer-selector';
+import { useMapReady } from '@ugrc/utilities/hooks';
 import { useEffect, useRef, useState } from 'react';
 import { useMap } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
-
-const landownership =
-  'https://gis.trustlands.utah.gov/hosting/rest/services/Hosted/Land_Ownership_WM_VectorTile/VectorTileServer';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;
@@ -35,14 +37,130 @@ const statewide = new Extent({
   },
 });
 
+const landOwnership = new VectorTileLayer({
+  title: 'Land Ownership',
+  id: 'reference-land-ownership',
+  url: 'https://gis.trustlands.utah.gov/hosting/rest/services/Hosted/Land_Ownership_WM_VectorTile/VectorTileServer',
+  visible: false,
+  opacity: 0.3,
+  hasLegend: true,
+});
+const plss = new VectorTileLayer({
+  title: 'Utah PLSS',
+  id: 'reference-plss',
+  url: 'https://tiles.arcgis.com/tiles/99lidPhWCzftIe9K/arcgis/rest/services/UtahPLSS/VectorTileServer',
+  visible: false,
+  opacity: 0.9,
+});
+const streams = new FeatureLayer({
+  title: 'NHD Streams',
+  id: 'reference-streams',
+  url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStreamsNHD/FeatureServer/0',
+  fields: ['GNIS_Name'],
+  definitionExpression: 'InUtah = 1 AND Submerged = 0',
+  visible: false,
+  labelsVisible: false,
+  opacity: 0.7,
+  minScale: 80000,
+  maxScale: 0,
+  renderer: new SimpleRenderer({
+    symbol: new SimpleLineSymbol({
+      style: 'solid',
+      color: [115, 223, 255, 255],
+      cap: 'round',
+      width: 2,
+    }),
+  }),
+  labelingInfo: [
+    {
+      symbol: {
+        type: 'text',
+        color: 'white',
+        haloColor: [115, 223, 255, 255],
+        haloSize: 0.7,
+        font: {
+          family: 'Ubuntu Mono',
+          size: 12,
+          weight: 'normal',
+        },
+      },
+      labelPlacement: 'center-along',
+      labelExpressionInfo: {
+        expression: '$feature.GNIS_Name',
+      },
+      minScale: 80000,
+      maxScale: 0,
+    },
+  ],
+});
+const watershedAreas = new FeatureLayer({
+  title: 'Watershed Areas',
+  id: 'reference-watershed-areas',
+  url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahWatershedsArea/FeatureServer/0',
+  fields: ['HUC_10', 'HU_10_Name'],
+  visible: false,
+  labelsVisible: false,
+  opacity: 0.7,
+  minScale: 2000000,
+  maxScale: 0,
+  renderer: new SimpleRenderer({
+    symbol: new SimpleFillSymbol({
+      style: 'none',
+      outline: {
+        type: 'simple-line',
+        style: 'solid',
+        width: 3,
+      },
+    }),
+  }),
+  labelingInfo: [
+    {
+      symbol: {
+        type: 'text',
+        color: 'white',
+        haloColor: 'black',
+        haloSize: 2,
+        font: {
+          family: 'Ubuntu Mono',
+          size: 12,
+          weight: 'normal',
+        },
+      },
+      labelExpressionInfo: {
+        expression: '$feature.HU_10_Name + TextFormatting.NewLine + $feature.HUC_10',
+      },
+      minScale: 100001,
+      maxScale: 0,
+    },
+    {
+      symbol: {
+        type: 'text',
+        color: 'white',
+        haloColor: 'black',
+        haloSize: 3,
+        font: {
+          family: 'Ubuntu Mono',
+          size: 12,
+          weight: 'normal',
+        },
+      },
+      labelExpressionInfo: {
+        expression: '$feature.HUC_10',
+      },
+      minScale: 300000,
+      maxScale: 100000,
+    },
+  ],
+});
+
 export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickEventHandler }) => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView>();
   const clickHandler = useRef<IHandle>();
   const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
-  console.log('rendering MapContainer');
-  const { setMapView } = useMap();
+  const { setMapView, addLayers } = useMap();
+  const isReady = useMapReady(mapView.current);
 
   // setup the Map
   useEffect(() => {
@@ -67,15 +185,6 @@ export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickE
       view: mapView.current,
       quadWord: import.meta.env.VITE_DISCOVER,
       baseLayers: ['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR'],
-      overlays: [
-        'Address Points',
-        {
-          Factory: VectorTileLayer,
-          url: landownership,
-          id: 'Land Ownership',
-          opacity: 0.3,
-        },
-      ],
       position: 'top-right',
     };
 
@@ -97,6 +206,14 @@ export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickE
       clickHandler.current?.remove();
     };
   }, [onClick, mapView]);
+
+  // add the map layers
+  useEffect(() => {
+    if (isReady) {
+      addLayers([landOwnership, plss, streams, watershedAreas]);
+    }
+    setMapView(mapView.current!);
+  }, [isReady, mapView, addLayers, setMapView]);
 
   return (
     <div ref={mapNode} className="size-full">

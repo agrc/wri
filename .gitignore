@@ -130,7 +130,7 @@ dist
 .pnp.*
 
 # deploy
-/public/assets
+/public/wri/
 /build
 /deploy
 /dist

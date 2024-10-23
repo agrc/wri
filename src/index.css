@@ -64,20 +64,4 @@
   h6 {
     @apply text-sm font-bold md:text-base;
   }
-
-  @font-face {
-    font-family: 'SourceSansPro-Regular';
-    src: url('/fonts/SourceSans3-Regular.otf.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-  }
-
-  @font-face {
-    font-family: 'SourceSansPro-Black';
-    src: url('/fonts/SourceSans3-Black.otf.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-  }
 }

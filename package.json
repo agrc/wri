@@ -32,7 +32,7 @@
   "dependencies": {
     "@arcgis/core": "^4.30.9",
     "@ugrc/layer-selector": "^6.2.8",
-    "@ugrc/utah-design-system": "^1.11.3",
+    "@ugrc/utah-design-system": "^1.12.0",
     "firebase": "^11.0.1",
     "ky": "^1.7.2",
     "lodash.startcase": "^4.4.0",
@@ -45,7 +45,7 @@
     "react-stately": "^3.33.0"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^3.0.0",
+    "@chromatic-com/storybook": "^3.1.0",
     "@eslint/js": "^9.13.0",
     "@storybook/addon-essentials": "^8.3.6",
     "@storybook/addon-interactions": "^8.3.6",

@@ -1,5 +1,7 @@
-import { Tag, TagGroup } from '@ugrc/utah-design-system';
+import { Switch, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { PaletteIcon } from 'lucide-react';
+import { ReactNode, useCallback } from 'react';
+import type { Selection } from 'react-aria-components';
 import { isVisible } from './utils';
 
 type Layer = __esri.Layer & __esri.ScaleRangeLayer;
@@ -32,4 +34,23 @@ export const ReferenceData = ({
         ))}
     </TagGroup>
   );
+};
+
+export const LabelSwitch = ({
+  layers,
+  children,
+}: {
+  layers: __esri.Collection<__esri.FeatureLayerProperties>;
+  children: ReactNode;
+}) => {
+  const toggleLabelVisibility = useCallback(
+    (isSelected: boolean) => {
+      layers.forEach((layer) => {
+        layer.labelsVisible = isSelected;
+      });
+    },
+    [layers],
+  );
+
+  return <Switch onChange={toggleLabelVisibility}>{children}</Switch>;
 };

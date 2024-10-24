@@ -12,7 +12,7 @@ import { useOverlayTriggerState } from 'react-stately';
 import { MapContainer } from './components';
 import { useMap } from './components/hooks';
 import { IdentifyInformation } from './components/Identify';
-import { ReferenceData, ReferenceLayer } from './components/ReferenceData';
+import { LabelSwitch, ReferenceData, ReferenceLayer } from './components/ReferenceData';
 import config from './config';
 
 const apiKey = import.meta.env.VITE_WEB_API;
@@ -103,6 +103,7 @@ export default function App() {
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 Map Reference data
                 <ReferenceData layers={layers} currentMapScale={currentMapScale ?? 0} />
+                <LabelSwitch layers={layers}>Labels</LabelSwitch>
               </ErrorBoundary>
             </div>
           </div>

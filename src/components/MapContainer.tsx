@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMap } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
+import { ReferenceLayer } from './ReferenceData';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;
@@ -44,7 +45,7 @@ const landOwnership = new VectorTileLayer({
   visible: false,
   opacity: 0.3,
   hasLegend: true,
-});
+} as ReferenceLayer & __esri.VectorTileLayer);
 const plss = new VectorTileLayer({
   title: 'Utah PLSS',
   id: 'reference-plss',

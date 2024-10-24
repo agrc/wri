@@ -18,12 +18,29 @@ export const ReferenceData = ({
   currentMapScale: number;
   color?: 'gray' | 'primary' | 'secondary' | 'accent';
 }) => {
+  const setLayerVisibility = useCallback(
+    (keys: Selection) => {
+      console.log('keys', keys);
+      layers.forEach((layer) => {
+        if (keys === 'all') {
+          layer.visible = true;
+
+          return;
+        }
+
+        layer.visible = keys.has(layer.id);
+      });
+    },
+    [layers],
+  );
+
   return (
-    <TagGroup selectionMode="multiple" color={color}>
+    <TagGroup selectionMode="multiple" color={color} onSelectionChange={setLayerVisibility}>
       {layers
-        .filter((x) => x.id.startsWith('reference'))
+        .filter((x) => (x.id ?? '').startsWith('reference'))
         .map((layer) => (
           <Tag
+            id={layer.id}
             key={layer.id}
             isDisabled={!isVisible(currentMapScale, layer.minScale, layer.maxScale)}
             textValue={layer.title}

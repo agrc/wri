@@ -137,3 +137,5 @@ dist
 
 # MacOS
 .DS_Store
+
+*storybook.log

@@ -1,126 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
 <!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
 <!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
 <!--[if gt IE 8]><!-->
-<html class="no-js" lang="en"> <!--<![endif]-->
+<html class="no-js" lang="en">
+  <!--<![endif]-->
 
-<head>
+  <head>
+    <title>Utah's WRI Map</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Utah Department of Technology Services" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="description" content="Water Restoration Initiative run by DNR" />
+    <script src="https://wri.utah.gov/wri/js/vendor/modernizr-2.8.3.min.js"></script>
 
+    <link href="https://wri.utah.gov/wri/css/dnr-style.css" rel="stylesheet" type="text/css" media="all" />
+    <link href="//fonts.googleapis.com/css?family=Raleway:400,700,600" rel="stylesheet" type="text/css" />
+    <link href="//fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic" rel="stylesheet" type="text/css" />
+    <link href="//fonts.googleapis.com/css?family=Oswald:400,700" rel="stylesheet" type="text/css" />
+    <link href="//fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css" />
 
-  <title>Utah's WRI Map</title>
-  <meta charset='UTF-8'>
-  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-  <meta name='author' content='Utah Department of Technology Services'>
-  <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
-  <meta name='description' content='Water Restoration Initiative run by DNR'>
-  <script src='https://wri.utah.gov/wri/js/vendor/modernizr-2.8.3.min.js'></script>
+    <!-- Le fav and touch icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="https://wri.utah.gov/wri/ico/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="https://wri.utah.gov/wri/ico/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="https://wri.utah.gov/wri/ico/favicon-16x16.png" />
+    <link rel="mask-icon" href="https://wri.utah.gov/wri/ico/safari-pinned-tab.svg" color="#5bbad5" />
+    <link rel="shortcut icon" href="https://wri.utah.gov/wri/ico/favicon.ico" />
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="msapplication-config" content="https://wri.utah.gov/wri/ico/browserconfig.xml" />
+    <meta name="theme-color" content="#ffffff" />
+    <!-- CSS -->
+  </head>
 
-  <link href='https://wri.utah.gov/wri/css/dnr-style.css' rel='stylesheet' type='text/css' media='all' />
-  <link href='//fonts.googleapis.com/css?family=Raleway:400,700,600' rel='stylesheet' type='text/css'>
-  <link href='//fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
-  <link href='//fonts.googleapis.com/css?family=Oswald:400,700' rel='stylesheet' type='text/css'>
-  <link href='//fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css'>
-
-  <!-- Le fav and touch icons -->
-  <link rel='apple-touch-icon' sizes='180x180' href='https://wri.utah.gov/wri/ico/apple-touch-icon.png'>
-  <link rel='icon' type='image/png' sizes='32x32' href='https://wri.utah.gov/wri/ico/favicon-32x32.png'>
-  <link rel='icon' type='image/png' sizes='16x16' href='https://wri.utah.gov/wri/ico/favicon-16x16.png'>
-  <link rel='mask-icon' href='https://wri.utah.gov/wri/ico/safari-pinned-tab.svg' color='#5bbad5'>
-  <link rel='shortcut icon' href='https://wri.utah.gov/wri/ico/favicon.ico'>
-  <meta name='msapplication-TileColor' content='#da532c'>
-  <meta name='msapplication-config' content='https://wri.utah.gov/wri/ico/browserconfig.xml'>
-  <meta name='theme-color' content='#ffffff'><!-- CSS -->
-</head>
-
-<body class='claro'>
-  <div id="header-container" class="site-full">
-    <a class="visuallyhidden" href="#content-main" tabindex="1" title="Mobile Menu Link"></a>
-    <div id="mobilemenu">
-      <a href="#" id="mobile-mainmenu-button" class="ir">Main Menu</a>
-      <a href="#" id="mobile-searchbutton" class="ir">Search</a>
-      <span><a href="https://wri.utah.gov/wri">Utah's Watershed Restoration Initiative</a></span>
+  <body class="claro">
+    <div id="header-container" class="site-full">
+      <a class="visuallyhidden" href="#content-main" tabindex="1" title="Mobile Menu Link"></a>
+      <div id="mobilemenu">
+        <a href="#" id="mobile-mainmenu-button" class="ir">Main Menu</a>
+        <a href="#" id="mobile-searchbutton" class="ir">Search</a>
+        <span><a href="https://wri.utah.gov/wri">Utah's Watershed Restoration Initiative</a></span>
+      </div>
+      <div id="header-wrapper" class="site-full">
+        <div id="header" class="site">
+          <a href="https://wri.utah.gov/wri" title="" rel="home" id="wri-logo" class="ir"
+            >Utah's Watershed Restoration Initiative</a
+          >
+          <div id="mainmenu">
+            <ul id="menu">
+              <li><a class="projects" href="https://wri.utah.gov/wri/project/search.html">Projects</a></li>
+              <li><a class="maps active" href="https://wri.utah.gov/wri/map/map.html">Maps</a></li>
+              <li><a class="aboutUs" href="http://watershed.utah.gov" target="_blank">About Us</a></li>
+              <li><a class="create" href="https://wri.utah.gov/wri/register.html">Register</a></li>
+              <li><a class="login" href="https://wri.utah.gov/wri/secure/login.html">Login</a></li>
+            </ul>
+            <div class="clearfix"></div>
+          </div>
+          <!--end of mainmenu-->
+        </div>
+        <!--end of header-->
+      </div>
+      <!--end of header-wrapper-->
     </div>
-    <div id="header-wrapper" class="site-full">
-      <div id="header" class="site">
-        <a href="https://wri.utah.gov/wri" title="" rel="home" id="wri-logo" class="ir">Utah's Watershed Restoration
-          Initiative</a>
-        <div id="mainmenu">
-          <ul id="menu">
-            <li><a class="projects" href="https://wri.utah.gov/wri/project/search.html">Projects</a></li>
-            <li><a class="maps active" href="https://wri.utah.gov/wri/map/map.html">Maps</a></li>
-            <li><a class="aboutUs" href="http://watershed.utah.gov" target="_blank">About Us</a></li>
-            <li><a class="create" href="https://wri.utah.gov/wri/register.html">Register</a></li>
-            <li><a class="login" href="https://wri.utah.gov/wri/secure/login.html">Login</a></li>
-          </ul>
-          <div class="clearfix"></div>
-        </div><!--end of mainmenu-->
-      </div><!--end of header-->
-    </div><!--end of header-wrapper-->
-  </div>
-  <div id="content-wrapper" class="site-full clearfix">
-    <div id="content" class="site-full">
-      <div id="content-map" class="site-full">
-        <form id="user-data">
-          <input type="hidden" name="key" value="">
-          <input type="hidden" name="token" value="">
-          <input type="hidden" name="lookup_cache_key" value="1">
-        </form>
-        <div class="agrc-container">
-          <noscript> You need to enable JavaScript to run this app. </noscript>
-          <div id="root"></div>
-          <script type="module" src="/src/main.tsx"></script>
+    <div id="content-wrapper" class="site-full clearfix">
+      <div id="content" class="site-full">
+        <div id="content-map" class="site-full">
+          <form id="user-data">
+            <input type="hidden" name="key" value="" />
+            <input type="hidden" name="token" value="" />
+            <input type="hidden" name="lookup_cache_key" value="1" />
+          </form>
+          <div class="agrc-container">
+            <noscript> You need to enable JavaScript to run this app. </noscript>
+            <div id="root"></div>
+            <script type="module" src="/src/main.tsx"></script>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  <div id="footer-wrapper" class="site-full">
-    <div id="footer" class="site">
-      <div class="stateFooterLinks right">
-        <ul>
-          <li><a href="http://www.utah.gov/main/index">Utah.gov</a></li>
-          <li><a href="http://www.utah.gov/disclaimer.html">Terms of Use</a></li>
-          <li><a href="http://www.utah.gov/privacypolicy.html">Privacy Policy</a></li>
-          <li><a href="http://www.utah.gov/accessibility.html">Accessibility Policy</a></li>
-          <li><a href="http://www.utah.gov/translate.html">Translate</a></li>
-          <li><a href="http://watershed.utah.gov/contact-wri/" target="_blank">Contact Us</a></li>
-        </ul>
-      </div><!--end of col20-->
-      <div class="browserMessage">
-        Note: Internet Explorer is not fully supported and some functionality will not work. Please use a recent version
-        of Chrome, Firefox, Edge or Safari
+    <div id="footer-wrapper" class="site-full">
+      <div id="footer" class="site">
+        <div class="stateFooterLinks right">
+          <ul>
+            <li><a href="http://www.utah.gov/main/index">Utah.gov</a></li>
+            <li><a href="http://www.utah.gov/disclaimer.html">Terms of Use</a></li>
+            <li><a href="http://www.utah.gov/privacypolicy.html">Privacy Policy</a></li>
+            <li><a href="http://www.utah.gov/accessibility.html">Accessibility Policy</a></li>
+            <li><a href="http://www.utah.gov/translate.html">Translate</a></li>
+            <li><a href="http://watershed.utah.gov/contact-wri/" target="_blank">Contact Us</a></li>
+          </ul>
+        </div>
+        <!--end of col20-->
+        <div class="browserMessage">
+          Note: Internet Explorer is not fully supported and some functionality will not work. Please use a recent
+          version of Chrome, Firefox, Edge or Safari
+        </div>
+        <div class="versionNumber">
+          2.1.0-583-g22e350c | &copy; 2015 -
+          <script>
+            document.write(new Date().getFullYear());
+          </script>
+          DTS
+        </div>
+        <div class="clearfix"></div>
       </div>
-      <div class="versionNumber">
-        2.1.0-583-g22e350c
-        | &copy; 2015 -
-        <script>
-          document.write(new Date().getFullYear())
-        </script>
-        DTS
-      </div>
-      <div class="clearfix"></div>
-    </div><!--end of footer-->
-  </div><!--end of footer-wrapper-->
-  <!-- utah header, which includes accessibility settings -->
-  <script src="https://wri.utah.gov/wri/js/header/utah_gov_header.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      loadUtahHeader({
-        backgroundColor: '#222222',
-        foregroundColor: '#FFFFFF',
-        darkColorScheme: true,
-        height: '32px',
-        agencyName: 'Department of Natural Resources',
-        agencyShortName: 'DNR',
-        //agencyLogoUrl: '/css/dts_logo.png',
-        agencyLink: 'https://naturalresources.utah.gov/',
-        iconBaseURL: '',
-        fontWeights: [200, 300, 400, 500, 600, 700, 800],
-        defaultFontWeight: 400,
-        defaultFontSize: 16,
-        skipNav: true,
-        mainContentId: 'maincontent'
+      <!--end of footer-->
+    </div>
+    <!--end of footer-wrapper-->
+    <!-- utah header, which includes accessibility settings -->
+    <script src="https://wri.utah.gov/wri/js/header/utah_gov_header.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        loadUtahHeader({
+          backgroundColor: '#222222',
+          foregroundColor: '#FFFFFF',
+          darkColorScheme: true,
+          height: '32px',
+          agencyName: 'Department of Natural Resources',
+          agencyShortName: 'DNR',
+          //agencyLogoUrl: '/css/dts_logo.png',
+          agencyLink: 'https://naturalresources.utah.gov/',
+          iconBaseURL: '',
+          fontWeights: [200, 300, 400, 500, 600, 700, 800],
+          defaultFontWeight: 400,
+          defaultFontSize: 16,
+          skipNav: true,
+          mainContentId: 'maincontent',
+        });
       });
-    });
-  </script>
-</body>
+    </script>
+  </body>
+</html>

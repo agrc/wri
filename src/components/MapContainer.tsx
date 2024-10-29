@@ -20,7 +20,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useMap } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
-import { ReferenceLayer } from './ReferenceData';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;

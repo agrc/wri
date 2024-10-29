@@ -130,7 +130,7 @@ dist
 .pnp.*
 
 # deploy
-/public/wri/
+/public/js/
 /build
 /deploy
 /dist

@@ -7,7 +7,7 @@
     "build": "tsc -b && vite build",
     "build-storybook": "storybook build",
     "check": "tsc -b",
-    "copy:arcgis": "cpy \"./node_modules/@arcgis/core/assets/**\" ./public/wri/js/ugrc/assets",
+    "copy:arcgis": "cpy \"./node_modules/@arcgis/core/assets/**\" ./public/js/ugrc/assets",
     "dev": "npm start",
     "format": "prettier . --write",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",

@@ -29,6 +29,11 @@
       "last 1 safari version"
     ]
   },
+  "eslintConfig": {
+    "extends": [
+      "plugin:storybook/recommended"
+    ]
+  },
   "dependencies": {
     "@arcgis/core": "^4.30.9",
     "@ugrc/layer-selector": "^6.2.9",

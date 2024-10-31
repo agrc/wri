@@ -6,6 +6,9 @@ import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
 import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';
 import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
 import { ReferenceData, ReferenceLayer } from './ReferenceData';
+type LegendMetadata = __esri.FeatureLayerProperties & {
+  legendDescription?: string;
+};
 
 const meta = {
   title: 'Example/ReferenceData',
@@ -34,7 +37,8 @@ layers.addMany([
     title: 'Land Ownership',
     url: '',
     id: 'reference-land-ownership',
-  }),
+    legendDescription: 'A legend description',
+  } as LegendMetadata),
   new FeatureLayer({
     title: 'Utah PLSS',
     url: '',

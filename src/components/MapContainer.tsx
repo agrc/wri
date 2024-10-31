@@ -34,6 +34,13 @@ type SelectorOptions = {
   overlays?: Array<string | LayerFactory>;
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 };
+type LegendMetadata = (
+  | __esri.VectorTileLayerProperties
+  | __esri.FeatureLayerProperties
+  | __esri.WebTileLayerProperties
+) & {
+  legendDescription?: string;
+};
 
 const statewide = new Extent({
   xmax: -11762120.612131765,
@@ -51,16 +58,18 @@ const landOwnership = new VectorTileLayer({
   url: 'https://gis.trustlands.utah.gov/hosting/rest/services/Hosted/Land_Ownership_WM_VectorTile/VectorTileServer',
   visible: false,
   opacity: 0.3,
-});
+  legendDescription: 'Owner',
+} as LegendMetadata);
 const plss = new VectorTileLayer({
   title: 'Utah PLSS',
   id: 'reference-plss',
   url: 'https://tiles.arcgis.com/tiles/99lidPhWCzftIe9K/arcgis/rest/services/UtahPLSS/VectorTileServer',
   visible: false,
   opacity: 0.9,
-});
+  legendDescription: 'Townships, Range, and Sections',
+} as LegendMetadata);
 const streams = new FeatureLayer({
-  title: 'NHD Streams',
+  title: 'Streams',
   id: 'reference-streams',
   url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStreamsNHD/FeatureServer/0',
   fields: ['GNIS_Name'],
@@ -263,9 +272,10 @@ const precipitation = new FeatureLayer({
   }),
   minScale: 2000000,
   maxScale: 0,
-});
+  legendDescription: 'Inches',
+} as LegendMetadata);
 const rangeSites = new FeatureLayer({
-  title: 'Range Trend Sites',
+  title: 'Range Trend Studies',
   id: 'reference-range-sites',
   url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/7',
   fields: ['STUDY_NAME', 'GlobalID'],
@@ -777,7 +787,8 @@ const forestService = new FeatureLayer({
       maxScale: 0,
     },
   ],
-});
+  legendDescription: '',
+} as LegendMetadata);
 const sageGrouse = new FeatureLayer({
   title: 'Sage Grouse Areas',
   id: 'reference-sage-grouse',
@@ -1019,7 +1030,8 @@ const stewardship = new FeatureLayer({
       }),
     ],
   }),
-});
+  legendDescription: 'Total Composite Score',
+} as LegendMetadata);
 
 export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickEventHandler }) => {
   const mapNode = useRef<HTMLDivElement | null>(null);

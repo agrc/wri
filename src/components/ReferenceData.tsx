@@ -1,6 +1,4 @@
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
-import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer';
-import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer';
 import { renderPreviewHTML } from '@arcgis/core/symbols/support/symbolUtils';
 import { Button, Dialog, Popover, Switch, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { PaletteIcon } from 'lucide-react';
@@ -10,6 +8,7 @@ import config from '../config';
 import { isVisible } from './utils';
 
 export type ReferenceLayer = __esri.Layer & __esri.ScaleRangeLayer;
+export type ReferenceLayerWithMetadata = ReferenceLayer & { legendDescription?: string };
 
 export const ReferenceData = ({
   layers,
@@ -145,7 +144,7 @@ const Swatches = ({ renderer }: { renderer: __esri.Renderer }) => {
   }
 };
 
-export const ReferenceDataLegend = ({ layer }: { layer: __esri.Layer & __esri.ScaleRangeLayer }) => {
+export const ReferenceDataLegend = ({ layer }: { layer: ReferenceLayerWithMetadata }) => {
   let renderer: __esri.Renderer | undefined;
   let fields: __esri.Field[] | undefined;
 
@@ -171,8 +170,8 @@ export const ReferenceDataLegend = ({ layer }: { layer: __esri.Layer & __esri.Sc
           <p slot="header" className="pb-2 text-sm font-semibold">
             {layer.title} Legend
           </p>
-          {renderer && (renderer instanceof ClassBreaksRenderer || renderer instanceof UniqueValueRenderer) && (
-            <p>{renderer.field}</p>
+          {layer.legendDescription && (
+            <p className="pb-2 text-sm font-semibold italic text-zinc-500">{layer.legendDescription}</p>
           )}
           {renderer && fields && <Swatches renderer={renderer} />}
         </Dialog>

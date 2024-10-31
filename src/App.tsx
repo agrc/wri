@@ -30,7 +30,7 @@ ErrorFallback.propTypes = {
   error: PropTypes.object,
 };
 
-esriConfig.assetsPath = './wri/js/ugrc/assets';
+esriConfig.assetsPath = './js/ugrc/assets';
 
 export default function App() {
   const { placeGraphic, mapView, currentMapScale } = useMap();

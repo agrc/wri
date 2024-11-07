@@ -1485,7 +1485,6 @@ export const MapContainer = () => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView>();
-  // const clickHandler = useRef<IHandle>();
   const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);
@@ -1535,7 +1534,6 @@ export const MapContainer = () => {
     };
   }, [setMapView]);
 
-  // add click event handlers
   // add the map layers
   useEffect(() => {
     if (isReady) {

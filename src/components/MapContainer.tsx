@@ -1537,6 +1537,8 @@ export const MapContainer = () => {
   // add the map layers
   useEffect(() => {
     if (isReady) {
+      // layers are stacked on top of each other in a reverse order from how they are listed
+      // e.g. land ownership is on the very bottom and centroids are on the very top
       addLayers([
         landOwnership,
         plss,

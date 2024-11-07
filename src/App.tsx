@@ -1,18 +1,21 @@
 import esriConfig from '@arcgis/core/config.js';
 import Collection from '@arcgis/core/core/Collection.js';
-import { whenOnce } from '@arcgis/core/core/reactiveUtils.js';
 
 import { Drawer } from '@ugrc/utah-design-system';
 import PropTypes from 'prop-types';
-import { useCallback, useEffect, useState } from 'react';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
-import { MapContainer } from './components';
+import {
+  FeatureData,
+  MapContainer,
+  ReferenceData,
+  ReferenceLabelSwitch,
+  ReferenceLayer,
+  TagGroupLoader,
+} from './components';
 import { projectStatus } from './components/data/filters.js';
-import { FeatureData } from './components/FeatureData.tsx';
 import { useMap } from './components/hooks';
-import { ReferenceData, ReferenceLabelSwitch, ReferenceLayer } from './components/ReferenceData.tsx';
 import config from './config.js';
 
 const ErrorFallback = ({ error }: { error: Error }) => {
@@ -31,7 +34,6 @@ ErrorFallback.propTypes = {
 esriConfig.assetsPath = './js/ugrc/assets';
 
 export default function App() {
-  const [viewReady, setViewReady] = useState<boolean>(false);
   const { mapView, currentMapScale } = useMap();
 
   const sideBarState = useOverlayTriggerState({ defaultOpen: window.innerWidth >= config.MIN_DESKTOP_WIDTH });
@@ -50,15 +52,9 @@ export default function App() {
     trayState,
   );
 
-
-  const layers = (mapView?.map?.layers as Collection<ReferenceLayer>) ?? [];
-
-  // when the layers have loaded
-  useEffect(() => {
-    whenOnce(() => !mapView?.updating).then(() => {
-      setViewReady(true);
-    });
-  }, [mapView]);
+  const allLayers = mapView?.map?.layers ?? new Collection();
+  const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<__esri.FeatureLayer>;
+  const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
 
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
@@ -74,7 +70,11 @@ export default function App() {
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 <h5 className="dark:text-zinc-200">Project Status</h5>
-                {viewReady && <FeatureData layers={layers} status={projectStatus} />}
+                {featureLayers.length > 0 ? (
+                  <FeatureData layers={featureLayers} status={projectStatus} />
+                ) : (
+                  <TagGroupLoader />
+                )}
               </ErrorBoundary>
             </div>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
@@ -85,8 +85,14 @@ export default function App() {
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 <h5 className="dark:text-zinc-200">Map Reference data</h5>
-                <ReferenceData layers={layers} currentMapScale={currentMapScale ?? 0} />
-                <ReferenceLabelSwitch layers={layers}>Labels</ReferenceLabelSwitch>
+                {referenceLayers.length > 0 ? (
+                  <>
+                    <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />
+                    <ReferenceLabelSwitch layers={referenceLayers}>Labels</ReferenceLabelSwitch>
+                  </>
+                ) : (
+                  <TagGroupLoader />
+                )}
               </ErrorBoundary>
             </div>
           </div>

@@ -130,10 +130,12 @@ dist
 .pnp.*
 
 # deploy
-/public/wri/
+/public/js/
 /build
 /deploy
 /dist
 
 # MacOS
 .DS_Store
+
+*storybook.log

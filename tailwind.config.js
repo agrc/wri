@@ -1,7 +1,52 @@
-import ugrcPreset from '@ugrc/tailwind-preset';
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./node_modules/@ugrc/**/*.{tsx,jsx,js}', './index.html', './src/**/*.{tsx,jsx,js}'],
-  presets: [ugrcPreset],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#F2F8F8',
+          100: '#E4F1F0',
+          200: '#C7E1DF',
+          300: '#ACD2D1',
+          400: '#8EC2C0',
+          500: '#74B4B1',
+          600: '#57A39F',
+          700: '#498885',
+          800: '#3B6D6B',
+          900: '#2B504E',
+          950: '#152827',
+        },
+        secondary: {
+          50: '#F4F9FB',
+          100: '#E9F2F6',
+          200: '#D3E6EE',
+          300: '#C1DBE6',
+          400: '#ABCEDE',
+          500: '#95C2D5',
+          600: '#7FB5CC',
+          700: '#69A9C4',
+          800: '#539CBB',
+          900: '#458FAE',
+          950: '#234858',
+        },
+        accent: {
+          50: '#f0d1c4',
+          100: '#e1b7a5',
+          200: '#d29d86',
+          300: '#c28368',
+          400: '#b36949',
+          500: '#a44f2a',
+          600: '#813e21',
+          700: '#5d2d18',
+          800: '#3a1c0f',
+          900: '#160b06',
+        },
+      },
+      fontFamily: {
+        utah: ['"Source Sans 3"', '"Source Sans Pro"', 'Helvetica', 'Arial', 'sans-serif'],
+      },
+    },
+  },
   plugins: [],
 };

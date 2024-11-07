@@ -1,4 +1,5 @@
 import esriConfig from '@arcgis/core/config';
+import Collection from '@arcgis/core/core/Collection';
 import Point from '@arcgis/core/geometry/Point';
 import Graphic from '@arcgis/core/Graphic';
 import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol.js';
@@ -11,6 +12,7 @@ import { useOverlayTriggerState } from 'react-stately';
 import { MapContainer } from './components';
 import { useMap } from './components/hooks';
 import { IdentifyInformation } from './components/Identify';
+import { ReferenceData, ReferenceLabelSwitch, ReferenceLayer } from './components/ReferenceData';
 import config from './config';
 
 const apiKey = import.meta.env.VITE_WEB_API;
@@ -28,10 +30,10 @@ ErrorFallback.propTypes = {
   error: PropTypes.object,
 };
 
-esriConfig.assetsPath = './wri/js/ugrc/assets';
+esriConfig.assetsPath = './js/ugrc/assets';
 
 export default function App() {
-  const { placeGraphic, mapView } = useMap();
+  const { placeGraphic, mapView, currentMapScale } = useMap();
   const [initialIdentifyLocation, setInitialIdentifyLocation] = useState<Point | null>(null);
   const sideBarState = useOverlayTriggerState({ defaultOpen: window.innerWidth >= config.MIN_DESKTOP_WIDTH });
   const sideBarTriggerProps = useOverlayTrigger(
@@ -80,6 +82,8 @@ export default function App() {
     [mapView, placeGraphic, trayState],
   );
 
+  const layers = (mapView?.map?.layers as Collection<ReferenceLayer>) ?? [];
+
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
       <section className="relative flex min-h-0 flex-1 gap-2">
@@ -96,7 +100,11 @@ export default function App() {
               <ErrorBoundary FallbackComponent={ErrorFallback}>Feature Type</ErrorBoundary>
             </div>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>Map Reference data</ErrorBoundary>
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                Map Reference data
+                <ReferenceData layers={layers} currentMapScale={currentMapScale ?? 0} />
+                <ReferenceLabelSwitch layers={layers}>Labels</ReferenceLabelSwitch>
+              </ErrorBoundary>
             </div>
           </div>
         </Drawer>

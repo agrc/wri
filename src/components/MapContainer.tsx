@@ -1481,7 +1481,7 @@ const centroids = new FeatureLayer({
   }),
 });
 
-export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickEventHandler }) => {
+export const MapContainer = () => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView>();
@@ -1536,16 +1536,6 @@ export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickE
   }, [setMapView]);
 
   // add click event handlers
-  // useEffect(() => {
-  //   if (onClick) {
-  //     clickHandler.current = mapView.current!.on('immediate-click', onClick);
-  //   }
-
-  //   return () => {
-  //     clickHandler.current?.remove();
-  //   };
-  // }, [onClick, mapView]);
-
   // add the map layers
   useEffect(() => {
     if (isReady) {

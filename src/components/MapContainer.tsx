@@ -1,18 +1,18 @@
-import Extent from '@arcgis/core/geometry/Extent';
-import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
-import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer';
-import WebTileLayer from '@arcgis/core/layers/WebTileLayer';
-import EsriMap from '@arcgis/core/Map';
-import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer';
-import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
-import ClassBreakInfo from '@arcgis/core/renderers/support/ClassBreakInfo';
-import UniqueValueInfo from '@arcgis/core/renderers/support/UniqueValueInfo';
-import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer';
-import SizeVariable from '@arcgis/core/renderers/visualVariables/SizeVariable';
-import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';
-import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
-import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol';
-import MapView from '@arcgis/core/views/MapView';
+import Extent from '@arcgis/core/geometry/Extent.js';
+import FeatureLayer from '@arcgis/core/layers/FeatureLayer.js';
+import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer.js';
+import WebTileLayer from '@arcgis/core/layers/WebTileLayer.js';
+import EsriMap from '@arcgis/core/Map.js';
+import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer.js';
+import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer.js';
+import ClassBreakInfo from '@arcgis/core/renderers/support/ClassBreakInfo.js';
+import UniqueValueInfo from '@arcgis/core/renderers/support/UniqueValueInfo.js';
+import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer.js';
+import SizeVariable from '@arcgis/core/renderers/visualVariables/SizeVariable.js';
+import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol.js';
+import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol.js';
+import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol.js';
+import MapView from '@arcgis/core/views/MapView.js';
 
 import LayerSelector from '@ugrc/layer-selector';
 import { useMapReady } from '@ugrc/utilities/hooks';
@@ -1032,12 +1032,460 @@ const stewardship = new FeatureLayer({
   }),
   legendDescription: 'Total Composite Score',
 } as LegendMetadata);
+const points = new FeatureLayer({
+  title: 'Points',
+  id: 'feature-points',
+  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/0',
+  fields: ['StatusDescription'],
+  visible: false,
+  renderer: new UniqueValueRenderer({
+    field: 'StatusDescription',
+    uniqueValueInfos: [
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [190, 30, 45, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Cancelled',
+        label: 'Cancelled',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [38, 147, 69, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Completed',
+        label: 'Completed',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [33, 145, 174, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Current',
+        label: 'Current',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [131, 142, 142, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Draft',
+        label: 'Draft',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [204, 159, 43, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Pending Completed',
+        label: 'Pending Completed',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [0, 0, 0, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Proposed',
+        label: 'Proposed',
+      },
+    ],
+    authoringInfo: {
+      colorRamp: {
+        type: 'multipart',
+        colorRamps: [
+          {
+            algorithm: 'cie-lab',
+            fromColor: [179, 184, 252, 255],
+            toColor: [179, 184, 252, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [179, 252, 179, 255],
+            toColor: [179, 252, 179, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [252, 202, 184, 255],
+            toColor: [252, 202, 184, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [189, 247, 252, 255],
+            toColor: [189, 247, 252, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [252, 184, 224, 255],
+            toColor: [252, 184, 224, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [252, 244, 179, 255],
+            toColor: [252, 244, 179, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [212, 252, 217, 255],
+            toColor: [212, 252, 217, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [207, 219, 252, 255],
+            toColor: [207, 219, 252, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [228, 187, 252, 255],
+            toColor: [228, 187, 252, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [221, 252, 182, 255],
+            toColor: [221, 252, 182, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [252, 215, 224, 255],
+            toColor: [252, 215, 224, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [252, 233, 199, 255],
+            toColor: [252, 233, 199, 255],
+          },
+          {
+            algorithm: 'cie-lab',
+            fromColor: [215, 238, 252, 255],
+            toColor: [215, 238, 252, 255],
+          },
+        ],
+      },
+    },
+  }),
+});
+const lines = new FeatureLayer({
+  title: 'Lines',
+  id: 'feature-lines',
+  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/1',
+  fields: ['StatusDescription'],
+  visible: false,
+  definitionExpression: '',
+  renderer: new UniqueValueRenderer({
+    field: 'StatusDescription',
+    uniqueValueInfos: [
+      {
+        symbol: new SimpleLineSymbol({
+          style: 'solid',
+          color: [131, 142, 142, 255],
+          width: 3,
+        }),
+        value: 'Draft',
+        label: 'Draft',
+      },
+      {
+        symbol: new SimpleLineSymbol({
+          style: 'solid',
+          color: [0, 0, 0, 255],
+          width: 3,
+        }),
+        value: 'Proposed',
+        label: 'Proposed',
+      },
+      {
+        symbol: new SimpleLineSymbol({
+          style: 'solid',
+          color: [33, 145, 174, 255],
+          width: 3,
+        }),
+        value: 'Current',
+        label: 'Current',
+      },
+      {
+        symbol: new SimpleLineSymbol({
+          style: 'solid',
+          color: [204, 159, 43, 255],
+          width: 3,
+        }),
+        value: 'Pending Completed',
+        label: 'Pending Completed',
+      },
+      {
+        symbol: new SimpleLineSymbol({
+          style: 'solid',
+          color: [38, 147, 69, 255],
+          width: 3,
+        }),
+        value: 'Completed',
+        label: 'Completed',
+      },
+      {
+        symbol: new SimpleLineSymbol({
+          style: 'solid',
+          color: [190, 30, 45, 255],
+          width: 3,
+        }),
+        value: 'Cancelled',
+        label: 'Cancelled',
+      },
+    ],
+  }),
+});
+const polygons = new FeatureLayer({
+  title: 'Polygons',
+  id: 'feature-polygons',
+  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/2',
+  fields: ['StatusDescription'],
+  visible: false,
+  definitionExpression: '',
+  opacity: 0.7,
+  renderer: new UniqueValueRenderer({
+    field: 'StatusDescription',
+    uniqueValueInfos: [
+      {
+        symbol: new SimpleFillSymbol({
+          style: 'solid',
+          color: [131, 142, 142, 255],
+          outline: new SimpleLineSymbol({
+            style: 'solid',
+            color: [110, 110, 110, 255],
+            width: 0.4,
+          }),
+        }),
+        value: 'Draft',
+        label: 'Draft',
+      },
+      {
+        symbol: new SimpleFillSymbol({
+          style: 'solid',
+          color: [0, 0, 0, 255],
+          outline: new SimpleLineSymbol({
+            style: 'solid',
+            color: [110, 110, 110, 255],
+            width: 0.4,
+          }),
+        }),
+        value: 'Proposed',
+        label: 'Proposed',
+      },
+      {
+        symbol: new SimpleFillSymbol({
+          style: 'solid',
+          color: [33, 145, 174, 255],
+          outline: new SimpleLineSymbol({
+            style: 'solid',
+            color: [110, 110, 110, 255],
+            width: 0.4,
+          }),
+        }),
+        value: 'Current',
+        label: 'Current',
+      },
+      {
+        symbol: new SimpleFillSymbol({
+          style: 'solid',
+          color: [204, 159, 43, 255],
+          outline: new SimpleLineSymbol({
+            style: 'solid',
+            color: [110, 110, 110, 255],
+            width: 0.4,
+          }),
+        }),
+        value: 'Pending Completed',
+        label: 'Pending Completed',
+      },
+      {
+        symbol: new SimpleFillSymbol({
+          style: 'solid',
+          color: [38, 147, 69, 255],
+          outline: new SimpleLineSymbol({
+            style: 'solid',
+            color: [110, 110, 110, 255],
+            width: 0.4,
+          }),
+        }),
+        value: 'Completed',
+        label: 'Completed',
+      },
+      {
+        symbol: new SimpleFillSymbol({
+          style: 'solid',
+          color: [190, 30, 45, 255],
+          outline: new SimpleLineSymbol({
+            style: 'solid',
+            color: [110, 110, 110, 255],
+            width: 0.4,
+          }),
+        }),
+        value: 'Cancelled',
+        label: 'Cancelled',
+      },
+    ],
+  }),
+});
+const centroids = new FeatureLayer({
+  title: 'Centroids',
+  id: 'feature-centroids',
+  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Projects/MapServer/0',
+  fields: ['Status'],
+  visible: true,
+  definitionExpression: '',
+  renderer: new UniqueValueRenderer({
+    field: 'Status',
+    uniqueValueInfos: [
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [190, 30, 45, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Cancelled',
+        label: 'Cancelled',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [38, 147, 69, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Completed',
+        label: 'Completed',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [33, 145, 174, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Current',
+        label: 'Current',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [131, 142, 142, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Draft',
+        label: 'Draft',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [204, 159, 43, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Pending Completed',
+        label: 'Pending Completed',
+      },
+      {
+        symbol: new SimpleMarkerSymbol({
+          style: 'circle',
+          color: [0, 0, 0, 255],
+          size: 7,
+          angle: 0,
+          xoffset: 0,
+          yoffset: 0,
+          outline: {
+            color: [0, 0, 0, 255],
+            width: 1,
+          },
+        }),
+        value: 'Proposed',
+        label: 'Proposed',
+      },
+    ],
+  }),
+});
 
 export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickEventHandler }) => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView>();
-  const clickHandler = useRef<IHandle>();
+  // const clickHandler = useRef<IHandle>();
   const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);
@@ -1088,15 +1536,15 @@ export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickE
   }, [setMapView]);
 
   // add click event handlers
-  useEffect(() => {
-    if (onClick) {
-      clickHandler.current = mapView.current!.on('immediate-click', onClick);
-    }
+  // useEffect(() => {
+  //   if (onClick) {
+  //     clickHandler.current = mapView.current!.on('immediate-click', onClick);
+  //   }
 
-    return () => {
-      clickHandler.current?.remove();
-    };
-  }, [onClick, mapView]);
+  //   return () => {
+  //     clickHandler.current?.remove();
+  //   };
+  // }, [onClick, mapView]);
 
   // add the map layers
   useEffect(() => {
@@ -1114,6 +1562,10 @@ export const MapContainer = ({ onClick }: { onClick?: __esri.ViewImmediateClickE
         forestService,
         sageGrouse,
         stewardship,
+        polygons,
+        lines,
+        points,
+        centroids,
       ]);
     }
     setMapView(mapView.current!);

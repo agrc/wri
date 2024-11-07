@@ -1,19 +1,23 @@
-import esriConfig from '@arcgis/core/config';
-import Collection from '@arcgis/core/core/Collection';
-import Point from '@arcgis/core/geometry/Point';
-import Graphic from '@arcgis/core/Graphic';
+import esriConfig from '@arcgis/core/config.js';
+import Collection from '@arcgis/core/core/Collection.js';
+import { whenOnce } from '@arcgis/core/core/reactiveUtils.js';
+import Point from '@arcgis/core/geometry/Point.js';
+import Graphic from '@arcgis/core/Graphic.js';
 import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol.js';
+
 import { Drawer } from '@ugrc/utah-design-system';
 import PropTypes from 'prop-types';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
 import { MapContainer } from './components';
+import { projectStatus } from './components/data/filters.js';
+import { FeatureData } from './components/FeatureData.tsx';
 import { useMap } from './components/hooks';
-import { IdentifyInformation } from './components/Identify';
-import { ReferenceData, ReferenceLabelSwitch, ReferenceLayer } from './components/ReferenceData';
-import config from './config';
+import { IdentifyInformation } from './components/Identify.jsx';
+import { ReferenceData, ReferenceLabelSwitch, ReferenceLayer } from './components/ReferenceData.tsx';
+import config from './config.js';
 
 const apiKey = import.meta.env.VITE_WEB_API;
 
@@ -35,6 +39,8 @@ esriConfig.assetsPath = './js/ugrc/assets';
 export default function App() {
   const { placeGraphic, mapView, currentMapScale } = useMap();
   const [initialIdentifyLocation, setInitialIdentifyLocation] = useState<Point | null>(null);
+  const [viewReady, setViewReady] = useState<boolean>(false);
+
   const sideBarState = useOverlayTriggerState({ defaultOpen: window.innerWidth >= config.MIN_DESKTOP_WIDTH });
   const sideBarTriggerProps = useOverlayTrigger(
     {
@@ -84,6 +90,13 @@ export default function App() {
 
   const layers = (mapView?.map?.layers as Collection<ReferenceLayer>) ?? [];
 
+  // when the layers have loaded
+  useEffect(() => {
+    whenOnce(() => !mapView?.updating).then(() => {
+      setViewReady(true);
+    });
+  }, [mapView]);
+
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
       <section className="relative flex min-h-0 flex-1 gap-2">
@@ -91,17 +104,24 @@ export default function App() {
           <div className="mx-2 mb-2 grid grid-cols-1 gap-2">
             <h2 className="text-xl font-bold">Map controls</h2>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>Search tool</ErrorBoundary>
-            </div>
-            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>Project Status</ErrorBoundary>
-            </div>
-            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>Feature Type</ErrorBoundary>
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                <h5 className="dark:text-zinc-200">Search tool</h5>
+              </ErrorBoundary>
             </div>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
               <ErrorBoundary FallbackComponent={ErrorFallback}>
-                Map Reference data
+                <h5 className="dark:text-zinc-200">Project Status</h5>
+                {viewReady && <FeatureData layers={layers} status={projectStatus} />}
+              </ErrorBoundary>
+            </div>
+            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                <h5 className="dark:text-zinc-200">Feature Type</h5>
+              </ErrorBoundary>
+            </div>
+            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                <h5 className="dark:text-zinc-200">Map Reference data</h5>
                 <ReferenceData layers={layers} currentMapScale={currentMapScale ?? 0} />
                 <ReferenceLabelSwitch layers={layers}>Labels</ReferenceLabelSwitch>
               </ErrorBoundary>

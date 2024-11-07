@@ -162,7 +162,7 @@ export const ReferenceDataLegend = ({ layer }: { layer: ReferenceLayerWithMetada
 
   return (
     <DialogTrigger>
-      <Button variant="icon" aria-label="Help" slot="remove">
+      <Button variant="icon" aria-label="Legend" slot="remove" className="min-h-0 px-0">
         <PaletteIcon className="size-3 has-[data-disabled]:text-red-400 has-[data-selected]:text-white" />
       </Button>
       <Popover className="min-h-20 w-full min-w-0 max-w-[325px]">

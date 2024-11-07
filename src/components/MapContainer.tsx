@@ -15,11 +15,12 @@ import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol.js';
 import MapView from '@arcgis/core/views/MapView.js';
 
 import LayerSelector from '@ugrc/layer-selector';
-import { useMapReady } from '@ugrc/utilities/hooks';
+import { useMapReady, useViewLoading } from '@ugrc/utilities/hooks';
 import { useEffect, useRef, useState } from 'react';
 import { useMap } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
+import { BusyBar } from '@ugrc/utah-design-system';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;
@@ -1488,6 +1489,7 @@ export const MapContainer = () => {
   const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);
+  const isLoading = useViewLoading(mapView.current);
 
   // setup the Map
   useEffect(() => {
@@ -1562,8 +1564,11 @@ export const MapContainer = () => {
   }, [isReady, mapView, addLayers, setMapView]);
 
   return (
-    <div ref={mapNode} className="size-full">
-      {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}
-    </div>
+    <>
+      <BusyBar busy={isLoading} />
+      <div ref={mapNode} className="size-full">
+        {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}
+      </div>
+    </>
   );
 };

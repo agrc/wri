@@ -12,7 +12,6 @@ const setDefinitionExpression = (layers: Collection<__esri.FeatureLayer>, keys: 
   layers
     .filter((x) => x.id.startsWith('feature'))
     .forEach((layer) => {
-      console.log('layer', layer);
       if (keys === 'all') {
         layer.definitionExpression = all;
 

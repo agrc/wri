@@ -3,6 +3,7 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import prettier from 'eslint-plugin-prettier';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import storybook from 'eslint-plugin-storybook';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -10,6 +11,7 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  ...storybook.configs['flat/recommended'],
   {
     ...reactPlugin.configs.flat.recommended,
     languageOptions: {

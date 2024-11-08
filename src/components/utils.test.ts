@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isVisible, randomize } from './utils';
+import { areSetsEqual, isVisible, randomize } from './utils';
 
 describe('utils', () => {
   describe('isVisible', () => {
@@ -48,6 +48,32 @@ describe('utils', () => {
       const items = [1, 2, 3, 4, 5];
       const result = randomize(items);
       expect(result.item).toBe(items[result.index]);
+    });
+  });
+
+  describe('areSetsEqual', () => {
+    it('should return true if the sets are equal', () => {
+      const a = new Set([1, 2, 3]);
+      const b = new Set([1, 2, 3]);
+      expect(areSetsEqual(a, b)).toBe(true);
+    });
+
+    it('should return true if the sets are equal with strings', () => {
+      const a = new Set(['a', 'b', 'c']);
+      const b = new Set(['a', 'b', 'c']);
+      expect(areSetsEqual(a, b)).toBe(true);
+    });
+
+    it('should return false if the sets are not equal', () => {
+      const a = new Set([1, 2, 3]);
+      const b = new Set([1, 2, 4]);
+      expect(areSetsEqual(a, b)).toBe(false);
+    });
+
+    it('should return false if the sets are not the same size', () => {
+      const a = new Set([1, 2, 3]);
+      const b = new Set([1, 2, 3, 4]);
+      expect(areSetsEqual(a, b)).toBe(false);
     });
   });
 });

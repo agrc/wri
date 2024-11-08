@@ -9,6 +9,14 @@ const config = {
   WEB_MERCATOR_WKID: 3857,
   MARKER_FILL_COLOR: [234, 202, 0, 0.5],
   MARKER_OUTLINE_COLOR: [77, 42, 84, 1],
+  STATUS_COLORS: {
+    Cancelled: [190, 30, 45, 255],
+    Completed: [38, 147, 69, 255],
+    Current: [33, 145, 174, 255],
+    Draft: [131, 142, 142, 255],
+    Pending: [204, 159, 43, 255],
+    Proposed: [0, 0, 0, 255],
+  },
   LEGEND_DATA: [
     {
       id: 'reference-fire-threat-index',

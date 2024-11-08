@@ -26,7 +26,7 @@ const tagStyles = tv({
 
 type Status = keyof typeof tagStyles.variants.status;
 
-const setDefinitionExpression = (layers: Collection<__esri.FeatureLayer>, keys: Selection) => {
+const setDefinitionExpression = (layers: Collection<__esri.FeatureLayer>, keys: Selection) =>
   layers
     .filter((x) => x.id.startsWith('feature'))
     .forEach((layer) => {
@@ -42,11 +42,12 @@ const setDefinitionExpression = (layers: Collection<__esri.FeatureLayer>, keys: 
         return;
       }
 
-      layer.definitionExpression = `status in (${Array.from(keys)
+      const statusField = layer.id === 'feature-centroids' ? 'status' : 'statusDescription';
+
+      layer.definitionExpression = `${statusField} in (${Array.from(keys)
         .map((status) => `'${status}'`)
         .join(',')})`;
     });
-};
 
 export const FeatureData = ({
   layers,

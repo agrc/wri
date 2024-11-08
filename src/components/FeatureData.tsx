@@ -1,11 +1,12 @@
 import Collection from '@arcgis/core/core/Collection.js';
-import { Tag, TagGroup } from '@ugrc/utah-design-system';
-import { useEffect } from 'react';
+import { Button, Tag, TagGroup } from '@ugrc/utah-design-system';
+import { useEffect, useState } from 'react';
 import { type Selection } from 'react-aria-components';
 import { tv } from 'tailwind-variants';
 import { ProjectStatus } from './data/filters';
+import { areSetsEqual } from './utils';
 
-const initialState = ['Proposed', 'Current', 'Pending Completed', 'Completed'];
+const defaultState = new Set(['Proposed', 'Current', 'Pending Completed', 'Completed']);
 const all = '';
 const none = '1=0';
 
@@ -54,26 +55,29 @@ export const FeatureData = ({
   layers: __esri.Collection<__esri.FeatureLayer>;
   status: ProjectStatus[];
 }) => {
+  const [selected, setSelected] = useState<Selection>(defaultState);
+
   // synchronizes the definition expressions with the initial ui state
   useEffect(() => {
-    setDefinitionExpression(layers, new Set(initialState));
-  }, [layers]);
+    setDefinitionExpression(layers, selected);
+  }, [layers, selected]);
 
   return (
-    <TagGroup
-      defaultSelectedKeys={initialState}
-      selectionMode="multiple"
-      onSelectionChange={(selection) => setDefinitionExpression(layers, selection)}
-    >
-      {status.map(({ code, value }) => {
-        const classes = tagStyles({ status: value.toLowerCase() as Status });
-        console.log(value.toLowerCase(), classes);
-        return (
-          <Tag id={value} key={code} textValue={value} className={classes}>
+    <>
+      <TagGroup selectionMode="multiple" selectedKeys={selected} onSelectionChange={setSelected}>
+        {status.map(({ code, value }) => (
+          <Tag id={value} key={code} textValue={value} className={tagStyles({ status: value.toLowerCase() as Status })}>
             {value}
           </Tag>
-        );
-      })}
-    </TagGroup>
+        ))}
+      </TagGroup>
+      {!areSetsEqual(defaultState, selected === 'all' ? new Set([]) : selected) && (
+        <span>
+          <Button variant="destructive" size="extraSmall" onPress={() => setSelected(defaultState)}>
+            Reset
+          </Button>
+        </span>
+      )}
+    </>
   );
 };

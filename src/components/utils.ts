@@ -15,3 +15,5 @@ export const isVisible = (scale: number, minScale: number = Infinity, maxScale: 
 
   return scale <= minScale && scale >= maxScale;
 };
+
+export const areSetsEqual = <T>(a: Set<T>, b: Set<T>) => a.size === b.size && [...a].every((value) => b.has(value));

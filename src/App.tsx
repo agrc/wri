@@ -10,12 +10,13 @@ import {
   CentroidToggle,
   FeatureData,
   MapContainer,
+  ProjectStatus,
   ReferenceData,
   ReferenceLabelSwitch,
   ReferenceLayer,
   TagGroupLoader,
 } from './components';
-import { projectStatus } from './components/data/filters.js';
+import { featureTypes, projectStatus } from './components/data/filters.js';
 import { useMap } from './components/hooks';
 import config from './config.js';
 
@@ -72,7 +73,7 @@ export default function App() {
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 <h5 className="dark:text-zinc-200">Project Status</h5>
                 {featureLayers.length > 0 ? (
-                  <FeatureData layers={featureLayers} status={projectStatus} />
+                  <ProjectStatus layers={featureLayers} status={projectStatus} />
                 ) : (
                   <TagGroupLoader />
                 )}

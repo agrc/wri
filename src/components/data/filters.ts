@@ -24,9 +24,14 @@ export const projectStatus = [
     value: 'Cancelled',
   },
 ];
-export type ProjectStatus = (typeof projectStatus)[number];
+export type ProjectStatuses = (typeof projectStatus)[number];
 
-export const featureType = [
+export type FeatureType = {
+  code: number;
+  featureType: string;
+  type: 'Poly' | 'Point' | 'Line';
+};
+export const featureTypes = [
   {
     code: 1,
     featureType: 'Terrestrial Treatment Area',
@@ -82,4 +87,4 @@ export const featureType = [
     featureType: 'Water development point feature',
     type: 'Point',
   },
-];
+] as FeatureType[];

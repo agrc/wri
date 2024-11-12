@@ -6,9 +6,9 @@ import loadVersion from 'vite-plugin-package-version';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), loadVersion()],
-  base: './',
+  base: '/wri/',
   build: {
-    assetsDir: './js/ugrc',
+    assetsDir: '/wri/js/ugrc',
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'map.html'),

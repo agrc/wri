@@ -83,6 +83,11 @@ export default function App() {
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 <h5 className="dark:text-zinc-200">Feature Type</h5>
+                {featureLayers.length > 0 ? (
+                  <FeatureData layers={featureLayers} featureTypes={featureTypes} />
+                ) : (
+                  <TagGroupLoader />
+                )}
               </ErrorBoundary>
             </div>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">

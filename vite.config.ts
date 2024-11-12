@@ -4,16 +4,18 @@ import { defineConfig } from 'vite';
 import loadVersion from 'vite-plugin-package-version';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react(), loadVersion()],
-  base: '/wri/',
-  build: {
-    assetsDir: 'wri/js/ugrc',
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'map.html'),
-        dev: resolve(__dirname, 'index.html'),
+export default defineConfig(({ mode }) => {
+  return {
+    plugins: [react(), loadVersion()],
+    base: mode === 'production' ? '/wri/' : '',
+    build: {
+      assetsDir: mode === 'production' ? 'wri/js/ugrc' : 'js/ugrc',
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, 'map.html'),
+          dev: resolve(__dirname, 'index.html'),
+        },
       },
     },
-  },
+  };
 });

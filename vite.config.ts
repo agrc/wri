@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(), loadVersion()],
   base: '/wri/',
   build: {
-    assetsDir: '/wri/js/ugrc',
+    assetsDir: 'wri/js/ugrc',
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'map.html'),

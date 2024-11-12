@@ -7,6 +7,7 @@ import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
 import {
+  CentroidToggle,
   FeatureData,
   MapContainer,
   ReferenceData,
@@ -75,6 +76,7 @@ export default function App() {
                 ) : (
                   <TagGroupLoader />
                 )}
+                {featureLayers.length > 0 && <CentroidToggle />}
               </ErrorBoundary>
             </div>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">

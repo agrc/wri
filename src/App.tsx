@@ -60,7 +60,7 @@ export default function App() {
 
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
-      <section className="relative flex min-h-0 flex-1 gap-2">
+      <section className="relative flex min-h-0 flex-1 overflow-x-hidden md:mr-2">
         <Drawer main state={sideBarState} {...sideBarTriggerProps}>
           <div className="mx-2 mb-2 grid grid-cols-1 gap-2">
             <h2 className="text-xl font-bold dark:text-zinc-200">Map controls</h2>

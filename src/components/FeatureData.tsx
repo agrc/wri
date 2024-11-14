@@ -2,10 +2,10 @@ import Collection from '@arcgis/core/core/Collection.js';
 import { Button, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { useEffect, useState } from 'react';
 import { type Selection } from 'react-aria-components';
-import { type FeatureType } from './data/filters';
+import { featureTypes, type FeatureType } from './data/filters';
 import { areSetsEqual } from './utils';
 
-const defaultState = new Set(['Proposed', 'Current', 'Pending Completed', 'Completed']);
+const defaultState = new Set(featureTypes.map(({ featureType }) => featureType));
 const all = '';
 const none = '1=0';
 
@@ -55,13 +55,25 @@ export const FeatureData = ({
           </Tag>
         ))}
       </TagGroup>
-      {!areSetsEqual(defaultState, selected === 'all' ? new Set([]) : selected) && (
-        <span>
-          <Button variant="destructive" size="extraSmall" onPress={() => setSelected(defaultState)}>
-            Reset
-          </Button>
-        </span>
-      )}
+
+      <span className="flex gap-2">
+        <Button
+          variant="destructive"
+          size="extraSmall"
+          isDisabled={areSetsEqual(defaultState, selected === 'all' ? new Set([]) : selected)}
+          onPress={() => setSelected(defaultState)}
+        >
+          Reset
+        </Button>
+        <Button
+          variant="destructive"
+          size="extraSmall"
+          isDisabled={selected === 'all' || selected.size === 0}
+          onPress={() => setSelected(new Set([]))}
+        >
+          Clear
+        </Button>
+      </span>
     </>
   );
 };

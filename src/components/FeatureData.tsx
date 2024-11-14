@@ -1,5 +1,5 @@
 import Collection from '@arcgis/core/core/Collection.js';
-import { Button, Tag, TagGroup } from '@ugrc/utah-design-system';
+import { Button, Radio, RadioGroup, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { useEffect, useState } from 'react';
 import { type Selection } from 'react-aria-components';
 import { featureTypes, type FeatureType } from './data/filters';
@@ -40,6 +40,7 @@ export const FeatureData = ({
   featureTypes: FeatureType[];
 }) => {
   const [selected, setSelected] = useState<Selection>(defaultState);
+  const [join, setJoin] = useState<string>('or');
 
   // synchronizes the definition expressions with the initial ui state
   useEffect(() => {
@@ -74,6 +75,16 @@ export const FeatureData = ({
           Clear
         </Button>
       </span>
+      <JoinWith defaultValue={join} onChange={setJoin} />
     </>
+  );
+};
+
+export const JoinWith = ({ defaultValue, onChange }: { defaultValue: string; onChange: (value: string) => void }) => {
+  return (
+    <RadioGroup defaultValue={defaultValue} label="Feature match style" onChange={onChange}>
+      <Radio value="or">any</Radio>
+      <Radio value="and">all</Radio>
+    </RadioGroup>
   );
 };

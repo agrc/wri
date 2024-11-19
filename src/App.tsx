@@ -2,7 +2,6 @@ import esriConfig from '@arcgis/core/config.js';
 import Collection from '@arcgis/core/core/Collection.js';
 
 import { Drawer } from '@ugrc/utah-design-system';
-import PropTypes from 'prop-types';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
@@ -27,10 +26,6 @@ const ErrorFallback = ({ error }: { error: Error }) => {
       <pre style={{ color: 'red' }}>{error.message}</pre>
     </div>
   );
-};
-
-ErrorFallback.propTypes = {
-  error: PropTypes.object,
 };
 
 esriConfig.assetsPath = import.meta.env.MODE === 'production' ? '/wri/js/ugrc/assets' : '/js/ugrc/assets';

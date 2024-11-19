@@ -2,7 +2,6 @@ import { watch } from '@arcgis/core/core/reactiveUtils';
 import Graphic from '@arcgis/core/Graphic';
 import MapView from '@arcgis/core/views/MapView';
 import { useGraphicManager } from '@ugrc/utilities/hooks';
-import PropTypes from 'prop-types';
 import { createContext, ReactNode, useState } from 'react';
 
 export const MapContext = createContext<{
@@ -72,8 +71,4 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </MapContext.Provider>
   );
-};
-
-MapProvider.propTypes = {
-  children: PropTypes.node.isRequired,
 };

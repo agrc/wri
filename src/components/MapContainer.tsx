@@ -55,7 +55,7 @@ const statewide = new Extent({
 export const MapContainer = () => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
-  const mapView = useRef<MapView>();
+  const mapView = useRef<MapView | null>(null);
   const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);

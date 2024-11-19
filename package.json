@@ -34,6 +34,7 @@
     "@ugrc/layer-selector": "^6.2.9",
     "@ugrc/utah-design-system": "^1.15.1",
     "firebase": "^11.0.2",
+    "immer": "^10.1.1",
     "ky": "^1.7.2",
     "lodash.startcase": "^4.4.0",
     "react": "^18.3.1",
@@ -44,7 +45,8 @@
     "react-error-boundary": "^4.1.2",
     "react-fast-compare": "^3.2.2",
     "react-stately": "^3.33.0",
-    "tailwind-variants": "^0.3.0"
+    "tailwind-variants": "^0.3.0",
+    "use-immer": "^0.10.0"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^3.2.2",
@@ -62,6 +64,7 @@
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.14.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/coverage-v8": "^2.1.5",
     "autoprefixer": "^10.4.20",
     "cpy-cli": "^5.0.0",
     "eslint": "^9.14.0",

@@ -2,26 +2,32 @@ export const projectStatus = [
   {
     code: 1,
     value: 'Draft',
+    default: false,
   },
   {
     code: 2,
     value: 'Proposed',
+    default: true,
   },
   {
     code: 3,
     value: 'Current',
+    default: true,
   },
   {
     code: 4,
     value: 'Pending Completed',
+    default: true,
   },
   {
     code: 5,
     value: 'Completed',
+    default: true,
   },
   {
     code: 6,
     value: 'Cancelled',
+    default: false,
   },
 ];
 export type ProjectStatuses = (typeof projectStatus)[number];

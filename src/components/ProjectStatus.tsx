@@ -1,14 +1,10 @@
-import Collection from '@arcgis/core/core/Collection.js';
 import { Button, Tag, TagGroup } from '@ugrc/utah-design-system';
-import { useEffect, useState } from 'react';
-import { type Selection } from 'react-aria-components';
+import { useContext } from 'react';
+import { Key } from 'react-aria-components';
 import { tv } from 'tailwind-variants';
+import { FilterContext } from './contexts';
 import { ProjectStatuses } from './data/filters';
 import { areSetsEqual } from './utils';
-
-const defaultState = new Set(['Proposed', 'Current', 'Pending Completed', 'Completed']);
-const all = '';
-const none = '1=0';
 
 const tagStyles = tv({
   variants: {
@@ -24,57 +20,49 @@ const tagStyles = tv({
   },
 });
 
-type Status = keyof typeof tagStyles.variants.status;
+export type Status = keyof typeof tagStyles.variants.status;
+const emptySet = new Set<Key>();
 
-const setDefinitionExpression = (layers: Collection<__esri.FeatureLayer>, keys: Selection) =>
-  layers
-    .filter((x) => x.id.startsWith('feature'))
-    .forEach((layer) => {
-      if (keys === 'all') {
-        layer.definitionExpression = all;
-
-        return;
-      }
-
-      if (keys.size === 0) {
-        layer.definitionExpression = none;
-
-        return;
-      }
-
-      const statusField = layer.id === 'feature-centroids' ? 'status' : 'statusDescription';
-
-      layer.definitionExpression = `${statusField} in (${Array.from(keys)
-        .map((status) => `'${status}'`)
-        .join(',')})`;
-    });
-
-export const ProjectStatus = ({
-  layers,
-  status,
-}: {
-  layers: __esri.Collection<__esri.FeatureLayer>;
-  status: ProjectStatuses[];
-}) => {
-  const [selected, setSelected] = useState<Selection>(defaultState);
-
-  // synchronizes the definition expressions with the initial ui state
-  useEffect(() => {
-    setDefinitionExpression(layers, selected);
-  }, [layers, selected]);
+export const ProjectStatus = ({ status }: { status: ProjectStatuses[] }) => {
+  const { dispatch, defaultProjectState, selectedProjects } = useContext(FilterContext);
 
   return (
     <>
-      <TagGroup selectionMode="multiple" selectedKeys={selected} onSelectionChange={setSelected}>
+      <TagGroup
+        selectionMode="multiple"
+        defaultSelectedKeys={defaultProjectState}
+        selectedKeys={selectedProjects}
+        onSelectionChange={(value) =>
+          dispatch({
+            type: 'set',
+            payload: {
+              projects: value as Set<Key>,
+            },
+            metadata: 'projects',
+          })
+        }
+      >
         {status.map(({ code, value }) => (
           <Tag id={value} key={code} textValue={value} className={tagStyles({ status: value.toLowerCase() as Status })}>
             {value}
           </Tag>
         ))}
       </TagGroup>
-      {!areSetsEqual(defaultState, selected === 'all' ? new Set([]) : selected) && (
+      {!areSetsEqual(defaultProjectState as Set<Key>, selectedProjects === 'all' ? emptySet : selectedProjects) && (
         <span>
-          <Button variant="destructive" size="extraSmall" onPress={() => setSelected(defaultState)}>
+          <Button
+            variant="destructive"
+            size="extraSmall"
+            onPress={() =>
+              dispatch({
+                type: 'set',
+                payload: {
+                  projects: defaultProjectState as Set<Key>,
+                },
+                metadata: 'projects',
+              })
+            }
+          >
             Reset
           </Button>
         </span>

@@ -1,7 +1,7 @@
 import { Button, Radio, RadioGroup, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { Dispatch, useContext } from 'react';
 import { type Key } from 'react-stately';
-import { FilterAction, FilterContext } from './contexts';
+import { type FilterAction, FilterContext } from './contexts';
 import { FeatureType } from './data/filters';
 import { areSetsEqual } from './utils';
 const emptySet = new Set<Key>();
@@ -19,9 +19,7 @@ export const FeatureData = ({ featureTypes }: { featureTypes: FeatureType[] }) =
           dispatch({
             type: 'set',
             payload: {
-              features: {
-                types: value as Set<Key>,
-              },
+              features: value as Set<Key>,
             },
             metadata: 'feature',
           })
@@ -45,9 +43,7 @@ export const FeatureData = ({ featureTypes }: { featureTypes: FeatureType[] }) =
             dispatch({
               type: 'set',
               payload: {
-                features: {
-                  types: defaultFeatureState as Set<Key>,
-                },
+                features: defaultFeatureState as Set<Key>,
               },
               metadata: 'feature',
             })
@@ -63,9 +59,7 @@ export const FeatureData = ({ featureTypes }: { featureTypes: FeatureType[] }) =
             dispatch({
               type: 'set',
               payload: {
-                features: {
-                  types: emptySet,
-                },
+                features: emptySet,
               },
               metadata: 'feature',
             })
@@ -88,9 +82,7 @@ export const JoinWith = ({ defaultValue, dispatch }: { defaultValue: string; dis
         dispatch({
           type: 'set',
           payload: {
-            features: {
-              join: value as 'and' | 'or',
-            },
+            join: value as 'and' | 'or',
           },
           metadata: 'feature-join',
         });

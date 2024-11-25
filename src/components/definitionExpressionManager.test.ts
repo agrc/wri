@@ -89,14 +89,40 @@ describe('createDefinitionExpression', () => {
       poly: '',
     });
   });
+  it('should request all records when all type filters are selected', () => {
+    // using 'all' and all keys
+    const state: State = {
+      projects: new Set(['Proposed']),
+      features: new Set(featureTypes.map(({ featureType }) => featureType)),
+      join: or,
+    };
+    const result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids: "Status in('Proposed')",
+      point: "StatusDescription in('Proposed')",
+      line: "StatusDescription in('Proposed')",
+      poly: "StatusDescription in('Proposed')",
+    });
+  });
   it('should use project status values when selecting project status', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current']),
       features: all,
       join: or,
     };
-    const result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state);
 
+    expect(result).toEqual({
+      centroids: "Status in('Proposed','Current')",
+      point: "StatusDescription in('Proposed','Current')",
+      line: "StatusDescription in('Proposed','Current')",
+      poly: "StatusDescription in('Proposed','Current')",
+    });
+
+    state.join = and;
+
+    result = generateDefinitionExpression(state);
     expect(result).toEqual({
       centroids: "Status in('Proposed','Current')",
       point: "StatusDescription in('Proposed','Current')",
@@ -110,13 +136,34 @@ describe('createDefinitionExpression', () => {
       features: new Set<Key>(['Terrestrial Treatment Area']),
       join: or,
     };
-    const result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state);
 
     expect(result).toEqual({
       centroids: 'Project_ID in(select Project_ID from POLY where TypeCode in(1))',
       point: '1=0',
       line: '1=0',
       poly: 'TypeCode in(1)',
+    });
+
+    state.features = new Set<Key>(['Terrestrial Treatment Area', 'Fish passage structure', 'Dam']);
+    result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids:
+        'Project_ID in(select Project_ID from POINT where TypeCode in(9) union select Project_ID from LINE where TypeCode in(12) union select Project_ID from POLY where TypeCode in(1))',
+      point: 'TypeCode in(9)',
+      line: 'TypeCode in(12)',
+      poly: 'TypeCode in(1)',
+    });
+
+    state.features = new Set<Key>(['Dam']);
+    result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids: 'Project_ID in(select Project_ID from LINE where TypeCode in(12))',
+      point: '1=0',
+      line: 'TypeCode in(12)',
+      poly: '1=0',
     });
   });
   it('should only apply selected feature types to its containing table', () => {
@@ -154,17 +201,27 @@ describe('createDefinitionExpression', () => {
   it('should use the user input join value intersect when selecting feature types with and', () => {
     const state: State = {
       projects: all,
-      features: new Set<Key>(['Fence', 'Dam']),
+      features: new Set<Key>(['Fish passage structure', 'Dam']),
       join: and,
     };
-    const result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state);
 
     expect(result).toEqual({
       centroids:
-        "((Project_ID in(select Project_ID from POINT where TypeDescription='Dam' intersect Project_ID in(select Project_ID from POINT where TypeDescription='Fence')))",
+        'Project_ID in(select Project_ID from POINT where TypeCode=9 intersect select Project_ID from LINE where TypeCode=12)',
       point:
-        "(Project_ID in(select Project_ID from POINT where TypeDescription='Dam' intersect Project_ID in(select Project_ID from POINT where TypeDescription='Fence')))",
-      line: '1=0',
+        'TypeCode in(9) and Project_ID in(select Project_ID from POINT where TypeCode=9 intersect select Project_ID from LINE where TypeCode=12)',
+      line: 'TypeCode in(12) and Project_ID in(select Project_ID from POINT where TypeCode=9 intersect select Project_ID from LINE where TypeCode=12)',
+      poly: '1=0',
+    });
+
+    state.features = new Set(['Dam']);
+    result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids: 'Project_ID in(select Project_ID from LINE where TypeCode=12)',
+      point: '1=0',
+      line: 'TypeCode in(12) and Project_ID in(select Project_ID from LINE where TypeCode=12)',
       poly: '1=0',
     });
   });

@@ -29,17 +29,17 @@ export const CentroidToggle = () => {
       console.error('Error setting feature-centroid visibility');
     }
     try {
-      mapView.map.findLayerById('feature-polygons').visible = !selected;
+      mapView.map.findLayerById('feature-poly').visible = !selected;
     } catch {
-      console.error('Error setting feature-polygon visibility');
+      console.error('Error setting feature-poly visibility');
     }
     try {
-      mapView.map.findLayerById('feature-lines').visible = !selected;
+      mapView.map.findLayerById('feature-line').visible = !selected;
     } catch {
       console.error('Error setting feature-line visibility');
     }
     try {
-      mapView.map.findLayerById('feature-points').visible = !selected;
+      mapView.map.findLayerById('feature-point').visible = !selected;
     } catch {
       console.error('Error setting feature-point visibility');
     }

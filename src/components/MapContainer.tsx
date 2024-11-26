@@ -1,10 +1,9 @@
-import Extent from '@arcgis/core/geometry/Extent.js';
 import EsriMap from '@arcgis/core/Map.js';
 import MapView from '@arcgis/core/views/MapView.js';
 
 import LayerSelector from '@ugrc/layer-selector';
-import { BusyBar } from '@ugrc/utah-design-system';
-import { useMapReady, useViewLoading } from '@ugrc/utilities/hooks';
+import { BusyBar, HomeButton } from '@ugrc/utah-design-system';
+import { useMapReady, useViewLoading, utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { useEffect, useRef, useState } from 'react';
 import {
   blmDistricts,
@@ -42,20 +41,10 @@ type SelectorOptions = {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 };
 
-const statewide = new Extent({
-  xmax: -11762120.612131765,
-  xmin: -13074391.513731329,
-  ymax: 5225035.106177688,
-  ymin: 4373832.359194187,
-  spatialReference: {
-    wkid: 3857,
-  },
-});
-
 export const MapContainer = () => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
-  const mapView = useRef<MapView>();
+  const mapView = useRef<MapView | null>(null);
   const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);
@@ -72,7 +61,7 @@ export const MapContainer = () => {
     mapView.current = new MapView({
       container: mapNode.current,
       map: mapComponent.current,
-      extent: statewide,
+      extent: utahMercatorExtent,
       popup: {
         dockEnabled: true,
         visibleElements: {
@@ -135,6 +124,7 @@ export const MapContainer = () => {
 
   return (
     <>
+      <HomeButton view={mapView.current!} />
       <BusyBar busy={isLoading} />
       <div ref={mapNode} className="size-full">
         {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}

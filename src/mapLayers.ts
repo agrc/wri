@@ -1004,7 +1004,7 @@ export const stewardship = new FeatureLayer({
 } as LegendMetadata);
 export const points = new FeatureLayer({
   title: 'Points',
-  id: 'feature-points',
+  id: 'feature-point',
   url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/0',
   fields: ['StatusDescription'],
   visible: false,
@@ -1184,10 +1184,11 @@ export const points = new FeatureLayer({
 });
 export const lines = new FeatureLayer({
   title: 'Lines',
-  id: 'feature-lines',
+  id: 'feature-line',
   url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/1',
   fields: ['StatusDescription'],
   visible: false,
+  labelsVisible: true,
   definitionExpression: '',
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
@@ -1248,13 +1249,35 @@ export const lines = new FeatureLayer({
       },
     ],
   }),
+  labelingInfo: [
+    {
+      symbol: {
+        type: 'text',
+        color: 'white',
+        haloColor: [43, 80, 78, 255],
+        haloSize: 0.7,
+        font: {
+          family: 'Arial',
+          size: 10,
+          weight: 'normal',
+        },
+      },
+      labelPlacement: 'center-along',
+      labelExpressionInfo: {
+        expression: '$feature.Project_ID + ": " + $feature.TypeDescription',
+      },
+      minScale: 0,
+      maxScale: 0,
+    },
+  ],
 });
 export const polygons = new FeatureLayer({
   title: 'Polygons',
-  id: 'feature-polygons',
+  id: 'feature-poly',
   url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/2',
   fields: ['StatusDescription'],
   visible: false,
+  labelsVisible: true,
   definitionExpression: '',
   opacity: 0.7,
   renderer: new UniqueValueRenderer({
@@ -1340,6 +1363,26 @@ export const polygons = new FeatureLayer({
       },
     ],
   }),
+  labelingInfo: [
+    {
+      symbol: {
+        type: 'text',
+        color: 'white',
+        haloColor: [43, 80, 78, 255],
+        haloSize: 0.7,
+        font: {
+          family: 'Arial',
+          size: 10,
+          weight: 'normal',
+        },
+      },
+      labelExpressionInfo: {
+        expression: '$feature.Project_ID + ": " + $feature.TypeDescription',
+      },
+      minScale: 0,
+      maxScale: 0,
+    },
+  ],
 });
 export const centroids = new FeatureLayer({
   title: 'Centroids',

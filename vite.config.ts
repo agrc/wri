@@ -8,6 +8,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), loadVersion()],
     base: mode === 'production' ? '/wri/' : '',
+    resolve: {
+      dedupe: ['@arcgis/core'],
+    },
     build: {
       assetsDir: mode === 'production' ? 'wri/js/ugrc' : 'js/ugrc',
       rollupOptions: {

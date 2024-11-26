@@ -2,7 +2,6 @@ import esriConfig from '@arcgis/core/config.js';
 import Collection from '@arcgis/core/core/Collection.js';
 
 import { Drawer } from '@ugrc/utah-design-system';
-import PropTypes from 'prop-types';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
@@ -10,12 +9,14 @@ import {
   CentroidToggle,
   FeatureData,
   MapContainer,
+  ProjectStatus,
   ReferenceData,
   ReferenceLabelSwitch,
   ReferenceLayer,
   TagGroupLoader,
 } from './components';
-import { projectStatus } from './components/data/filters.js';
+import { FilterProvider } from './components/contexts';
+import { featureTypes, projectStatus } from './components/data/filters.js';
 import { useMap } from './components/hooks';
 import config from './config.js';
 
@@ -26,10 +27,6 @@ const ErrorFallback = ({ error }: { error: Error }) => {
       <pre style={{ color: 'red' }}>{error.message}</pre>
     </div>
   );
-};
-
-ErrorFallback.propTypes = {
-  error: PropTypes.object,
 };
 
 esriConfig.assetsPath = import.meta.env.MODE === 'production' ? '/wri/js/ugrc/assets' : '/js/ugrc/assets';
@@ -59,7 +56,7 @@ export default function App() {
 
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
-      <section className="relative flex min-h-0 flex-1 gap-2">
+      <section className="relative flex min-h-0 flex-1 overflow-x-hidden md:mr-2">
         <Drawer main state={sideBarState} {...sideBarTriggerProps}>
           <div className="mx-2 mb-2 grid grid-cols-1 gap-2">
             <h2 className="text-xl font-bold dark:text-zinc-200">Map controls</h2>
@@ -68,22 +65,21 @@ export default function App() {
                 <h5 className="dark:text-zinc-200">Search tool</h5>
               </ErrorBoundary>
             </div>
-            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
-                <h5 className="dark:text-zinc-200">Project Status</h5>
-                {featureLayers.length > 0 ? (
-                  <FeatureData layers={featureLayers} status={projectStatus} />
-                ) : (
-                  <TagGroupLoader />
-                )}
-                {featureLayers.length > 0 && <CentroidToggle />}
-              </ErrorBoundary>
-            </div>
-            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
-                <h5 className="dark:text-zinc-200">Feature Type</h5>
-              </ErrorBoundary>
-            </div>
+            <FilterProvider featureLayers={featureLayers}>
+              <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
+                <ErrorBoundary FallbackComponent={ErrorFallback}>
+                  <h5 className="dark:text-zinc-200">Project Status</h5>
+                  {featureLayers.length > 0 ? <ProjectStatus status={projectStatus} /> : <TagGroupLoader />}
+                  {featureLayers.length > 0 && <CentroidToggle />}
+                </ErrorBoundary>
+              </div>
+              <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
+                <ErrorBoundary FallbackComponent={ErrorFallback}>
+                  <h5 className="dark:text-zinc-200">Feature Type</h5>
+                  {featureLayers.length > 0 ? <FeatureData featureTypes={featureTypes} /> : <TagGroupLoader />}
+                </ErrorBoundary>
+              </div>
+            </FilterProvider>
             <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
               <ErrorBoundary FallbackComponent={ErrorFallback}>
                 <h5 className="dark:text-zinc-200">Map Reference data</h5>

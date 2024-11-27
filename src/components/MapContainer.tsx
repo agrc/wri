@@ -26,6 +26,7 @@ import {
 import { useMap } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
+import { NavigationHistory } from './NavigationHistory';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;
@@ -125,6 +126,7 @@ export const MapContainer = () => {
   return (
     <>
       <HomeButton view={mapView.current!} />
+      <NavigationHistory view={mapView.current!} />
       <BusyBar busy={isLoading} />
       <div ref={mapNode} className="size-full">
         {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}

@@ -104,24 +104,24 @@ export const NavigationHistory = ({
         <Button
           variant="icon"
           className={buttonClasses}
-          aria-label="Go Back"
+          aria-label="Go to previous map extent"
           onPress={() => dispatch({ type: 'back' })}
           isDisabled={backwardIsDisabled}
         >
-          <span className="sr-only">Go Back</span>
           <ChevronLeftIcon className={iconClasses} aria-hidden />
+          <span className="sr-only">Go to previous map extent</span>
         </Button>
       </div>
       <div className={buttonContainerClasses}>
         <Button
           variant="icon"
           className={buttonClasses}
-          aria-label="Go Forward"
+          aria-label="Go to next map extent"
           onPress={() => dispatch({ type: 'forward' })}
           isDisabled={forwardIsDisabled}
         >
-          <span className="sr-only">Go Forward</span>
           <ChevronRightIcon className={iconClasses} aria-hidden />
+          <span className="sr-only">Go to next map extent</span>
         </Button>
       </div>
     </div>

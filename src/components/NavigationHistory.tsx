@@ -91,13 +91,12 @@ export const NavigationHistory = ({
 
   const backwardIsDisabled = state.index === 0;
   const forwardIsDisabled = state.index >= state.history.length - 1;
-  const commonIconClasses = 'size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform ';
-  const enabledIconClasses = 'text-[#6e6e6e] group-hover:text-[#151515]';
-  const disabledIconClasses = 'text-[#cfcfcf]';
+  const iconClasses =
+    'size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform group-enabled/button:[#6e6e6e] group-enabled/button:group-hover/button:text-[#151515] group-disabled/button:[#cfcfcf] group-disabled/button:opacity-50';
   const buttonContainerClasses =
-    'group flex size-[32px] items-center justify-center bg-white shadow-[0_1px_2px_#0000004d]';
+    'group/icon flex size-[32px] items-center justify-center bg-white shadow-[0_1px_2px_#0000004d]';
   const buttonClasses =
-    'size-full stroke-[4] p-0 transition-colors duration-150 ease-in-out will-change-transform focus:min-h-0 focus:outline-offset-[-2px] group-hover:bg-[#f3f3f3]';
+    'group/button size-full stroke-[4] p-0 transition-colors duration-150 ease-in-out will-change-transform focus:min-h-0 focus:outline-offset-[-2px] group/icon-hover:bg-[#f3f3f3]';
 
   return (
     <div ref={uiPosition}>
@@ -109,11 +108,8 @@ export const NavigationHistory = ({
           onPress={() => dispatch({ type: 'back' })}
           isDisabled={backwardIsDisabled}
         >
-          <ChevronLeftIcon
-            className={clsx(commonIconClasses, backwardIsDisabled ? disabledIconClasses : enabledIconClasses)}
-            aria-hidden
-          />
           <span className="sr-only">Go Back</span>
+          <ChevronLeftIcon className={iconClasses} aria-hidden />
         </Button>
       </div>
       <div className={buttonContainerClasses}>
@@ -124,11 +120,8 @@ export const NavigationHistory = ({
           onPress={() => dispatch({ type: 'forward' })}
           isDisabled={forwardIsDisabled}
         >
-          <ChevronRightIcon
-            className={clsx(commonIconClasses, forwardIsDisabled ? disabledIconClasses : enabledIconClasses)}
-            aria-hidden
-          />
           <span className="sr-only">Go Forward</span>
+          <ChevronRightIcon className={iconClasses} aria-hidden />
         </Button>
       </div>
     </div>

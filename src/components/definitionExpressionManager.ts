@@ -5,6 +5,8 @@ const allRecords = '';
 const noRecords = '1=0' as const;
 const all = 'all' as const;
 const or = 'or' as const;
+const wriFunded = `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1)`;
+
 const addPossibleConjunction = (phrase: string) => {
   if (!phrase || [allRecords, noRecords].includes(phrase)) {
     return phrase;
@@ -80,6 +82,7 @@ const generateExpressions = (
     | string
   >,
   join: 'and' | 'or',
+  wriFunding: boolean,
 ) => {
   const result = {
     centroids: '',
@@ -89,14 +92,28 @@ const generateExpressions = (
   };
 
   if (join === or) {
+    // wri funding
+    if (wriFunding) {
+      result.centroids = wriFunded;
+      result.point = wriFunded;
+      result.line = wriFunded;
+      result.poly = wriFunded;
+    }
+
     // if there is a project status filter, we can use it for all tables
     if (projectPredicate) {
       const featureStatusExpression = `StatusDescription in(${projectPredicate})`;
+      result.centroids = addPossibleConjunction(result.centroids);
+      result.centroids += `Status in(${projectPredicate})`;
 
-      result.centroids = `Status in(${projectPredicate})`;
-      result.point = featureStatusExpression;
-      result.line = featureStatusExpression;
-      result.poly = featureStatusExpression;
+      result.point = addPossibleConjunction(result.point);
+      result.point += featureStatusExpression;
+
+      result.line = addPossibleConjunction(result.line);
+      result.line += featureStatusExpression;
+
+      result.poly = addPossibleConjunction(result.poly);
+      result.poly += featureStatusExpression;
     }
 
     const expressions = [];
@@ -105,10 +122,10 @@ const generateExpressions = (
       if (featurePredicates.point.length !== full.point) {
         result.point = addPossibleConjunction(result.point);
 
-        const codes = featurePredicates.point.map(({ code }) => code).join(',');
+        const types = featurePredicates.point.map(({ type }) => type).join(',');
 
-        expressions.push(`select Project_ID from POINT where TypeCode in(${codes})`);
-        result.point += `TypeCode in(${codes})`;
+        expressions.push(`select Project_ID from POINT where TypeDescription in(${types})`);
+        result.point += `TypeDescription in(${types})`;
       }
     } else {
       result.point = typeof featurePredicates?.point === 'string' ? result.point : '1=0';
@@ -118,10 +135,10 @@ const generateExpressions = (
       if (featurePredicates.line.length !== full.line) {
         result.line = addPossibleConjunction(result.line);
 
-        const codes = featurePredicates.line.map(({ code }) => code).join(',');
+        const types = featurePredicates.line.map(({ type }) => type).join(',');
 
-        expressions.push(`select Project_ID from LINE where TypeCode in(${codes})`);
-        result.line += `TypeCode in(${codes})`;
+        expressions.push(`select Project_ID from LINE where TypeDescription in(${types})`);
+        result.line += `TypeDescription in(${types})`;
       }
     } else {
       result.line = typeof featurePredicates?.line === 'string' ? result.line : '1=0';
@@ -131,10 +148,10 @@ const generateExpressions = (
       if (featurePredicates.poly.length !== full.poly) {
         result.poly = addPossibleConjunction(result.poly);
 
-        const codes = featurePredicates.poly.map(({ code }) => code).join(',');
+        const types = featurePredicates.poly.map(({ type }) => type).join(',');
 
-        expressions.push(`select Project_ID from POLY where TypeCode in(${codes})`);
-        result.poly += `TypeCode in(${codes})`;
+        expressions.push(`select Project_ID from POLY where TypeDescription in(${types})`);
+        result.poly += `TypeDescription in(${types})`;
       }
     } else {
       result.poly = typeof featurePredicates?.poly === 'string' ? result.poly : '1=0';
@@ -175,11 +192,11 @@ const generateExpressions = (
       result.point = addPossibleConjunction(result.point);
 
       const predicate = featurePredicates.point
-        .map(({ code }) => `select Project_ID from POINT where TypeCode=${code}`)
+        .map(({ type }) => `select Project_ID from POINT where TypeDescription=${type}`)
         .join(' intersect ');
 
       expressions.push(predicate);
-      result.point += `TypeCode in${featurePredicates.point.map(({ code }) => `(${code})`).join(',')}`;
+      result.point += `TypeDescription in${featurePredicates.point.map(({ type }) => `(${type})`).join(',')}`;
     } else {
       result.point = typeof featurePredicates?.point === 'string' ? result.point : '1=0';
     }
@@ -188,11 +205,11 @@ const generateExpressions = (
       result.line = addPossibleConjunction(result.line);
 
       const predicate = featurePredicates.line
-        .map(({ code }) => `select Project_ID from LINE where TypeCode=${code}`)
+        .map(({ type }) => `select Project_ID from LINE where TypeDescription=${type}`)
         .join(' intersect ');
 
       expressions.push(predicate);
-      result.line += `TypeCode in${featurePredicates.line.map(({ code }) => `(${code})`).join(',')}`;
+      result.line += `TypeDescription in${featurePredicates.line.map(({ type }) => `(${type})`).join(',')}`;
     } else {
       result.line = typeof featurePredicates?.line === 'string' ? result.line : '1=0';
     }
@@ -201,11 +218,11 @@ const generateExpressions = (
       result.poly = addPossibleConjunction(result.poly);
 
       const predicate = featurePredicates.poly
-        .map(({ code }) => `select Project_ID from POLY where TypeCode=${code}`)
+        .map(({ type }) => `select Project_ID from POLY where TypeDescription=${type}`)
         .join(' intersect ');
 
       expressions.push(predicate);
-      result.poly += `TypeCode in${featurePredicates.poly.map(({ code }) => `(${code})`).join(',')}`;
+      result.poly += `TypeDescription in${featurePredicates.poly.map(({ type }) => `(${type})`).join(',')}`;
     } else {
       result.poly = typeof featurePredicates?.poly === 'string' ? result.poly : '1=0';
     }
@@ -240,10 +257,12 @@ export const generateDefinitionExpression = ({
   projects,
   features,
   join,
+  wriFunding,
 }: {
   projects: Selection;
   features: Selection;
   join: 'and' | 'or';
+  wriFunding: boolean;
 }) => {
   const projectPredicate = getProjectPredicate(projects);
   const featurePredicates = getFeatureTablePredicates(features);
@@ -262,6 +281,15 @@ export const generateDefinitionExpression = ({
     projectPredicate === allRecords &&
     Object.entries(featurePredicates).every(([key, value]) => value.length === full[key as keyof typeof full])
   ) {
+    if (wriFunding) {
+      return {
+        centroids: wriFunded,
+        point: wriFunded,
+        line: wriFunded,
+        poly: wriFunded,
+      };
+    }
+
     return {
       centroids: allRecords,
       point: allRecords,
@@ -270,7 +298,7 @@ export const generateDefinitionExpression = ({
     };
   }
 
-  const expressions = generateExpressions(projectPredicate, featurePredicates, join);
+  const expressions = generateExpressions(projectPredicate, featurePredicates, join, wriFunding);
 
   return expressions;
 };

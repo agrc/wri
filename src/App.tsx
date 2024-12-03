@@ -14,6 +14,7 @@ import {
   ReferenceLabelSwitch,
   ReferenceLayer,
   TagGroupLoader,
+  WriFundingToggle,
 } from './components';
 import { FilterProvider } from './components/contexts';
 import { featureTypes, projectStatus } from './components/data/filters.js';
@@ -71,6 +72,7 @@ export default function App() {
                   <h5 className="dark:text-zinc-200">Project Status</h5>
                   {featureLayers.length > 0 ? <ProjectStatus status={projectStatus} /> : <TagGroupLoader />}
                   {featureLayers.length > 0 && <CentroidToggle />}
+                  {featureLayers.length > 0 && <WriFundingToggle />}
                 </ErrorBoundary>
               </div>
               <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">

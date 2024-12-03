@@ -5,3 +5,4 @@ export * from './MapContainer.tsx';
 export * from './ProjectStatus.tsx';
 export * from './ReferenceData.tsx';
 export * from './utils.ts';
+export * from './WriFundedToggle.tsx';

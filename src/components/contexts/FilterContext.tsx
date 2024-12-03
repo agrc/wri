@@ -15,6 +15,7 @@ export const FilterContext = createContext<{
   defaultFeatureState: Selection;
   selectedFeatures: Selection;
   selectedProjects: Selection;
+  wriFunding: boolean;
 }>({
   featureLayers: new Collection(),
   dispatch: () => {},
@@ -22,4 +23,5 @@ export const FilterContext = createContext<{
   defaultFeatureState,
   selectedFeatures: defaultProjectState,
   selectedProjects: defaultFeatureState,
+  wriFunding: false,
 });

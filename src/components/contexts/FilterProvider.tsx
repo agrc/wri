@@ -11,16 +11,23 @@ type Filter = {
   join?: 'and' | 'or';
 };
 
-export type FilterAction = {
-  type: 'set' | 'reset';
-  payload: Filter;
-  metadata?: 'projects' | 'feature' | 'feature-join';
-};
+export type FilterAction =
+  | {
+      type: 'set' | 'reset';
+      payload: Filter;
+      metadata?: 'projects' | 'feature' | 'feature-join';
+    }
+  | {
+      type: 'set';
+      payload: boolean;
+      metadata: 'wriFunding';
+    };
 
 type FilterState = {
   projects: Set<Key>;
   features: Set<Key>;
   join: 'or' | 'and';
+  wriFunding: boolean;
 };
 
 const defaultProjectState = new Set<Key>(projectStatus.filter((x) => x.default).map(({ value }) => value));
@@ -30,6 +37,7 @@ const initialState: FilterState = {
   projects: defaultProjectState,
   features: defaultFeatureState,
   join: 'or',
+  wriFunding: false,
 };
 
 const reducer = (draft: typeof initialState, action: FilterAction) => {
@@ -48,6 +56,11 @@ const reducer = (draft: typeof initialState, action: FilterAction) => {
         }
         case 'feature-join': {
           draft.join = action.payload.join ?? initialState.join;
+
+          break;
+        }
+        case 'wriFunding': {
+          draft.wriFunding = action.payload;
 
           break;
         }
@@ -101,7 +114,6 @@ export const FilterProvider = ({
   const [state, dispatch] = useImmerReducer(reducer, initialState);
 
   const expressions = generateDefinitionExpression(state);
-  console.table(expressions);
   setDefinitionExpression(featureLayers, expressions);
 
   return (
@@ -113,6 +125,7 @@ export const FilterProvider = ({
         featureLayers,
         defaultFeatureState,
         defaultProjectState,
+        wriFunding: state.wriFunding,
       }}
     >
       {children}

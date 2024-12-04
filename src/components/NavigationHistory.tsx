@@ -3,7 +3,7 @@ import { Button } from '@ugrc/utah-design-system';
 import { useViewUiPosition } from '@ugrc/utilities/hooks';
 import clsx from 'clsx';
 import { WritableDraft } from 'immer';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { Redo2Icon, Undo2Icon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useImmerReducer } from 'use-immer';
 
@@ -108,7 +108,7 @@ export const NavigationHistory = ({
           onPress={() => dispatch({ type: 'back' })}
           isDisabled={backwardIsDisabled}
         >
-          <ChevronLeftIcon className={iconClasses} aria-hidden />
+          <Undo2Icon className={iconClasses} aria-hidden />
           <span className="sr-only">Go to previous map extent</span>
         </Button>
       </div>
@@ -120,7 +120,7 @@ export const NavigationHistory = ({
           onPress={() => dispatch({ type: 'forward' })}
           isDisabled={forwardIsDisabled}
         >
-          <ChevronRightIcon className={iconClasses} aria-hidden />
+          <Redo2Icon className={iconClasses} aria-hidden />
           <span className="sr-only">Go to next map extent</span>
         </Button>
       </div>

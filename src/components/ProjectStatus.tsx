@@ -9,13 +9,12 @@ import { areSetsEqual } from './utils';
 const tagStyles = tv({
   variants: {
     status: {
-      draft: 'data-[selected]:bg-zinc-500 data-[selected]:hover:border-zinc-700 data-[selected]:border-gray-200',
-      proposed: 'data-[selected]:bg-zinc-800 data-[selected]:hover:border-zinc-900 data-[selected]:border-gray-200',
-      current: 'data-[selected]:bg-sky-600 data-[selected]:hover:border-sky-800 data-[selected]:border-gray-200',
-      'pending completed':
-        'data-[selected]:bg-yellow-500 data-[selected]:hover:border-yellow-600 data-[selected]:border-gray-200',
-      completed: 'data-[selected]:bg-green-700 data-[selected]:hover:border-green-900 data-[selected]:border-gray-200',
-      cancelled: 'data-[selected]:bg-red-700 data-[selected]:hover:border-red-900 data-[selected]:border-gray-200',
+      draft: 'selected:border-gray-200 selected:bg-zinc-500 selected:hover:border-zinc-700',
+      proposed: 'selected:border-gray-200 selected:bg-zinc-800 selected:hover:border-zinc-900',
+      current: 'selected:border-gray-200 selected:bg-sky-600 selected:hover:border-sky-800',
+      'pending completed': 'selected:border-gray-200 selected:bg-yellow-500 selected:hover:border-yellow-600',
+      completed: 'selected:border-gray-200 selected:bg-green-700 selected:hover:border-green-900',
+      cancelled: 'selected:border-gray-200 selected:bg-red-700 selected:hover:border-red-900',
     },
   },
 });

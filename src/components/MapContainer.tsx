@@ -42,7 +42,7 @@ type SelectorOptions = {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 };
 
-export const MapContainer = () => {
+export const MapContainer = ({ configuration }: { configuration: 'search' | 'edit' }) => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView | null>(null);
@@ -101,7 +101,7 @@ export const MapContainer = () => {
     if (isReady) {
       // layers are stacked on top of each other in a reverse order from how they are listed
       // e.g. land ownership is on the very bottom and centroids are on the very top
-      addLayers([
+      const referenceLayers = [
         landOwnership,
         plss,
         streams,
@@ -114,14 +114,18 @@ export const MapContainer = () => {
         forestService,
         sageGrouse,
         stewardship,
-        polygons,
-        lines,
-        points,
-        centroids,
-      ]);
+      ];
+      const operationalLayers = [polygons, lines, points, centroids];
+
+      if (configuration === 'search') {
+        operationalLayers.forEach((x) => (x.visible = false));
+        addLayers(operationalLayers);
+      } else {
+        addLayers(referenceLayers.concat(operationalLayers));
+      }
     }
     setMapView(mapView.current!);
-  }, [isReady, mapView, addLayers, setMapView]);
+  }, [isReady, mapView, addLayers, setMapView, configuration]);
 
   return (
     <>

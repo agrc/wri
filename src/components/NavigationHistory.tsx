@@ -92,7 +92,7 @@ export const NavigationHistory = ({
   const backwardIsDisabled = state.index === 0;
   const forwardIsDisabled = state.index >= state.history.length - 1;
   const iconClasses =
-    'size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform group-enabled/button:[#6e6e6e] group-enabled/button:group-hover/button:text-[#151515] group-disabled/button:[#cfcfcf] group-disabled/button:opacity-50';
+    'dark:text-zinc-500 size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform group-enabled/button:[#6e6e6e] group-enabled/button:group-hover/button:text-[#151515] group-disabled/button:[#cfcfcf] group-disabled/button:opacity-50';
   const buttonContainerClasses =
     'group/icon flex size-[32px] items-center justify-center bg-white shadow-[0_1px_2px_#0000004d]';
   const buttonClasses =

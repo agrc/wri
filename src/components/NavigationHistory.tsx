@@ -3,7 +3,7 @@ import { Button } from '@ugrc/utah-design-system';
 import { useViewUiPosition } from '@ugrc/utilities/hooks';
 import clsx from 'clsx';
 import { WritableDraft } from 'immer';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { Redo2Icon, Undo2Icon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useImmerReducer } from 'use-immer';
 
@@ -92,7 +92,7 @@ export const NavigationHistory = ({
   const backwardIsDisabled = state.index === 0;
   const forwardIsDisabled = state.index >= state.history.length - 1;
   const iconClasses =
-    'size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform group-enabled/button:[#6e6e6e] group-enabled/button:group-hover/button:text-[#151515] group-disabled/button:[#cfcfcf] group-disabled/button:opacity-50';
+    'dark:text-zinc-500 size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform group-enabled/button:[#6e6e6e] group-enabled/button:group-hover/button:text-[#151515] group-disabled/button:[#cfcfcf] group-disabled/button:opacity-50';
   const buttonContainerClasses =
     'group/icon flex size-[32px] items-center justify-center bg-white shadow-[0_1px_2px_#0000004d]';
   const buttonClasses =
@@ -108,7 +108,7 @@ export const NavigationHistory = ({
           onPress={() => dispatch({ type: 'back' })}
           isDisabled={backwardIsDisabled}
         >
-          <ChevronLeftIcon className={iconClasses} aria-hidden />
+          <Undo2Icon className={iconClasses} aria-hidden />
           <span className="sr-only">Go to previous map extent</span>
         </Button>
       </div>
@@ -120,7 +120,7 @@ export const NavigationHistory = ({
           onPress={() => dispatch({ type: 'forward' })}
           isDisabled={forwardIsDisabled}
         >
-          <ChevronRightIcon className={iconClasses} aria-hidden />
+          <Redo2Icon className={iconClasses} aria-hidden />
           <span className="sr-only">Go to next map extent</span>
         </Button>
       </div>

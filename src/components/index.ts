@@ -1,3 +1,4 @@
+export * from './AreaOfInterest.tsx';
 export * from './CentroidToggle.tsx';
 export * from './FeatureData.tsx';
 export * from './Loaders.tsx';

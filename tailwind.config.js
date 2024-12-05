@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
+import rac from 'tailwindcss-react-aria-components';
+
 export default {
-  content: ['./node_modules/@ugrc/**/*.{tsx,jsx,js}', './index.html', './src/**/*.{tsx,jsx,js}'],
+  content: ['./node_modules/@ugrc/**/*.{tsx,jsx,js}', './index.html', './search.html', './src/**/*.{tsx,jsx,js}'],
   theme: {
     extend: {
       colors: {
@@ -63,5 +65,5 @@ export default {
       },
     },
   },
-  plugins: [import('tailwindcss-react-aria-components')],
+  plugins: [rac],
 };

@@ -23,7 +23,7 @@ import {
   streams,
   watershedAreas,
 } from '../mapLayers.ts';
-import { useMap } from './hooks';
+import { useMap, useProjectNavigation } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
 import { NavigationHistory } from './NavigationHistory';
@@ -52,6 +52,7 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
   const isReady = useMapReady(mapView.current);
   const isLoading = useViewLoading(mapView.current);
   const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
+  const currentProject = useProjectNavigation(mapView.current, operationalLayers.current, true);
 
   // setup the Map
   useEffect(() => {
@@ -128,10 +129,6 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
       }
     }
   }, [isReady, mapView, addLayers, setMapView, configuration]);
-
-  // if (!isReady) {
-  //   return <BusyBar busy={true} />;
-  // }
 
   return (
     <>

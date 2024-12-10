@@ -1,40 +1,18 @@
 import esriConfig from '@arcgis/core/config.js';
 import Collection from '@arcgis/core/core/Collection.js';
-
 import { Drawer } from '@ugrc/utah-design-system';
+import { useContext } from 'react';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
-import {
-  CentroidToggle,
-  FeatureData,
-  MapContainer,
-  ProjectStatus,
-  ReferenceData,
-  ReferenceLabelSwitch,
-  ReferenceLayer,
-  TagGroupLoader,
-  WriFundingToggle,
-} from './components';
-import { FilterProvider } from './components/contexts';
-import { featureTypes, projectStatus } from './components/data/filters.js';
+import { DrawerView, ErrorFallback, MapContainer } from './components';
+import { FilterProvider, ProjectContext } from './components/contexts';
 import { useMap } from './components/hooks';
 import config from './config.js';
-
-const ErrorFallback = ({ error }: { error: Error }) => {
-  return (
-    <div role="alert">
-      <p>Something went wrong:</p>
-      <pre style={{ color: 'red' }}>{error.message}</pre>
-    </div>
-  );
-};
 
 esriConfig.assetsPath = import.meta.env.MODE === 'production' ? '/wri/js/ugrc/assets' : '/js/ugrc/assets';
 
 export default function App() {
-  const { mapView, currentMapScale } = useMap();
-
   const sideBarState = useOverlayTriggerState({ defaultOpen: window.innerWidth >= config.MIN_DESKTOP_WIDTH });
   const sideBarTriggerProps = useOverlayTrigger(
     {
@@ -51,51 +29,23 @@ export default function App() {
     trayState,
   );
 
+  const { mapView } = useMap();
   const allLayers = mapView?.map?.layers ?? new Collection();
   const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<__esri.FeatureLayer>;
-  const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
+  const projectContext = useContext(ProjectContext);
+
+  let projectId = null;
+  if (projectContext !== null) {
+    projectId = projectContext.projectId;
+  }
 
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
       <section className="relative flex min-h-0 flex-1 overflow-x-hidden md:mr-2">
         <Drawer main state={sideBarState} {...sideBarTriggerProps}>
-          <div className="mx-2 mb-2 grid grid-cols-1 gap-2">
-            <h2 className="text-xl font-bold dark:text-zinc-200">Map controls</h2>
-            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
-                <h5 className="dark:text-zinc-200">Search tool</h5>
-              </ErrorBoundary>
-            </div>
-            <FilterProvider featureLayers={featureLayers}>
-              <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-                <ErrorBoundary FallbackComponent={ErrorFallback}>
-                  <h5 className="dark:text-zinc-200">Project Status</h5>
-                  {featureLayers.length > 0 ? <ProjectStatus status={projectStatus} /> : <TagGroupLoader />}
-                  {featureLayers.length > 0 && <CentroidToggle />}
-                  {featureLayers.length > 0 && <WriFundingToggle />}
-                </ErrorBoundary>
-              </div>
-              <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-                <ErrorBoundary FallbackComponent={ErrorFallback}>
-                  <h5 className="dark:text-zinc-200">Feature Type</h5>
-                  {featureLayers.length > 0 ? <FeatureData featureTypes={featureTypes} /> : <TagGroupLoader />}
-                </ErrorBoundary>
-              </div>
-            </FilterProvider>
-            <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
-              <ErrorBoundary FallbackComponent={ErrorFallback}>
-                <h5 className="dark:text-zinc-200">Map Reference data</h5>
-                {referenceLayers.length > 0 ? (
-                  <>
-                    <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />
-                    <ReferenceLabelSwitch layers={referenceLayers}>Labels</ReferenceLabelSwitch>
-                  </>
-                ) : (
-                  <TagGroupLoader />
-                )}
-              </ErrorBoundary>
-            </div>
-          </div>
+          <FilterProvider featureLayers={featureLayers}>
+            <DrawerView projectId={projectId} />
+          </FilterProvider>
         </Drawer>
         <div className="relative flex flex-1 flex-col rounded border border-b-0 border-zinc-200 dark:border-0 dark:border-zinc-700">
           <div className="relative flex-1">

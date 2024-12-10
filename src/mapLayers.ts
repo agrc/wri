@@ -42,7 +42,7 @@ export const streams = new FeatureLayer({
   title: 'Streams',
   id: 'reference-streams',
   url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStreamsNHD/FeatureServer/0',
-  fields: ['GNIS_Name'],
+  outFields: ['GNIS_Name'],
   definitionExpression: 'InUtah = 1 AND Submerged = 0',
   visible: false,
   labelsVisible: false,
@@ -83,7 +83,7 @@ export const watershedAreas = new FeatureLayer({
   title: 'Watershed Areas',
   id: 'reference-watershed-areas',
   url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahWatershedsArea/FeatureServer/0',
-  fields: ['HUC_10', 'HU_10_Name'],
+  outFields: ['HUC_10', 'HU_10_Name'],
   visible: false,
   labelsVisible: false,
   opacity: 0.7,
@@ -147,8 +147,8 @@ export const fireThreats = new WebTileLayer({
 export const precipitation = new FeatureLayer({
   title: 'Average Annual Precipitation',
   id: 'reference-precipitation',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/15',
-  fields: ['OBJECTID'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/15',
+  outFields: ['OBJECTID'],
   visible: false,
   opacity: 0.5,
   renderer: new ClassBreaksRenderer({
@@ -247,8 +247,8 @@ export const precipitation = new FeatureLayer({
 export const rangeSites = new FeatureLayer({
   title: 'Range Trend Studies',
   id: 'reference-range-sites',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/7',
-  fields: ['STUDY_NAME', 'GlobalID'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/7',
+  outFields: ['STUDY_NAME', 'GlobalID'],
   visible: false,
   renderer: new SimpleRenderer({
     symbol: new SimpleMarkerSymbol({
@@ -273,8 +273,8 @@ export const rangeSites = new FeatureLayer({
 export const regions = new FeatureLayer({
   title: 'UWRI Regions',
   id: 'reference-regions',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/5',
-  fields: ['DWR_REGION'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/5',
+  outFields: ['DWR_REGION'],
   visible: false,
   labelsVisible: false,
   renderer: new SimpleRenderer({
@@ -311,8 +311,8 @@ export const regions = new FeatureLayer({
 export const blmDistricts = new FeatureLayer({
   title: 'BLM Districts',
   id: 'reference-blm-districts',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/0',
-  fields: ['FO_NAME'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/0',
+  outFields: ['FO_NAME'],
   visible: false,
   labelsVisible: false,
   renderer: new SimpleRenderer({
@@ -349,8 +349,8 @@ export const blmDistricts = new FeatureLayer({
 export const forestService = new FeatureLayer({
   title: 'Forest Service',
   id: 'reference-forest-service',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/1',
-  fields: ['label_federal'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/1',
+  outFields: ['label_federal'],
   visible: false,
   labelsVisible: false,
   opacity: 0.7,
@@ -762,8 +762,8 @@ export const forestService = new FeatureLayer({
 export const sageGrouse = new FeatureLayer({
   title: 'Sage Grouse Areas',
   id: 'reference-sage-grouse',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Reference/MapServer/4',
-  fields: ['Area_name'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/4',
+  outFields: ['Area_name'],
   visible: false,
   labelsVisible: false,
   renderer: new UniqueValueRenderer({
@@ -930,7 +930,7 @@ export const stewardship = new FeatureLayer({
   title: 'Shared Stewardship Priority',
   id: 'reference-stewardship',
   url: 'https://services.arcgis.com/ZzrwjTRez6FJiOq4/arcgis/rest/services/SharedStewardshipPriorityAreas_Public/FeatureServer/0',
-  fields: ['HU_12_NAME'],
+  outFields: ['HU_12_NAME'],
   visible: false,
   labelsVisible: false,
   renderer: new ClassBreaksRenderer({
@@ -1005,8 +1005,8 @@ export const stewardship = new FeatureLayer({
 export const points = new FeatureLayer({
   title: 'Points',
   id: 'feature-point',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/0',
-  fields: ['StatusDescription'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Features/MapServer/0',
+  outFields: ['StatusDescription', 'Title'],
   visible: false,
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
@@ -1185,8 +1185,8 @@ export const points = new FeatureLayer({
 export const lines = new FeatureLayer({
   title: 'Lines',
   id: 'feature-line',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/1',
-  fields: ['StatusDescription'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Features/MapServer/1',
+  outFields: ['StatusDescription', 'Title'],
   visible: false,
   labelsVisible: true,
   definitionExpression: '',
@@ -1274,8 +1274,8 @@ export const lines = new FeatureLayer({
 export const polygons = new FeatureLayer({
   title: 'Polygons',
   id: 'feature-poly',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Features/MapServer/2',
-  fields: ['StatusDescription'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Features/MapServer/2',
+  outFields: ['StatusDescription', 'Title'],
   visible: false,
   labelsVisible: true,
   definitionExpression: '',
@@ -1387,8 +1387,8 @@ export const polygons = new FeatureLayer({
 export const centroids = new FeatureLayer({
   title: 'Centroids',
   id: 'feature-centroids',
-  url: 'https://wrimaps.utah.gov/arcgis/rest/services/WRI/Projects/MapServer/0',
-  fields: ['Status'],
+  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Projects/MapServer/0',
+  outFields: ['Project_ID', 'Status', 'Title'],
   visible: true,
   definitionExpression: '',
   renderer: new UniqueValueRenderer({

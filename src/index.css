@@ -65,3 +65,8 @@
     @apply text-sm font-bold md:text-base;
   }
 }
+
+/* remove map outline */
+.esri-view-surface.esri-view-surface--touch-none {
+  @apply after:focus:outline-none;
+}

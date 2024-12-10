@@ -129,10 +129,6 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
     }
   }, [isReady, mapView, addLayers, setMapView, configuration]);
 
-  // if (!isReady) {
-  //   return <BusyBar busy={true} />;
-  // }
-
   return (
     <>
       <HomeButton view={mapView.current!} />

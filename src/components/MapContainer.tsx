@@ -27,6 +27,7 @@ import { useMap } from './hooks';
 
 import '@ugrc/layer-selector/src/LayerSelector.css';
 import { NavigationHistory } from './NavigationHistory';
+import { Tooltip } from './Tooltip.tsx';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;
@@ -50,6 +51,7 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);
   const isLoading = useViewLoading(mapView.current);
+  const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
 
   // setup the Map
   useEffect(() => {
@@ -63,6 +65,7 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
       container: mapNode.current,
       map: mapComponent.current,
       extent: utahMercatorExtent,
+      scale: import.meta.env.DEV ? 90000 : undefined,
       popup: {
         dockEnabled: true,
         visibleElements: {
@@ -115,23 +118,27 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
         sageGrouse,
         stewardship,
       ];
-      const operationalLayers = [polygons, lines, points, centroids];
+      operationalLayers.current = [polygons, lines, points, centroids];
 
       if (configuration === 'search') {
-        operationalLayers.forEach((x) => (x.visible = false));
-        addLayers(operationalLayers);
+        operationalLayers.current.forEach((x) => (x.visible = false));
+        addLayers(operationalLayers.current);
       } else {
-        addLayers(referenceLayers.concat(operationalLayers));
+        addLayers(referenceLayers.concat(operationalLayers.current));
       }
     }
-    setMapView(mapView.current!);
   }, [isReady, mapView, addLayers, setMapView, configuration]);
+
+  // if (!isReady) {
+  //   return <BusyBar busy={true} />;
+  // }
 
   return (
     <>
       <HomeButton view={mapView.current!} />
       <NavigationHistory view={mapView.current!} />
       <BusyBar busy={isLoading} />
+      <Tooltip view={mapView.current!} layers={operationalLayers.current} />
       <div ref={mapNode} className="size-full">
         {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}
       </div>

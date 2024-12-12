@@ -17,3 +17,11 @@ export const isVisible = (scale: number, minScale: number = Infinity, maxScale: 
 };
 
 export const areSetsEqual = <T>(a: Set<T>, b: Set<T>) => a.size === b.size && [...a].every((value) => b.has(value));
+
+export const titleCase = (str: string) => {
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};

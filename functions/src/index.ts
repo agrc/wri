@@ -15,6 +15,11 @@ let config: Knex.Config = {
 const db = knex(config);
 
 const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;
+
+export const health = https.onRequest({ cors }, async (_, res) => {
+  res.send('healthy');
+});
+
 export const project = https.onRequest({ cors }, async (req, res) => {
   const id = parseInt(req.query.id?.toString() ?? '-1', 10);
 

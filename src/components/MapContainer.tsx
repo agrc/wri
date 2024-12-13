@@ -4,7 +4,7 @@ import MapView from '@arcgis/core/views/MapView.js';
 import LayerSelector from '@ugrc/layer-selector';
 import { BusyBar, HomeButton } from '@ugrc/utah-design-system';
 import { useMapReady, useViewLoading, utahMercatorExtent } from '@ugrc/utilities/hooks';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import {
   blmDistricts,
   centroids,
@@ -28,6 +28,7 @@ import { useMap, useProjectNavigation } from './hooks';
 import '@ugrc/layer-selector/src/LayerSelector.css';
 import { NavigationHistory } from './NavigationHistory';
 import { Tooltip } from './Tooltip.tsx';
+import { ProjectContext } from './contexts';
 
 type LayerFactory = {
   Factory: new () => __esri.Layer;
@@ -52,7 +53,14 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
   const isReady = useMapReady(mapView.current);
   const isLoading = useViewLoading(mapView.current);
   const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
-  const currentProject = useProjectNavigation(mapView.current, operationalLayers.current, true);
+  const projectContext = useContext(ProjectContext);
+  let currentProject = 0;
+
+  if (projectContext) {
+    currentProject = projectContext.projectId ?? 0;
+  }
+
+  useProjectNavigation(mapView.current, operationalLayers.current, currentProject === 0);
 
   // setup the Map
   useEffect(() => {
@@ -132,10 +140,14 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
 
   return (
     <>
-      <HomeButton view={mapView.current!} />
-      <NavigationHistory view={mapView.current!} />
-      <BusyBar busy={isLoading} />
-      <Tooltip view={mapView.current!} layers={operationalLayers.current} />
+      {mapView.current && (
+        <>
+          <HomeButton view={mapView.current} />
+          <NavigationHistory view={mapView.current} />
+          <BusyBar busy={isLoading} />
+          <Tooltip view={mapView.current} layers={operationalLayers.current} enabled={currentProject === 0} />
+        </>
+      )}
       <div ref={mapNode} className="size-full">
         {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}
       </div>

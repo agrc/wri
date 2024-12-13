@@ -1,8 +1,8 @@
 import { Button, Radio, RadioGroup, Tag, TagGroup } from '@ugrc/utah-design-system';
-import { Dispatch, useContext } from 'react';
+import { type Dispatch, useContext } from 'react';
 import { type Key } from 'react-stately';
 import { type FilterAction, FilterContext } from './contexts';
-import { FeatureType } from './data/filters';
+import type { FeatureType } from './data/filters';
 import { areSetsEqual } from './utils';
 const emptySet = new Set<Key>();
 

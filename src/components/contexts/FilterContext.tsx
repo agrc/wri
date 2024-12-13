@@ -1,9 +1,9 @@
 import Collection from '@arcgis/core/core/Collection';
-import { createContext, Dispatch } from 'react';
+import { createContext, type Dispatch } from 'react';
 import { type Key } from 'react-aria';
 import { type Selection } from 'react-stately';
 import { featureTypes, projectStatus } from '../data/filters';
-import { FilterAction } from './';
+import type { FilterAction } from './';
 
 const defaultProjectState = new Set<Key>(projectStatus.filter((x) => x.default).map(({ value }) => value));
 const defaultFeatureState = new Set<Key>(featureTypes.map(({ featureType }) => featureType));

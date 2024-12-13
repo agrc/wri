@@ -1,9 +1,9 @@
 import { Button, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { useContext } from 'react';
-import { Key } from 'react-aria-components';
+import type { Key } from 'react-aria-components';
 import { tv } from 'tailwind-variants';
 import { FilterContext } from './contexts';
-import { ProjectStatuses } from './data/filters';
+import type { ProjectStatuses } from './data/filters';
 import { areSetsEqual } from './utils';
 
 const tagStyles = tv({

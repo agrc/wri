@@ -1,5 +1,5 @@
 import { tv } from 'tailwind-variants';
-import { Status } from './ProjectStatus';
+import type { Status } from './ProjectStatus';
 
 const tagStyles = tv({
   base: 'flex max-w-fit cursor-default items-center gap-1 rounded-md border px-3 py-0.5 text-xs text-white',

@@ -5,7 +5,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
 import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';
 import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
-import { ReferenceData, ReferenceLayer } from './ReferenceData';
+import { ReferenceData, type ReferenceLayer } from './ReferenceData';
 type LegendMetadata = __esri.FeatureLayerProperties & {
   legendDescription?: string;
 };

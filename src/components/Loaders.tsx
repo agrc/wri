@@ -1,4 +1,4 @@
-import ContentLoader, { IContentLoaderProps } from 'react-content-loader';
+import ContentLoader, { type IContentLoaderProps } from 'react-content-loader';
 
 export const TagGroupLoader = ({ width = 200, height = 70, ...props }: IContentLoaderProps) => {
   return (

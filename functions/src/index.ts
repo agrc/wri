@@ -160,7 +160,7 @@ export const project = https.onRequest({ cors }, async (req, res) => {
           subtype: feature.subtype,
           action: feature.action,
           herbicide: feature.herbicide,
-          retreatment: feature.retreatment.trim().length > 0 ? 'Yes' : 'No',
+          retreatment: feature.retreatment,
           size: convertMetersToAcres(feature.size),
         });
         return acc;

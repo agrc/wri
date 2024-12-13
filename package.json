@@ -13,7 +13,7 @@
     "format": "prettier . --write",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "start": "concurrently 'cd functions && npm run build:watch' 'wait-on http://127.0.0.1:4000 && npm run dev:vite' 'npm run dev:firebase-emulators'",
+    "start": "concurrently 'cd functions && npm run build:watch' 'wait-on http://127.0.0.1:5001/ut-dts-agrc-wri-dev/us-central1/health && npm run dev:vite' 'npm run dev:firebase-emulators'",
     "start:ci": "vite --host",
     "storybook": "storybook dev -p 6006",
     "test": "vitest"

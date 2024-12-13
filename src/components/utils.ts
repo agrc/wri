@@ -1,7 +1,10 @@
 export const randomize = <T>(items: T[]): { item: T; index: number } => {
+  if (items.length === 0) {
+    throw new Error('The items array must not be empty');
+  }
   const index = Math.floor(Math.random() * items.length);
 
-  return { item: items[index], index };
+  return { item: items[index] as T, index };
 };
 
 export const isVisible = (scale: number, minScale: number = Infinity, maxScale: number = 0) => {
@@ -18,7 +21,11 @@ export const isVisible = (scale: number, minScale: number = Infinity, maxScale: 
 
 export const areSetsEqual = <T>(a: Set<T>, b: Set<T>) => a.size === b.size && [...a].every((value) => b.has(value));
 
-export const titleCase = (str: string) => {
+export const titleCase = (str: string | undefined) => {
+  if (!str) {
+    return str;
+  }
+
   return str
     .toLowerCase()
     .split(' ')

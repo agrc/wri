@@ -2,7 +2,7 @@ import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import { renderPreviewHTML } from '@arcgis/core/symbols/support/symbolUtils';
 import { Button, Dialog, Popover, Switch, Tag, TagGroup } from '@ugrc/utah-design-system';
 import { PaletteIcon } from 'lucide-react';
-import { ReactNode, useCallback, useEffect, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { DialogTrigger, type Selection } from 'react-aria-components';
 import config from '../config';
 import { isVisible } from './utils';

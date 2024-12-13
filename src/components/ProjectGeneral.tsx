@@ -5,7 +5,7 @@ import { ErrorFallback } from './ErrorFallBack';
 import { FeatureData } from './FeatureData';
 import { TagGroupLoader } from './Loaders';
 import { ProjectStatus } from './ProjectStatus';
-import { ReferenceData, ReferenceLabelSwitch, ReferenceLayer } from './ReferenceData';
+import { ReferenceData, ReferenceLabelSwitch, type ReferenceLayer } from './ReferenceData';
 import { WriFundingToggle } from './WriFundedToggle';
 import { featureTypes, projectStatus } from './data/filters';
 import { useMap } from './hooks';

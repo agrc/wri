@@ -41,8 +41,10 @@ const getFeatureTablePredicates = (keys: Selection) => {
         if (!acc[feature.type]) {
           acc[feature.type] = [];
         }
-        acc[feature.type].push({ code: feature.code, type: `'${feature.featureType}'` });
+
+        acc[feature.type]?.push({ code: feature.code, type: `'${feature.featureType}'` });
       }
+
       return acc;
     },
     {} as Record<string, { code: number; type: string }[]>,

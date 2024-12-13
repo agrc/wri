@@ -2,7 +2,7 @@ import { watch } from '@arcgis/core/core/reactiveUtils';
 import { Button } from '@ugrc/utah-design-system';
 import { useViewUiPosition } from '@ugrc/utilities/hooks';
 import clsx from 'clsx';
-import { WritableDraft } from 'immer';
+import type { WritableDraft } from 'immer';
 import { Redo2Icon, Undo2Icon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useImmerReducer } from 'use-immer';
@@ -56,8 +56,6 @@ export const NavigationHistory = ({
   const isButtonExtentChange = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!view?.extent) return;
-
     const handle = watch(
       () => [view.stationary, view.extent],
       ([stationary]) => {

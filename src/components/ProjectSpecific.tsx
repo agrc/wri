@@ -1,14 +1,96 @@
+import Collection from '@arcgis/core/core/Collection';
 import { useQuery } from '@tanstack/react-query';
 import { Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system';
 import ky from 'ky';
 import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
-import { ProjectStatusTag, titleCase } from './';
+import { Fragment } from 'react/jsx-runtime';
+import {
+  ProjectStatusTag,
+  ReferenceData,
+  ReferenceLabelSwitch,
+  type ReferenceLayer,
+  TagGroupLoader,
+  titleCase,
+} from './';
 import { ErrorFallback } from './ErrorFallBack';
+import { useMap } from './hooks';
+
+export type ProjectResponse = {
+  id: number;
+  manager: string;
+  agency: string;
+  title: string;
+  status: string;
+  description: string;
+  region: string;
+  affected: string;
+  terrestrial: string;
+  aquatic: string;
+  easement: string;
+  stream: string;
+  county: CountyIntersection[];
+  owner: LandOwnerIntersection[];
+  sgma: SageGrouseIntersection[];
+  polygons: Polygons;
+  lines: Line[];
+  points: Point[];
+};
+
+export type CountyIntersection = {
+  county: string;
+  area: string;
+};
+
+export type LandOwnerIntersection = {
+  owner: string;
+  admin: string;
+  area: string;
+};
+
+export type SageGrouseIntersection = {
+  name: string;
+  area: string;
+};
+
+export type Polygons = {
+  [key: string]: Polygon[];
+};
+
+export type Polygon = {
+  featureId: number;
+  type: string;
+  subtype: string;
+  action: string;
+  herbicide: string;
+  retreatment: string;
+  size: string;
+};
+
+export type Line = {
+  featureId: number;
+  type: string;
+  subtype: string;
+  action: string;
+  length: string;
+};
+
+export type Point = {
+  featureId: number;
+  type: string;
+  subtype: string;
+  description: string;
+  count: string;
+};
 
 export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
-  const { data, status } = useQuery({
+  const { mapView, currentMapScale } = useMap();
+
+  const allLayers = mapView?.map?.layers ?? new Collection();
+  const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
+
+  const { data, status } = useQuery<ProjectResponse>({
     queryKey: ['project', projectId],
     queryFn: async () =>
       await ky
@@ -27,14 +109,24 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
           {status === 'success' && (
             <>
               <div className="flex justify-between">
-                <p>{data.title}</p>
+                <p>
+                  <a href={`./project/title.html?id=${projectId}`}>{data.title}</a>
+                </p>
                 <ProjectStatusTag status={data.status} />
               </div>
-              <Tabs>
-                <TabList aria-label="Project details">
-                  <Tab id="details">Details</Tab>
-                  <Tab id="features">Features</Tab>
-                </TabList>
+              <div className="mb-2 mt-4 flex h-px justify-center">
+                <div className="mx-2 w-6 bg-zinc-200" />
+                <div className="mx-2 w-6 bg-zinc-300" />
+                <div className="mx-2 w-6 bg-zinc-200" />
+              </div>
+              <Tabs onSelectionChange={(key) => console.log(key)}>
+                <div className="overflow-x-auto overflow-y-hidden pb-4">
+                  <TabList aria-label="Project details">
+                    <Tab id="details">Details</Tab>
+                    <Tab id="features">Features</Tab>
+                    <Tab id="reference">Reference</Tab>
+                  </TabList>
+                </div>
                 <TabPanel id="details">
                   <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
                     <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
@@ -124,56 +216,40 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                 <TabPanel id="features">
                   <Group className="flex flex-col gap-y-2 dark:text-zinc-100 [&>hr:last-child]:hidden">
                     {Object.keys(data.polygons ?? {}).length > 0 &&
-                      Object.values(
-                        data.polygons as Record<
-                          string,
-                          {
-                            featureId: number;
-                            type: string;
-                            subtype: string;
-                            action: string;
-                            herbicide: string | null;
-                            retreatment: string;
-                            size: string;
-                          }[]
-                        >,
-                      ).map(
-                        (
-                          x: {
-                            featureId: number;
-                            type: string;
-                            subtype: string;
-                            action: string;
-                            herbicide: string | null;
-                            retreatment: string;
-                            size: string;
-                          }[],
-                          i: number,
-                        ) => (
-                          <>
-                            <div>
-                              <div className="flex justify-between">
-                                <p className="font-bold">{x[0].type}</p>
-                                <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
-                                  {x[0].size}
-                                </p>
-                              </div>
-                              <p>Retreatment - {x[0].retreatment}</p>
-                              <ol className="list-inside list-decimal pl-3">
-                                {x.map((y) => (
-                                  <li key={`${y.action}-${y.subtype}`}>
-                                    {y.action} - {y.subtype} {y.herbicide && `- ${y.herbicide}`}
-                                  </li>
-                                ))}
-                              </ol>
+                      Object.values(data.polygons).map((x, i) => (
+                        <Fragment key={`${i}-${x[0]?.type}`}>
+                          <div>
+                            <div className="flex justify-between">
+                              <p className="font-bold">{x[0]?.type}</p>
+                              <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
+                                {x[0]?.size}
+                              </p>
                             </div>
-                            {i < Object.keys(data.polygons).length - 1 && (
-                              <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
-                            )}
-                          </>
-                        ),
-                      )}
+                            <p>Retreatment - {x[0]?.retreatment}</p>
+                            <ol className="list-inside list-decimal pl-3">
+                              {x.map((y) => (
+                                <li key={`${y.action}-${y.subtype}`}>
+                                  {y.action} - {y.subtype} {y.herbicide && `- ${y.herbicide}`}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                          {i < Object.keys(data.polygons).length - 1 && (
+                            <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
+                          )}
+                        </Fragment>
+                      ))}
                   </Group>
+                </TabPanel>
+                <TabPanel id="reference">
+                  {referenceLayers.length > 0 ? (
+                    <>
+                      <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />
+                      <ReferenceLabelSwitch layers={referenceLayers}>Labels</ReferenceLabelSwitch>
+                    </>
+                  ) : (
+                    <TagGroupLoader />
+                  )}
                 </TabPanel>
               </Tabs>
             </>

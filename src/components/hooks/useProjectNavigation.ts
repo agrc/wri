@@ -1,5 +1,5 @@
 import { useMapReady } from '@ugrc/utilities/hooks';
-import { useCallback, useContext, useEffect } from 'react';
+import { useCallback, useContext, useEffect, useRef } from 'react';
 import { ProjectContext } from '../contexts';
 
 const handleHashChange = (hash: string) => {
@@ -10,7 +10,7 @@ const handleHashChange = (hash: string) => {
   }
 
   const idAsString = hash.split('=')[1];
-  if (idAsString.length === 0) {
+  if (!idAsString || idAsString.length === 0) {
     return null;
   }
 
@@ -24,6 +24,7 @@ const handleHashChange = (hash: string) => {
 export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri.FeatureLayer[], enabled: boolean) => {
   const isReady = useMapReady(view);
   const context = useContext(ProjectContext);
+  const clickHandler = useRef<__esri.Handle | null>(null);
 
   if (context === null) {
     throw new Error('useProjectNavigation must be used within a ProjectContext');
@@ -31,10 +32,6 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
 
   // only run on load
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
     context.setProjectId(handleHashChange(window.location.hash));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -42,27 +39,41 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
   // map click on project features
   useEffect(() => {
     if (!enabled || !isReady || !view) {
+      if (clickHandler.current) {
+        clickHandler.current.remove();
+        clickHandler.current = null;
+      }
+
       return;
     }
 
-    view.on('click', (event) => {
-      const opts = {
-        include: layers,
-      };
+    if (!clickHandler.current) {
+      clickHandler.current = view.on('click', (event) => {
+        const opts = {
+          include: layers,
+        };
 
-      view.hitTest(event, opts).then((response) => {
-        if (response.results.length) {
-          const result = (response.results[0] as __esri.MapViewGraphicHit).graphic;
+        view.hitTest(event, opts).then((response) => {
+          if (response.results.length) {
+            const result = (response.results[0] as __esri.MapViewGraphicHit).graphic;
 
-          const id = handleHashChange(`id=${result.attributes?.Project_ID}`);
+            const id = handleHashChange(`id=${result.attributes?.Project_ID}`);
 
-          if (id) {
-            context.setProjectId(id);
-            window.location.hash = `id=${id}`;
+            if (id) {
+              context.setProjectId(id);
+              window.location.hash = `id=${id}`;
+            }
           }
-        }
+        });
       });
-    });
+    }
+
+    return () => {
+      if (clickHandler.current) {
+        clickHandler.current.remove();
+        clickHandler.current = null;
+      }
+    };
   }, [context, enabled, isReady, layers, view]);
 
   const setProjectId = useCallback(() => {
@@ -71,16 +82,12 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
 
   // watch the hash for changes
   useEffect(() => {
-    if (!enabled || !isReady || !view) {
-      return;
-    }
-
     window.addEventListener('hashchange', setProjectId);
 
     return () => {
       window.removeEventListener('hashchange', () => setProjectId);
     };
-  }, [context, enabled, isReady, setProjectId, view]);
+  }, [context, setProjectId]);
 
   return context;
 };

@@ -46,6 +46,9 @@
     font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
   }
 
+  a {
+    @apply text-secondary-800 underline transition hover:text-secondary-950 hover:underline-offset-1;
+  }
   h1 {
     @apply text-3xl font-bold md:text-4xl;
   }
@@ -65,7 +68,6 @@
     @apply text-sm font-bold md:text-base;
   }
 }
-
 /* remove map outline */
 .esri-view-surface.esri-view-surface--touch-none {
   @apply after:focus:outline-none;

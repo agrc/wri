@@ -59,30 +59,35 @@ export type Polygons = {
 };
 
 export type Polygon = {
-  featureId: number;
+  id: number;
   type: string;
   subtype: string;
   action: string;
   herbicide: string;
   retreatment: string;
+  layer: FeatureLayerId;
   size: string;
 };
 
 export type Line = {
-  featureId: number;
+  id: number;
   type: string;
   subtype: string;
   action: string;
+  layer: FeatureLayerId;
   length: string;
 };
 
 export type Point = {
-  featureId: number;
+  id: number;
   type: string;
   subtype: string;
   description: string;
+  layer: FeatureLayerId;
   count: string;
 };
+
+export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 
 export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
   const { mapView, currentMapScale } = useMap();

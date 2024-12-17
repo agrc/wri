@@ -1,7 +1,8 @@
 import Collection from '@arcgis/core/core/Collection';
+import { useContext } from 'react';
 import { type Key } from 'react-aria';
 import { useImmerReducer } from 'use-immer';
-import { FilterContext } from '.';
+import { FilterContext, ProjectContext } from '.';
 import { featureTypes, projectStatus } from '../data/filters';
 import { generateDefinitionExpression } from '../definitionExpressionManager';
 
@@ -112,9 +113,24 @@ export const FilterProvider = ({
   featureLayers: __esri.Collection<__esri.FeatureLayer>;
 }) => {
   const [state, dispatch] = useImmerReducer(reducer, initialState);
+  const context = useContext(ProjectContext);
+  let projectId = 0;
 
-  const expressions = generateDefinitionExpression(state);
-  setDefinitionExpression(featureLayers, expressions);
+  if (context) {
+    projectId = context.projectId ?? 0;
+  }
+
+  if (projectId > 0) {
+    setDefinitionExpression(featureLayers, {
+      centroids: `1=0`,
+      point: `Project_ID=${projectId}`,
+      line: `Project_ID=${projectId}`,
+      poly: `Project_ID=${projectId}`,
+    });
+  } else {
+    const expressions = generateDefinitionExpression(state);
+    setDefinitionExpression(featureLayers, expressions);
+  }
 
   return (
     <FilterContext.Provider

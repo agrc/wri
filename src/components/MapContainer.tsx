@@ -44,7 +44,7 @@ type SelectorOptions = {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 };
 
-export const MapContainer = ({ configuration }: { configuration: 'search' | 'edit' }) => {
+export const MapContainer = () => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView | null>(null);
@@ -129,14 +129,14 @@ export const MapContainer = ({ configuration }: { configuration: 'search' | 'edi
       ];
       operationalLayers.current = [polygons, lines, points, centroids];
 
-      if (configuration === 'search') {
+      if (currentProject === 0) {
         operationalLayers.current.forEach((x) => (x.visible = false));
         addLayers(operationalLayers.current);
       } else {
         addLayers(referenceLayers.concat(operationalLayers.current));
       }
     }
-  }, [isReady, mapView, addLayers, setMapView, configuration]);
+  }, [isReady, mapView, addLayers, setMapView, currentProject]);
 
   return (
     <>

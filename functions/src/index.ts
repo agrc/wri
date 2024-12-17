@@ -9,7 +9,6 @@ let config: Knex.Config = {
     filename: './dev.sqlite3',
   },
   useNullAsDefault: true,
-  debug: true,
 };
 
 const db = knex(config);
@@ -102,7 +101,7 @@ export const project = https.onRequest({ cors }, async (req, res) => {
   const features = await db
     .select({
       origin: db.raw(`'point'`),
-      featureId: 'pt.FeatureID',
+      id: 'pt.FeatureID',
       type: 'pt.TypeDescription',
       subtype: 'pt.FeatureSubTypeDescription',
       action: 'pt.ActionDescription',
@@ -117,7 +116,7 @@ export const project = https.onRequest({ cors }, async (req, res) => {
       db
         .select({
           origin: db.raw(`'line'`),
-          featureId: 'l.FeatureID',
+          id: 'l.FeatureID',
           type: 'l.TypeDescription',
           subtype: 'l.FeatureSubTypeDescription',
           action: 'l.ActionDescription',
@@ -131,7 +130,7 @@ export const project = https.onRequest({ cors }, async (req, res) => {
       db
         .select({
           origin: db.raw(`'poly'`),
-          featureId: 'p.FeatureID',
+          id: 'p.FeatureID',
           type: 'p.TypeDescription',
           subtype: 't.TreatmentTypeDescription',
           action: 'a.ActionDescription',
@@ -151,16 +150,17 @@ export const project = https.onRequest({ cors }, async (req, res) => {
     .filter((x) => x.origin === 'poly')
     .reduce(
       (acc, feature) => {
-        if (!acc[feature.featureId]) {
-          acc[feature.featureId] = [];
+        if (!acc[feature.id]) {
+          acc[feature.id] = [];
         }
-        acc[feature.featureId].push({
-          featureId: feature.featureId,
+        acc[feature.id].push({
+          id: feature.id,
           type: feature.type,
           subtype: feature.subtype,
           action: feature.action,
           herbicide: feature.herbicide,
           retreatment: feature.retreatment,
+          layer: 'feature-poly',
           size: convertMetersToAcres(feature.size),
         });
         return acc;
@@ -181,20 +181,22 @@ export const project = https.onRequest({ cors }, async (req, res) => {
     lines: features
       .filter((f) => f.origin === 'line')
       .map((f) => ({
-        featureId: f.featureId,
+        id: f.id,
         type: f.type,
         subtype: f.subtype,
         action: f.action,
+        layer: 'feature-line',
         size: `${f.size} meters`,
       })),
     points: features
       .filter((f) => f.origin === 'point')
       .map((f) => ({
-        featureId: f.featureId,
+        id: f.id,
         type: f.type,
         subtype: f.subtype,
         description: f.description,
         action: f.action,
+        layer: 'feature-point',
         size: `${f.size}`,
       })),
   });

@@ -44,6 +44,11 @@ type SelectorOptions = {
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 };
 
+type ExtentQueryResult = {
+  extent: __esri.Extent;
+  count: number;
+};
+
 export const MapContainer = () => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
@@ -137,6 +142,43 @@ export const MapContainer = () => {
       }
     }
   }, [isReady, mapView, addLayers, setMapView, currentProject]);
+
+  // zoom to the current project
+  useEffect(() => {
+    if (currentProject === 0) {
+      return;
+    }
+
+    const promises: Promise<ExtentQueryResult>[] = [];
+    operationalLayers.current.forEach((layer) => {
+      layer.visible = true;
+      if (layer.id === 'feature-centroids') {
+        return;
+      }
+
+      const query = layer.createQuery();
+      query.where = layer.definitionExpression;
+
+      promises.push(layer.queryExtent(query));
+    });
+
+    Promise.all(promises).then((results) => {
+      let combinedExtent: __esri.Extent | null = null;
+      results
+        .filter((x) => x.count > 0)
+        .forEach((x) => {
+          if (combinedExtent) {
+            combinedExtent = combinedExtent.union(x.extent);
+          } else {
+            combinedExtent = x.extent;
+          }
+        });
+
+      if (combinedExtent) {
+        mapView.current?.goTo(combinedExtent);
+      }
+    });
+  }, [currentProject, operationalLayers.current.length]);
 
   return (
     <>

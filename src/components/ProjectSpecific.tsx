@@ -1,12 +1,14 @@
 import Collection from '@arcgis/core/core/Collection';
 import { useQuery } from '@tanstack/react-query';
-import { Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system';
+import { Button, Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system';
 import ky from 'ky';
-import { Group } from 'react-aria-components';
+import { DiamondIcon, InfoIcon } from 'lucide-react';
+import { Group, Toolbar } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Fragment } from 'react/jsx-runtime';
 import {
+  OpacityManager,
   ProjectStatusTag,
   ReferenceData,
   ReferenceLabelSwitch,
@@ -119,13 +121,19 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                 </p>
                 <ProjectStatusTag status={data.status} />
               </div>
-              <div className="mb-2 mt-4 flex h-px justify-center">
-                <div className="mx-2 w-6 bg-zinc-200" />
-                <div className="mx-2 w-6 bg-zinc-300" />
-                <div className="mx-2 w-6 bg-zinc-200" />
+              <div className="mb-0 mt-2 flex justify-center">
+                <div className="mx-2 w-6">
+                  <DiamondIcon className="size-2 fill-primary-400/50 text-primary-600" />
+                </div>
+                <div className="mx-2 w-6">
+                  <DiamondIcon className="size-2 fill-accent-500/50 text-accent-700" />
+                </div>
+                <div className="mx-2 w-6">
+                  <DiamondIcon className="size-2 fill-primary-400/50 text-primary-600" />
+                </div>
               </div>
               <Tabs onSelectionChange={(key) => console.log(key)}>
-                <div className="overflow-x-auto overflow-y-hidden pb-4">
+                <div className="overflow-x-auto overflow-y-hidden pb-4 pt-1">
                   <TabList aria-label="Project details">
                     <Tab id="details">Details</Tab>
                     <Tab id="features">Features</Tab>
@@ -221,24 +229,51 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                 <TabPanel id="features">
                   <Group className="flex flex-col gap-y-2 dark:text-zinc-100 [&>hr:last-child]:hidden">
                     {Object.keys(data.polygons ?? {}).length > 0 &&
-                      Object.values(data.polygons).map((x, i) => (
-                        <Fragment key={`${i}-${x[0]?.type}`}>
+                      Object.values(data.polygons).map((polygon, i) => (
+                        <Fragment key={`${i}-${polygon[0]?.type}`}>
                           <div>
                             <div className="flex justify-between">
-                              <p className="font-bold">{x[0]?.type}</p>
+                              <p className="font-bold">{polygon[0]?.type}</p>
                               <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
-                                {x[0]?.size}
+                                {polygon[0]?.size}
                               </p>
                             </div>
-                            <p>Retreatment - {x[0]?.retreatment}</p>
+                            <p>Retreatment - {polygon[0]?.retreatment}</p>
                             <ol className="list-inside list-decimal pl-3">
-                              {x.map((y) => (
-                                <li key={`${y.action}-${y.subtype}`}>
-                                  {y.action} - {y.subtype} {y.herbicide && `- ${y.herbicide}`}
+                              {polygon.map((polygonType) => (
+                                <li key={`${polygonType.action}-${polygonType.subtype}`}>
+                                  {polygonType.action} - {polygonType.subtype}{' '}
+                                  {polygonType.herbicide && `- ${polygonType.herbicide}`}
                                 </li>
                               ))}
                             </ol>
                           </div>
+                          <Toolbar aria-label="Feature options" className="flex gap-x-1">
+                            <Button
+                              variant="icon"
+                              className="h-8 min-w-8 rounded border border-zinc-400"
+                              onPress={() => {
+                                const poly = allLayers.filter((x) => x.id.startsWith('feature-poly'));
+                                console.log('poly', poly.getItemAt(0));
+                                mapView?.whenLayerView(poly.getItemAt(0)).then((view) => {
+                                  view.highlight(polygon[0]?.id);
+                                });
+                              }}
+                            >
+                              <InfoIcon className="size-5" />
+                            </Button>
+                            {mapView && (
+                              <OpacityManager
+                                mapView={mapView}
+                                layers={
+                                  allLayers.filter((x) =>
+                                    x.id.startsWith('feature-'),
+                                  ) as Collection<__esri.FeatureLayer>
+                                }
+                                feature={polygon[0]}
+                              />
+                            )}
+                          </Toolbar>
                           {i < Object.keys(data.polygons).length - 1 && (
                             <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
                           )}

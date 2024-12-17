@@ -138,6 +138,14 @@ export const MapContainer = () => {
     }
   }, [isReady, mapView, addLayers, setMapView, currentProject]);
 
+  // zoom to the current project
+  useEffect(() => {
+    if (currentProject === 0) {
+      return;
+    }
+
+    operationalLayers.current.forEach((x) => (x.visible = true));
+  }, [currentProject]);
   return (
     <>
       {mapView.current && (

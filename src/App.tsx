@@ -1,12 +1,11 @@
 import esriConfig from '@arcgis/core/config.js';
 import Collection from '@arcgis/core/core/Collection.js';
 import { Drawer } from '@ugrc/utah-design-system';
-import { useContext } from 'react';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
 import { DrawerView, ErrorFallback, MapContainer } from './components';
-import { FilterProvider, ProjectContext } from './components/contexts';
+import { FilterProvider } from './components/contexts';
 import { useMap } from './components/hooks';
 import config from './config.js';
 
@@ -32,25 +31,19 @@ export default function App() {
   const { mapView } = useMap();
   const allLayers = mapView?.map?.layers ?? new Collection();
   const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<__esri.FeatureLayer>;
-  const projectContext = useContext(ProjectContext);
-
-  let projectId = null;
-  if (projectContext !== null) {
-    projectId = projectContext.projectId;
-  }
 
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">
       <section className="relative flex min-h-0 flex-1 overflow-x-hidden md:mr-2">
         <Drawer main state={sideBarState} {...sideBarTriggerProps}>
           <FilterProvider featureLayers={featureLayers}>
-            <DrawerView projectId={projectId} />
+            <DrawerView />
           </FilterProvider>
         </Drawer>
         <div className="relative flex flex-1 flex-col rounded border border-b-0 border-zinc-200 dark:border-0 dark:border-zinc-700">
           <div className="relative flex-1">
             <ErrorBoundary FallbackComponent={ErrorFallback}>
-              <MapContainer configuration="edit" />
+              <MapContainer />
             </ErrorBoundary>
             <Drawer
               type="tray"

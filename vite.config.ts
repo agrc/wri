@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ['@arcgis/core'],
     },
     build: {
-      assetsDir: mode === 'production' ? 'wri/js/ugrc' : 'js/ugrc',
+      assetsDir: 'js/ugrc',
       rollupOptions: {
         input: {
           main: resolve(__dirname, 'map.html'),

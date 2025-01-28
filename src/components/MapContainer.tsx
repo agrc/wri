@@ -136,6 +136,8 @@ export const MapContainer = () => {
 
       if (currentProject === 0) {
         operationalLayers.current.forEach((x) => (x.visible = false));
+      } else {
+        operationalLayers.current.forEach((x) => (x.visible = true));
       }
 
       addLayers(referenceLayers.concat(operationalLayers.current));

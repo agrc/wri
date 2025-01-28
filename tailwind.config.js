@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 import rac from 'tailwindcss-react-aria-components';
+import colors from 'tailwindcss/colors';
 
 export default {
   content: ['./node_modules/@ugrc/**/*.{tsx,jsx,js}', './index.html', './search.html', './src/**/*.{tsx,jsx,js}'],
@@ -44,6 +45,7 @@ export default {
           800: '#3a1c0f',
           900: '#160b06',
         },
+        warning: colors.rose,
       },
       fontFamily: {
         utah: ['"Source Sans 3"', '"Source Sans Pro"', 'Helvetica', 'Arial', 'sans-serif'],

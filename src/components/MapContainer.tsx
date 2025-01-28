@@ -136,10 +136,9 @@ export const MapContainer = () => {
 
       if (currentProject === 0) {
         operationalLayers.current.forEach((x) => (x.visible = false));
-        addLayers(operationalLayers.current);
-      } else {
-        addLayers(referenceLayers.concat(operationalLayers.current));
       }
+
+      addLayers(referenceLayers.concat(operationalLayers.current));
     }
   }, [isReady, mapView, addLayers, setMapView, currentProject]);
 

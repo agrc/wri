@@ -142,7 +142,7 @@ export const MapContainer = () => {
 
       addLayers(referenceLayers.concat(operationalLayers.current));
     }
-  }, [isReady, mapView, addLayers, setMapView, currentProject]);
+  }, [isReady, currentProject, addLayers]);
 
   // zoom to the current project
   useEffect(() => {

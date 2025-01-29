@@ -2,7 +2,7 @@ import { watch } from '@arcgis/core/core/reactiveUtils';
 import Graphic from '@arcgis/core/Graphic';
 import MapView from '@arcgis/core/views/MapView';
 import { useGraphicManager } from '@ugrc/utilities/hooks';
-import { createContext, type ReactNode, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useState } from 'react';
 
 export const MapContext = createContext<{
   mapView: MapView | null;
@@ -32,21 +32,24 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
     setGraphic(graphic);
   };
 
-  const addLayers = (layers: __esri.Layer[]): void => {
-    if (!mapView) {
-      console.warn('attempting to add a layer before the mapView is set');
+  const addLayers = useCallback(
+    (layers: __esri.Layer[]): void => {
+      if (!mapView) {
+        console.warn('attempting to add a layer before the mapView is set');
 
-      return;
-    }
+        return;
+      }
 
-    if (!mapView.map) {
-      console.warn('mapView does not have a map property');
+      if (!mapView.map) {
+        console.warn('mapView does not have a map property');
 
-      return;
-    }
+        return;
+      }
 
-    mapView.map.addMany(layers);
-  };
+      mapView.map.addMany(layers);
+    },
+    [mapView],
+  );
 
   watch(
     () => mapView?.stationary,

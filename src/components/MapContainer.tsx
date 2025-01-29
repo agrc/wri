@@ -49,7 +49,8 @@ type ExtentQueryResult = {
   count: number;
 };
 
-export const MapContainer = () => {
+export const MapContainer = ({ configuration }: { configuration: string }) => {
+  console.log('configuration', configuration);
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView | null>(null);

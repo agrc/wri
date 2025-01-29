@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "check": "tsc -b",
     "deploy": "firebase deploy --only functions",
     "lint": "eslint --ext .js,.ts .",
     "logs": "firebase functions:log",

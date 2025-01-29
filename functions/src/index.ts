@@ -3,7 +3,7 @@ import { Knex, knex } from 'knex';
 
 const cors = [/ut-dts-agrc-wri-dev\.web\.app$/, /ut-dts-agrc-wri-prod\.web\.app$/];
 
-let config: Knex.Config = {
+const config: Knex.Config = {
   client: 'sqlite3',
   connection: {
     filename: './dev.sqlite3',

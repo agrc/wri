@@ -165,7 +165,19 @@ export const project = https.onRequest({ cors }, async (req, res) => {
         });
         return acc;
       },
-      {} as Record<string, any[]>,
+      {} as Record<
+        string,
+        Array<{
+          id: number;
+          type: string;
+          subtype: string;
+          action: string;
+          herbicide: string;
+          retreatment: boolean;
+          layer: 'feature-poly';
+          size: string;
+        }>
+      >,
     );
 
   res.send({

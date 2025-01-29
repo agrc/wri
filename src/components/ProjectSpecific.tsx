@@ -269,7 +269,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                                 const poly = allLayers.filter((x) => x.id.startsWith('feature-poly'));
                                 console.log('poly', poly.getItemAt(0));
                                 mapView?.whenLayerView(poly.getItemAt(0)).then((view) => {
-                                  view.highlight(polygon[0]?.id);
+                                  (view as __esri.FeatureLayerView).highlight(polygon[0]?.id);
                                 });
                               }}
                             >

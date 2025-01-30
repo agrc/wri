@@ -311,7 +311,7 @@ export const regions = new FeatureLayer({
 export const blmDistricts = new FeatureLayer({
   title: 'BLM Districts',
   id: 'reference-blm-districts',
-  url: 'https://wrimaps.at.utah.gov/arcgis/rest/services/WRI_AT/Reference/MapServer/0',
+  url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/BLMDistricts/FeatureServer',
   outFields: ['FO_NAME'],
   visible: false,
   labelsVisible: false,

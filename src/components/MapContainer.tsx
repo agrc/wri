@@ -186,7 +186,16 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
     <>
       {mapView.current && (
         <>
-          <HomeButton view={mapView.current} />
+          <HomeButton
+            view={mapView.current}
+            actions={[
+              () => {
+                if (projectContext?.projectId) {
+                  window.location.hash = '';
+                }
+              },
+            ]}
+          />
           <NavigationHistory view={mapView.current} />
           <BusyBar busy={isLoading} />
           <Tooltip view={mapView.current} layers={operationalLayers.current} enabled={currentProject === 0} />

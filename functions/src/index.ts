@@ -1,7 +1,7 @@
-import { https } from 'firebase-functions/v2';
+import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { Knex, knex } from 'knex';
 
-const cors = [/ut-dts-agrc-wri-dev\.web\.app$/, /ut-dts-agrc-wri-prod\.web\.app$/];
+const cors = [/ut-dnr-dwr-wri-app-at\.web\.app$/, /localhost:\d+$/];
 
 const config: Knex.Config = {
   client: 'sqlite3',
@@ -15,17 +15,15 @@ const db = knex(config);
 
 const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;
 
-export const health = https.onRequest({ cors }, async (_, res) => {
+export const health = onRequest({ cors, region: 'us-west3' }, async (_, res) => {
   res.send('healthy');
 });
 
-export const project = https.onRequest({ cors }, async (req, res) => {
-  const id = parseInt(req.query.id?.toString() ?? '-1', 10);
+export const project = onCall({ cors, region: 'us-west3' }, async (request) => {
+  const id = parseInt(request.data?.id?.toString() ?? '-1', 10);
 
   if (id === -1) {
-    res.status(400).send('Invalid project ID');
-
-    return;
+    throw new Error('Invalid project ID');
   }
 
   const project = await db
@@ -180,7 +178,7 @@ export const project = https.onRequest({ cors }, async (req, res) => {
       >,
     );
 
-  res.send({
+  return {
     ...project,
     county: rollup
       .filter((r) => r.origin === 'county')
@@ -211,7 +209,5 @@ export const project = https.onRequest({ cors }, async (req, res) => {
         layer: 'feature-point',
         size: `${f.size}`,
       })),
-  });
-
-  return;
+  };
 });

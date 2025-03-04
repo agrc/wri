@@ -1,1 +1,8 @@
-GET http://127.0.0.1:5001/ut-dts-agrc-wri-dev/us-central1/project?id=5772
+POST http://127.0.0.1:5001/ut-dnr-dwr-wri-app-at/us-west3/project
+content-type: application/json
+
+{
+  "data": {
+    "id":1922
+  }
+}

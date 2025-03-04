@@ -1,7 +1,7 @@
 import Collection from '@arcgis/core/core/Collection';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system';
-import ky from 'ky';
+import { Button, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
+import { httpsCallable } from 'firebase/functions';
 import { DiamondIcon, InfoIcon } from 'lucide-react';
 import { useRef } from 'react';
 import { Group, Toolbar } from 'react-aria-components';
@@ -41,25 +41,13 @@ export type ProjectResponse = {
   points: Point[];
 };
 
-export type CountyIntersection = {
-  county: string;
-  area: string;
-};
+export type CountyIntersection = { county: string; area: string };
 
-export type LandOwnerIntersection = {
-  owner: string;
-  admin: string;
-  area: string;
-};
+export type LandOwnerIntersection = { owner: string; admin: string; area: string };
 
-export type SageGrouseIntersection = {
-  name: string;
-  area: string;
-};
+export type SageGrouseIntersection = { name: string; area: string };
 
-export type Polygons = {
-  [key: string]: Polygon[];
-};
+export type Polygons = { [key: string]: Polygon[] };
 
 export type Polygon = {
   id: number;
@@ -72,14 +60,7 @@ export type Polygon = {
   size: string;
 };
 
-export type Line = {
-  id: number;
-  type: string;
-  subtype: string;
-  action: string;
-  layer: FeatureLayerId;
-  length: string;
-};
+export type Line = { id: number; type: string; subtype: string; action: string; layer: FeatureLayerId; length: string };
 
 export type Point = {
   id: number;
@@ -95,18 +76,20 @@ export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const { mapView, currentMapScale } = useMap();
+  const { functions } = useFirebaseFunctions();
+  functions.region = 'us-west3';
+  const getProjectInfo = httpsCallable(functions, 'project');
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
 
   const { data, status } = useQuery<ProjectResponse>({
     queryKey: ['project', projectId],
-    queryFn: async () =>
-      await ky
-        .get(`http://127.0.0.1:5001/ut-dts-agrc-wri-dev/us-central1/project?id=${projectId}`, {
-          retry: 1,
-        })
-        .json(),
+    queryFn: async () => {
+      const result = await getProjectInfo({ id: projectId });
+
+      return result.data as ProjectResponse;
+    },
   });
 
   return (

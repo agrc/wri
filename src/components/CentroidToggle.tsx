@@ -5,6 +5,22 @@ import { useMap } from './hooks';
 
 const defaultSwitchScale = 75000; // level 13
 
+const toggle = (mapView: __esri.MapView, layerId: string, selected: boolean) => {
+  if (!layerId) {
+    return;
+  }
+
+  const layer = mapView.map.findLayerById(layerId);
+
+  if (!layer) {
+    console.error(`Error setting ${layerId} visibility`);
+
+    return;
+  }
+
+  layer.visible = selected;
+};
+
 export const CentroidToggle = () => {
   const [selected, setSelected] = useState<boolean>(false);
   const [locked, setLocked] = useState<boolean>(false);
@@ -23,26 +39,10 @@ export const CentroidToggle = () => {
       return;
     }
 
-    try {
-      mapView.map.findLayerById('feature-centroids').visible = selected;
-    } catch {
-      console.error('Error setting feature-centroid visibility');
-    }
-    try {
-      mapView.map.findLayerById('feature-poly').visible = !selected;
-    } catch {
-      console.error('Error setting feature-poly visibility');
-    }
-    try {
-      mapView.map.findLayerById('feature-line').visible = !selected;
-    } catch {
-      console.error('Error setting feature-line visibility');
-    }
-    try {
-      mapView.map.findLayerById('feature-point').visible = !selected;
-    } catch {
-      console.error('Error setting feature-point visibility');
-    }
+    toggle(mapView, 'feature-centroids', selected);
+    toggle(mapView, 'feature-poly', !selected);
+    toggle(mapView, 'feature-line', !selected);
+    toggle(mapView, 'feature-point', !selected);
   });
 
   return (

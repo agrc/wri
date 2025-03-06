@@ -250,9 +250,17 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                               className="h-8 min-w-8 rounded border border-zinc-400"
                               onPress={() => {
                                 const poly = allLayers.filter((x) => x.id.startsWith('feature-poly'));
-                                console.log('poly', poly.getItemAt(0));
-                                mapView?.whenLayerView(poly.getItemAt(0)).then((view) => {
-                                  (view as __esri.FeatureLayerView).highlight(polygon[0]?.id);
+                                if (!poly || poly.length === 0) {
+                                  return;
+                                }
+
+                                const layer = poly.getItemAt(0);
+                                if (!layer) {
+                                  return;
+                                }
+
+                                mapView?.whenLayerView(layer).then((view) => {
+                                  (view as __esri.FeatureLayerView).highlight(polygon[0]?.id as number);
                                 });
                               }}
                             >

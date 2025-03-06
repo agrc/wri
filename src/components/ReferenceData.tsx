@@ -45,7 +45,7 @@ export const ReferenceData = ({
             id={layer.id}
             key={layer.id}
             isDisabled={!isVisible(currentMapScale, layer.minScale, layer.maxScale)}
-            textValue={layer.title}
+            textValue={layer.title ?? 'unknown'}
           >
             {layer.title}
             <ReferenceDataLegend layer={layer} />
@@ -74,12 +74,16 @@ export const ReferenceLabelSwitch = ({
   return <Switch onChange={toggleLabelVisibility}>{children}</Switch>;
 };
 
-const Swatch = ({ symbol }: { symbol: __esri.Symbol }) => {
+const Swatch = ({ symbol }: { symbol: __esri.SymbolUnion | nullish }) => {
   const divRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!symbol || !divRef.current) {
+      return;
+    }
+
     renderPreviewHTML(symbol).then((node) => {
-      if (!divRef.current) {
+      if (!divRef.current || !node) {
         return;
       }
 
@@ -91,7 +95,7 @@ const Swatch = ({ symbol }: { symbol: __esri.Symbol }) => {
   return <div className="size-6 content-center" ref={divRef}></div>;
 };
 
-const SwatchWithLabel = ({ symbol, label }: { symbol: __esri.Symbol; label: string }) => {
+const SwatchWithLabel = ({ symbol, label }: { symbol: __esri.SymbolUnion | nullish; label: string | nullish }) => {
   return (
     <div className="flex items-end space-x-2" key={label}>
       <Swatch symbol={symbol} />
@@ -100,12 +104,16 @@ const SwatchWithLabel = ({ symbol, label }: { symbol: __esri.Symbol; label: stri
   );
 };
 
-const UniqueValueSwatches = ({ groups }: { groups: __esri.UniqueValueGroup[] }) => {
+const UniqueValueSwatches = ({ groups }: { groups: __esri.UniqueValueGroup[] | nullish }) => {
+  if (!groups) {
+    return null;
+  }
+
   return (
     <>
       {groups.map(({ heading, classes }) => (
         <div key={heading}>
-          {classes.map(({ label, symbol }) => (
+          {(classes ?? []).map(({ label, symbol }) => (
             <SwatchWithLabel symbol={symbol} label={label} key={label} />
           ))}
         </div>
@@ -124,7 +132,7 @@ const ClassBreakSwatches = ({ infos }: { infos: __esri.ClassBreakInfo[] }) => {
   );
 };
 
-const Swatches = ({ renderer }: { renderer: __esri.Renderer }) => {
+const Swatches = ({ renderer }: { renderer: __esri.RendererUnion }) => {
   switch (renderer.type) {
     case 'simple': {
       return <Swatch symbol={(renderer as __esri.SimpleRenderer).symbol} />;
@@ -145,8 +153,8 @@ const Swatches = ({ renderer }: { renderer: __esri.Renderer }) => {
 };
 
 export const ReferenceDataLegend = ({ layer }: { layer: ReferenceLayerWithMetadata }) => {
-  let renderer: __esri.Renderer | undefined;
-  let fields: __esri.Field[] | undefined;
+  let renderer: __esri.RendererUnion | nullish;
+  let fields: __esri.Field[] | nullish;
 
   const legendInfo = config.LEGEND_DATA.find((info) => info.id === layer.id);
   if (!legendInfo && layer instanceof FeatureLayer) {

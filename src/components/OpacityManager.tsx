@@ -41,6 +41,10 @@ export const OpacityManager = ({
 
     const layer = layers.find((x) => x.id === feature.layer);
 
+    if (!layer) {
+      return;
+    }
+
     mapView.whenLayerView(layer).then((view) => {
       layerView.current = view;
     });

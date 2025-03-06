@@ -60,7 +60,17 @@ export const Tooltip = ({
             setHoverProject(result.attributes);
           }
 
-          const screenPoint = view.toScreen((result.geometry as __esri.Polygon)?.centroid ?? result.geometry);
+          let screenPoint: __esri.MapViewScreenPoint | nullish = { x: event.x, y: event.y };
+
+          if (result.geometry?.type === 'point') {
+            screenPoint = view.toScreen(result.geometry as __esri.Point);
+          }
+
+          if (!screenPoint) {
+            console.log('No screen point found');
+            return;
+          }
+
           let top = screenPoint.y - (tooltipNode.current.offsetHeight + 10);
 
           if (top < tooltipNode.current.offsetHeight + 10) {

@@ -11,6 +11,14 @@ const config: Knex.Config = {
   useNullAsDefault: true,
 };
 
+if (process.env.FUNCTIONS_EMULATOR !== 'true') {
+  config.client = 'mssql';
+  config.connection = {
+    socketPath: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION}`,
+    database: 'WRI',
+  };
+}
+
 const db = knex(config);
 
 const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;

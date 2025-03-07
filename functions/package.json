@@ -2,6 +2,7 @@
   "name": "functions",
   "private": true,
   "main": "lib/index.js",
+  "type": "module",
   "scripts": {
     "clean": "rimraf lib",
     "build": "npm run clean && tsc",

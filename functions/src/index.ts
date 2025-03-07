@@ -1,5 +1,5 @@
 import { onCall, onRequest } from 'firebase-functions/v2/https';
-import { Knex, knex } from 'knex';
+import { default as knex, type Knex } from 'knex';
 
 const cors = [/ut-dnr-dwr-wri-app-at\.web\.app$/, /localhost:\d+$/];
 
@@ -151,7 +151,8 @@ export const project = onCall({ cors, region: 'us-west3' }, async (request) => {
         if (!acc[feature.id]) {
           acc[feature.id] = [];
         }
-        acc[feature.id].push({
+
+        acc[feature.id]!.push({
           id: feature.id,
           type: feature.type,
           subtype: feature.subtype,

@@ -23,9 +23,12 @@ const db = knex(config);
 
 const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;
 
-export const health = onRequest({ cors, region: 'us-west3' }, async (_, res) => {
+const health = onRequest({ cors, region: 'us-west3' }, async (_, res) => {
   res.send('healthy');
 });
+
+// Only export health check in emulator mode
+export const healthCheck = process.env.FUNCTIONS_EMULATOR === 'true' ? health : undefined;
 
 export const project = onCall({ cors, region: 'us-west3' }, async (request) => {
   const id = parseInt(request.data?.id?.toString() ?? '-1', 10);

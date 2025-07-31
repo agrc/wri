@@ -1,6 +1,6 @@
 import Collection from '@arcgis/core/core/Collection';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
 import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';

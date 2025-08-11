@@ -1,8 +1,8 @@
 import EsriMap from '@arcgis/core/Map.js';
 import MapView from '@arcgis/core/views/MapView.js';
 
-import LayerSelector from '@ugrc/layer-selector';
-import { BusyBar, HomeButton } from '@ugrc/utah-design-system';
+import type { LayerSelectorProps } from '@ugrc/utah-design-system';
+import { BusyBar, HomeButton, LayerSelector } from '@ugrc/utah-design-system';
 import { useMapReady, useViewLoading, utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { useContext, useEffect, useRef, useState } from 'react';
 import {
@@ -23,26 +23,10 @@ import {
   streams,
   watershedAreas,
 } from '../mapLayers.ts';
+import { ProjectContext } from './contexts';
 import { useMap, useProjectNavigation } from './hooks';
-
-import '@ugrc/layer-selector/src/LayerSelector.css';
 import { NavigationHistory } from './NavigationHistory';
 import { Tooltip } from './Tooltip.tsx';
-import { ProjectContext } from './contexts';
-
-type LayerFactory = {
-  Factory: new () => __esri.Layer;
-  url: string;
-  id: string;
-  opacity: number;
-};
-type SelectorOptions = {
-  view: MapView;
-  quadWord: string;
-  baseLayers: Array<string | { token: string; selected: boolean } | LayerFactory>;
-  overlays?: Array<string | LayerFactory>;
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-};
 
 type ExtentQueryResult = {
   extent: __esri.Extent;
@@ -54,7 +38,7 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
   const mapNode = useRef<HTMLDivElement | null>(null);
   const mapComponent = useRef<EsriMap | null>(null);
   const mapView = useRef<MapView | null>(null);
-  const [selectorOptions, setSelectorOptions] = useState<SelectorOptions | null>(null);
+  const [selectorOptions, setSelectorOptions] = useState<LayerSelectorProps['options'] | null>(null);
   const { setMapView, addLayers } = useMap();
   const isReady = useMapReady(mapView.current);
   const isLoading = useViewLoading(mapView.current);
@@ -99,7 +83,7 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
 
     setMapView(mapView.current);
 
-    const selectorOptions: SelectorOptions = {
+    const selectorOptions: LayerSelectorProps['options'] = {
       view: mapView.current,
       quadWord: import.meta.env.VITE_DISCOVER,
       baseLayers: ['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR'],
@@ -201,8 +185,8 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
           <Tooltip view={mapView.current} layers={operationalLayers.current} enabled={currentProject === 0} />
         </>
       )}
-      <div ref={mapNode} className="size-full">
-        {selectorOptions?.view && <LayerSelector {...selectorOptions}></LayerSelector>}
+      <div ref={mapNode} className="size-full fill-black">
+        {selectorOptions?.view && <LayerSelector options={selectorOptions}></LayerSelector>}
       </div>
     </>
   );

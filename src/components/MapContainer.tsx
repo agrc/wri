@@ -43,6 +43,7 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
   const isReady = useMapReady(mapView.current);
   const isLoading = useViewLoading(mapView.current);
   const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
+  const [layersReady, setLayersReady] = useState(false);
   const projectContext = useContext(ProjectContext);
   let currentProject = 0;
 
@@ -50,7 +51,6 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
     currentProject = projectContext.projectId ?? 0;
   }
 
-  useProjectNavigation(mapView.current, operationalLayers.current, currentProject === 0);
 
   // setup the Map
   useEffect(() => {
@@ -126,6 +126,9 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
       }
 
       addLayers(referenceLayers.concat(operationalLayers.current));
+      setLayersReady(true);
+    } else {
+      setLayersReady(false);
     }
   }, [isReady, currentProject, addLayers]);
 
@@ -165,6 +168,9 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
       }
     });
   }, [currentProject, operationalLayers.current.length]);
+
+  // operational layers are null.
+  useProjectNavigation(mapView, operationalLayers, currentProject === 0 && layersReady);
 
   return (
     <>

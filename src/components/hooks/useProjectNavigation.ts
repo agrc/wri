@@ -1,5 +1,5 @@
 import { useMapReady } from '@ugrc/utilities/hooks';
-import { useCallback, useContext, useEffect, useRef } from 'react';
+import { useCallback, useContext, useEffect, useRef, type MutableRefObject } from 'react';
 import { ProjectContext } from '../contexts';
 
 const handleHashChange = (hash: string) => {
@@ -21,8 +21,12 @@ const handleHashChange = (hash: string) => {
   }
 };
 
-export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri.FeatureLayer[], enabled: boolean) => {
-  const isReady = useMapReady(view);
+export const useProjectNavigation = (
+  viewRef: MutableRefObject<__esri.MapView | null>,
+  layersRef: MutableRefObject<__esri.FeatureLayer[]>,
+  enabled: boolean,
+) => {
+  const isReady = useMapReady(viewRef.current);
   const context = useContext(ProjectContext);
   const clickHandler = useRef<__esri.Handle | null>(null);
 
@@ -38,7 +42,7 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
 
   // map click on project features
   useEffect(() => {
-    if (!enabled || !isReady || !view) {
+    if (!enabled || !isReady || !viewRef.current || !(layersRef.current && layersRef.current.length > 0)) {
       if (clickHandler.current) {
         clickHandler.current.remove();
         clickHandler.current = null;
@@ -48,12 +52,12 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
     }
 
     if (!clickHandler.current) {
-      clickHandler.current = view.on('click', (event) => {
+      clickHandler.current = viewRef.current.on('click', (event) => {
         const opts = {
-          include: layers,
+          include: layersRef.current,
         };
 
-        view.hitTest(event, opts).then((response) => {
+        viewRef.current!.hitTest(event, opts).then((response) => {
           if (response.results.length) {
             const result = (response.results[0] as __esri.MapViewGraphicHit).graphic;
 
@@ -74,7 +78,7 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
         clickHandler.current = null;
       }
     };
-  }, [context, enabled, isReady, layers, view]);
+  }, [context, enabled, isReady, viewRef, layersRef]);
 
   const setProjectId = useCallback(() => {
     context.setProjectId(handleHashChange(window.location.hash));
@@ -85,7 +89,7 @@ export const useProjectNavigation = (view: __esri.MapView | null, layers: __esri
     window.addEventListener('hashchange', setProjectId);
 
     return () => {
-      window.removeEventListener('hashchange', () => setProjectId);
+      window.removeEventListener('hashchange', setProjectId);
     };
   }, [context, setProjectId]);
 

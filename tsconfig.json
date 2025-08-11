@@ -8,7 +8,5 @@
       "path": "./tsconfig.vite-config.json"
     }
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

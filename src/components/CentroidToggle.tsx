@@ -10,7 +10,7 @@ const toggle = (mapView: __esri.MapView, layerId: string, selected: boolean) => 
     return;
   }
 
-  const layer = mapView.map.findLayerById(layerId);
+  const layer = mapView.map!.findLayerById(layerId);
 
   if (!layer) {
     console.error(`Error setting ${layerId} visibility`);

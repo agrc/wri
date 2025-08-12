@@ -2,13 +2,38 @@ import { watch } from '@arcgis/core/core/reactiveUtils';
 import { Button } from '@ugrc/utah-design-system';
 import { useViewUiPosition } from '@ugrc/utilities/hooks';
 import { clsx } from 'clsx';
-import type { WritableDraft } from 'immer';
 import { Redo2Icon, Undo2Icon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import type { ImmerReducer } from 'use-immer';
 import { useImmerReducer } from 'use-immer';
 
+const MAX_HISTORY = 50;
+const EPS = 1e-4;
+
+type MinimalExtent = {
+  xmin: number;
+  ymin: number;
+  xmax: number;
+  ymax: number;
+  spatialReference?: { wkid?: number | null };
+};
+
+const extentsEqual = (a?: MinimalExtent, b?: MinimalExtent) => {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    Math.abs(a.xmin - b.xmin) < EPS &&
+    Math.abs(a.ymin - b.ymin) < EPS &&
+    Math.abs(a.xmax - b.xmax) < EPS &&
+    Math.abs(a.ymax - b.ymax) < EPS &&
+    a.spatialReference?.wkid === b.spatialReference?.wkid
+  );
+};
+
 type State = {
-  history: WritableDraft<__esri.Extent>[];
+  history: __esri.Extent[];
   index: number;
 };
 
@@ -26,23 +51,38 @@ const initialState: State = {
   index: 0,
 };
 
-function reducer(draft: State, action: Action) {
+const reducer: ImmerReducer<State, Action> = (draft, action) => {
   switch (action.type) {
-    case 'back':
-      draft.index = draft.index - 1;
-
+    case 'back': {
+      draft.index = Math.max(0, draft.index - 1);
       break;
-    case 'forward':
-      draft.index = draft.index + 1;
-
+    }
+    case 'forward': {
+      draft.index = Math.min(draft.history.length - 1, draft.index + 1);
       break;
-    case 'history':
-      draft.history.splice(draft.index + 1, Infinity, action.payload);
+    }
+    case 'history': {
+      const incoming = action.payload;
+      const current = draft.history[draft.index];
+      // De-duplicate consecutive extents
+      if (current && extentsEqual(current, incoming)) {
+        break;
+      }
+
+      // Truncate forward history and append new extent
+      draft.history.splice(draft.index + 1, Infinity, incoming);
       draft.index = draft.history.length - 1;
 
+      // Cap history length
+      if (draft.history.length > MAX_HISTORY) {
+        draft.history.shift();
+        draft.index = Math.max(0, draft.index - 1);
+      }
+
       break;
+    }
   }
-}
+};
 
 export const NavigationHistory = ({
   view,
@@ -55,22 +95,30 @@ export const NavigationHistory = ({
   const [state, dispatch] = useImmerReducer(reducer, initialState);
   const isButtonExtentChange = useRef<boolean>(false);
 
+  // Seed the initial extent once
+  useEffect(() => {
+    if (view?.extent) {
+      dispatch({ type: 'history', payload: view.extent.clone() });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
   useEffect(() => {
     const handle = watch(
       () => [view.stationary, view.extent],
       ([stationary]) => {
-        if (!stationary) return;
+        if (!stationary) {
+          return;
+        }
 
-        // prevent infinite loop
+        // Skip additions triggered by programmatic goTo
         if (isButtonExtentChange.current) {
-          isButtonExtentChange.current = false;
-
           return;
         }
 
         dispatch({
           type: 'history',
-          payload: view.extent,
+          payload: view.extent.clone(),
         });
       },
     );
@@ -81,9 +129,15 @@ export const NavigationHistory = ({
   }, [dispatch, view]);
 
   useEffect(() => {
-    if (view && state.history[state.index]) {
+    const target = state.history[state.index];
+
+    if (view && target) {
       isButtonExtentChange.current = true; // prevent infinite loop
-      view.goTo(state.history[state.index]);
+      Promise.resolve(view.goTo(target))
+        .catch(() => {})
+        .finally(() => {
+          isButtonExtentChange.current = false;
+        });
     }
   }, [state, view]);
 
@@ -98,7 +152,7 @@ export const NavigationHistory = ({
 
   return (
     <div ref={uiPosition}>
-      <div className={clsx(buttonContainerClasses, 'border-b-[1px] border-b-[#6e6e6e4d]')}>
+      <div className={clsx(buttonContainerClasses, 'border-b-[1px] border-b-[#6e6e64d]')}>
         <Button
           variant="icon"
           className={buttonClasses}

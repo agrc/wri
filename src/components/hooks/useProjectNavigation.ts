@@ -1,29 +1,25 @@
 import { useMapReady } from '@ugrc/utilities/hooks';
-import { useCallback, useContext, useEffect, useRef, type MutableRefObject } from 'react';
+import { useCallback, useContext, useEffect, useRef, type RefObject } from 'react';
 import { ProjectContext } from '../contexts';
 
 const handleHashChange = (hash: string) => {
-  console.log('id from hash change', hash);
+  // Normalize and parse the hash using URLSearchParams
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  const params = new URLSearchParams(raw);
+  const idParam = params.get('id');
 
-  if (!hash.includes('=')) {
+  if (!idParam) {
     return null;
   }
 
-  const idAsString = hash.split('=')[1];
-  if (!idAsString || idAsString.length === 0) {
-    return null;
-  }
+  const id = parseInt(idParam, 10);
 
-  try {
-    return parseInt(idAsString, 10);
-  } catch {
-    return null;
-  }
+  return Number.isFinite(id) ? id : null;
 };
 
 export const useProjectNavigation = (
-  viewRef: MutableRefObject<__esri.MapView | null>,
-  layersRef: MutableRefObject<__esri.FeatureLayer[]>,
+  viewRef: RefObject<__esri.MapView | null>,
+  layersRef: RefObject<__esri.FeatureLayer[]>,
   enabled: boolean,
 ) => {
   const isReady = useMapReady(viewRef.current);
@@ -34,11 +30,26 @@ export const useProjectNavigation = (
     throw new Error('useProjectNavigation must be used within a ProjectContext');
   }
 
+  const setProjectId = useCallback(() => {
+    context.setProjectId(handleHashChange(window.location.hash));
+  }, [context]);
+
+  const updateProjectId = useCallback(
+    (id: number | null) => {
+      if (id === null) {
+        return;
+      }
+
+      context.setProjectId(id);
+      window.location.hash = `id=${id}`;
+    },
+    [context],
+  );
+
   // only run on load
   useEffect(() => {
-    context.setProjectId(handleHashChange(window.location.hash));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setProjectId();
+  }, [setProjectId]);
 
   // map click on project features
   useEffect(() => {
@@ -63,10 +74,7 @@ export const useProjectNavigation = (
 
             const id = handleHashChange(`id=${result.attributes?.Project_ID}`);
 
-            if (id) {
-              context.setProjectId(id);
-              window.location.hash = `id=${id}`;
-            }
+            updateProjectId(id);
           }
         });
       });
@@ -78,11 +86,7 @@ export const useProjectNavigation = (
         clickHandler.current = null;
       }
     };
-  }, [context, enabled, isReady, viewRef, layersRef]);
-
-  const setProjectId = useCallback(() => {
-    context.setProjectId(handleHashChange(window.location.hash));
-  }, [context]);
+  }, [enabled, isReady, viewRef, layersRef, updateProjectId]);
 
   // watch the hash for changes
   useEffect(() => {
@@ -91,7 +95,7 @@ export const useProjectNavigation = (
     return () => {
       window.removeEventListener('hashchange', setProjectId);
     };
-  }, [context, setProjectId]);
+  }, [setProjectId]);
 
   return context;
 };

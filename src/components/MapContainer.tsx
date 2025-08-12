@@ -44,13 +44,13 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
   const isLoading = useViewLoading(mapView.current);
   const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
   const [layersReady, setLayersReady] = useState(false);
+  const hasAddedLayers = useRef(false);
   const projectContext = useContext(ProjectContext);
   let currentProject = 0;
 
   if (projectContext) {
     currentProject = projectContext.projectId ?? 0;
   }
-
 
   // setup the Map
   useEffect(() => {
@@ -98,43 +98,57 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
     };
   }, [setMapView]);
 
-  // add the map layers
+  // add the map layers (only once)
   useEffect(() => {
-    if (isReady) {
-      // layers are stacked on top of each other in a reverse order from how they are listed
-      // e.g. land ownership is on the very bottom and centroids are on the very top
-      const referenceLayers = [
-        landOwnership,
-        plss,
-        streams,
-        watershedAreas,
-        fireThreats,
-        precipitation,
-        rangeSites,
-        regions,
-        blmDistricts,
-        forestService,
-        sageGrouse,
-        stewardship,
-      ];
-      operationalLayers.current = [polygons, lines, points, centroids];
-
-      if (currentProject === 0) {
-        operationalLayers.current.forEach((x) => (x.visible = false));
-      } else {
-        operationalLayers.current.forEach((x) => (x.visible = true));
+    if (!isReady || hasAddedLayers.current) {
+      if (!isReady) {
+        setLayersReady(false);
+        hasAddedLayers.current = false;
       }
 
-      addLayers(referenceLayers.concat(operationalLayers.current));
-      setLayersReady(true);
-    } else {
-      setLayersReady(false);
+      return;
     }
-  }, [isReady, currentProject, addLayers]);
+
+    // layers are stacked on top of each other in a reverse order from how they are listed
+    // e.g. land ownership is on the very bottom and centroids are on the very top
+    const referenceLayers = [
+      landOwnership,
+      plss,
+      streams,
+      watershedAreas,
+      fireThreats,
+      precipitation,
+      rangeSites,
+      regions,
+      blmDistricts,
+      forestService,
+      sageGrouse,
+      stewardship,
+    ];
+    operationalLayers.current = [polygons, lines, points, centroids];
+
+    addLayers(referenceLayers.concat(operationalLayers.current));
+    hasAddedLayers.current = true;
+    setLayersReady(true);
+  }, [isReady, addLayers]);
+
+  // toggle operational layer visibility when project changes
+  useEffect(() => {
+    if (!layersReady) {
+      return;
+    }
+
+    const visible = currentProject !== 0;
+    operationalLayers.current.forEach((layer) => {
+      layer.visible = visible;
+      // keep layer queries in sync with current project selection
+      layer.definitionExpression = visible ? `Project_ID=${currentProject}` : '1=0';
+    });
+  }, [currentProject, layersReady]);
 
   // zoom to the current project
   useEffect(() => {
-    if (currentProject === 0) {
+    if (!isReady || !layersReady || currentProject === 0) {
       return;
     }
 
@@ -167,7 +181,7 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
         mapView.current?.goTo(combinedExtent);
       }
     });
-  }, [currentProject, operationalLayers.current.length]);
+  }, [currentProject, isReady, layersReady]);
 
   // operational layers are null.
   useProjectNavigation(mapView, operationalLayers, currentProject === 0 && layersReady);
@@ -188,7 +202,14 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
           />
           <NavigationHistory view={mapView.current} />
           <BusyBar busy={isLoading} />
-          <Tooltip view={mapView.current} layers={operationalLayers.current} enabled={currentProject === 0} />
+          {layersReady && (
+            <Tooltip
+              view={mapView.current}
+              layersRef={operationalLayers}
+              enabled={currentProject === 0}
+              key={`${layersReady}-${currentProject === 0}`}
+            />
+          )}
         </>
       )}
       <div ref={mapNode} className="size-full fill-black">

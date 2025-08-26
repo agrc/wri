@@ -1,5 +1,9 @@
-import EsriMap from '@arcgis/core/Map.js';
-import MapView from '@arcgis/core/views/MapView.js';
+import Graphic from '@arcgis/core/Graphic';
+import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import Field from '@arcgis/core/layers/support/Field';
+import EsriMap from '@arcgis/core/Map';
+import OpacityVariable from '@arcgis/core/renderers/visualVariables/OpacityVariable';
+import MapView from '@arcgis/core/views/MapView';
 
 import type { LayerSelectorProps } from '@ugrc/utah-design-system';
 import { BusyBar, HomeButton, LayerSelector } from '@ugrc/utah-design-system';
@@ -132,58 +136,120 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
     setLayersReady(true);
   }, [isReady, addLayers]);
 
-  // toggle operational layer visibility when project changes
-  useEffect(() => {
-    if (!layersReady) {
-      return;
-    }
-
-    const visible = currentProject !== 0;
-    operationalLayers.current.forEach((layer) => {
-      layer.visible = visible;
-      // keep layer queries in sync with current project selection
-      layer.definitionExpression = visible ? `Project_ID=${currentProject}` : '1=0';
-    });
-  }, [currentProject, layersReady]);
-
-  // zoom to the current project
+  // creating in memory feature layers and zooming to the extent of the current project
   useEffect(() => {
     if (!isReady || !layersReady || currentProject === 0) {
       return;
     }
 
-    const promises: Promise<ExtentQueryResult>[] = [];
-    operationalLayers.current.forEach((layer) => {
-      layer.visible = true;
-      if (layer.id === 'feature-centroids') {
-        return;
+    const where = `Project_ID=${currentProject}`;
+    const outFields = ['FeatureID', 'Project_ID', 'TypeDescription', 'StatusDescription', 'Title'];
+
+    const getFeatures = async () => {
+      for (const layer of operationalLayers.current) {
+        if (layer.id === 'feature-centroids') {
+          continue;
+        }
+
+        const featureSet = await layer.queryFeatures({ where, outFields, returnGeometry: true });
+
+        const virtualFieldName = '_opacity';
+        const renderer = layer.renderer!.clone() as __esri.UniqueValueRenderer;
+        renderer.visualVariables = [
+          new OpacityVariable({
+            field: virtualFieldName,
+            stops: [
+              { value: 0, opacity: 0 },
+              { value: 1, opacity: 1 },
+            ],
+          }),
+        ];
+
+        const featureLayer = new FeatureLayer({
+          id: `project-${currentProject}-` + layer.id,
+          title: layer.title,
+          geometryType: layer.geometryType,
+          fields: layer.fields.concat([new Field({ name: virtualFieldName, type: 'double' })]),
+          objectIdField: layer.objectIdField,
+          labelingInfo: layer.labelingInfo,
+          source: featureSet.features.map(
+            (feature) =>
+              new Graphic({
+                geometry: feature.geometry,
+                attributes: {
+                  ...feature.attributes,
+                  [virtualFieldName]: layer.opacity ?? 1,
+                },
+              }),
+          ),
+          renderer,
+        });
+
+        mapView.current?.map!.add(featureLayer);
       }
+    };
 
-      const query = layer.createQuery();
-      query.where = layer.definitionExpression;
+    getFeatures()
+      .then(() => {
+        const promises: Promise<ExtentQueryResult>[] = [];
+        mapComponent.current!.layers.forEach((layer) => {
+          if (layer.id.startsWith(`project-${currentProject}-`)) {
+            const featureLayer = layer as __esri.FeatureLayer;
 
-      promises.push(layer.queryExtent(query));
-    });
+            const query = featureLayer.createQuery();
+            query.where = featureLayer.definitionExpression;
 
-    Promise.all(promises).then((results) => {
-      let combinedExtent: __esri.Extent | null = null;
-      results
-        .filter((x) => x.count > 0)
-        .forEach((x) => {
-          if (combinedExtent) {
-            combinedExtent = combinedExtent.union(x.extent);
-          } else {
-            combinedExtent = x.extent;
+            promises.push(featureLayer.queryExtent(query));
           }
         });
 
-      if (combinedExtent) {
-        mapView.current?.goTo(combinedExtent);
+        Promise.all(promises).then((results) => {
+          let combinedExtent: __esri.Extent | null = null;
+          results
+            .filter((x) => x.count > 0)
+            .forEach((x) => {
+              if (combinedExtent) {
+                combinedExtent = combinedExtent.union(x.extent);
+              } else {
+                combinedExtent = x.extent;
+              }
+            });
+
+          if (combinedExtent) {
+            mapView.current?.goTo(combinedExtent);
+          }
+        });
+      })
+      .catch((error) => {
+        console.error('Error fetching features for operational layers:', error);
+      });
+  }, [currentProject, isReady, layersReady]);
+
+  // remove project specific layers when the project changes
+  useEffect(() => {
+    if (!isReady || !layersReady) {
+      return;
+    }
+
+    mapComponent.current!.layers.forEach((layer) => {
+      if (layer.id.startsWith('project-') && !layer.id.startsWith(`project-${currentProject}-`)) {
+        mapComponent.current!.remove(layer);
+        layer.destroy();
       }
     });
   }, [currentProject, isReady, layersReady]);
 
-  // operational layers are null.
+  // manage visibility of operational features
+  useEffect(() => {
+    if (!isReady || !layersReady || currentProject === 0) {
+      return;
+    }
+
+    operationalLayers.current.forEach((layer) => {
+      layer.visible = false;
+    });
+  }, [currentProject, isReady, layersReady]);
+
   useProjectNavigation(mapView, operationalLayers, currentProject === 0 && layersReady);
 
   return (

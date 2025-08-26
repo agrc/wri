@@ -268,13 +268,13 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                             </Button>
                             {mapView && (
                               <OpacityManager
-                                mapView={mapView}
                                 layers={
                                   allLayers.filter((x) =>
-                                    x.id.startsWith('feature-'),
+                                    x.id.startsWith('project-'),
                                   ) as Collection<__esri.FeatureLayer>
                                 }
                                 feature={polygon[0]}
+                                currentProject={projectId}
                               />
                             )}
                           </Toolbar>

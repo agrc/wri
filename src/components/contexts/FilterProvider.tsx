@@ -123,9 +123,9 @@ export const FilterProvider = ({
   if (projectId > 0) {
     setDefinitionExpression(featureLayers, {
       centroids: `1=0`,
-      point: `Project_ID=${projectId}`,
-      line: `Project_ID=${projectId}`,
-      poly: `Project_ID=${projectId}`,
+      point: `Project_ID!=${projectId}`,
+      line: `Project_ID!=${projectId}`,
+      poly: `Project_ID!=${projectId}`,
     });
   } else {
     const expressions = generateDefinitionExpression(state);

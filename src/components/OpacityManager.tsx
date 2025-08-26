@@ -1,4 +1,3 @@
-import FeatureEffect from '@arcgis/core/layers/support/FeatureEffect.js';
 import { Button, Popover, Slider } from '@ugrc/utah-design-system';
 import { BlendIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
@@ -6,49 +5,57 @@ import { DialogTrigger } from 'react-aria-components';
 
 import type { Line, Point, Polygon } from './ProjectSpecific';
 
-const setOpacity = (layerView: __esri.FeatureLayerView | null, id: number, value: number) => {
-  if (!layerView || id === -1) {
+const updateOpacity = async (layer: __esri.FeatureLayer | null, id: number, value: number) => {
+  if (!layer || id === -1) {
     return;
   }
 
-  // only one effect can be in place at a time
-  // TODO! move this to a context to manage the where clause
-  const effect = new FeatureEffect({
-    filter: {
-      where: `FeatureID=${id}`,
-    },
-    includedEffect: `opacity(${value}%)`,
+  const results = await layer.queryFeatures({
+    where: `FeatureID=${id}`,
+    outFields: ['FeatureID', '_opacity', 'ESRI_OID'],
+    returnGeometry: false,
   });
 
-  layerView.featureEffect = effect;
+  if (results.features.length === 0) {
+    return;
+  }
+
+  layer
+    .applyEdits({
+      updateFeatures: results.features.map((feature) => {
+        feature.attributes._opacity = value / 100;
+        return feature;
+      }),
+    })
+    .catch((error) => {
+      console.error('Failed to set opacity:', error);
+    });
 };
 
 export const OpacityManager = ({
   feature,
   layers,
-  mapView,
+  currentProject,
 }: {
   feature?: Polygon | Line | Point;
   layers: __esri.Collection<__esri.FeatureLayer>;
-  mapView: __esri.MapView;
+  currentProject: number;
 }) => {
-  const layerView = useRef<__esri.FeatureLayerView | null>(null);
+  const layer = useRef<__esri.FeatureLayer | null>(null);
 
   useEffect(() => {
     if (!feature) {
       return;
     }
 
-    const layer = layers.find((x) => x.id === feature.layer);
+    const managedLayer = layers.find((x) => x.id === `project-${currentProject}-` + feature.layer);
 
-    if (!layer) {
+    if (!managedLayer) {
       return;
     }
 
-    mapView.whenLayerView(layer).then((view) => {
-      layerView.current = view;
-    });
-  }, [feature, layers, mapView]);
+    layer.current = managedLayer;
+  }, [currentProject, feature, layers]);
 
   return (
     <DialogTrigger>
@@ -60,8 +67,8 @@ export const OpacityManager = ({
       <Popover placement="right bottom" className="w-44 px-4 py-2">
         <Slider
           label="feature opacity"
-          defaultValue={70}
-          onChange={(value) => setOpacity(layerView.current, feature?.id ?? -1, value)}
+          defaultValue={feature?.layer.includes('poly') ? 70 : 100}
+          onChange={(value) => updateOpacity(layer.current, feature?.id ?? -1, value)}
         />
       </Popover>
     </DialogTrigger>

@@ -2,6 +2,10 @@ import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { default as knex, type Knex } from 'knex';
 
 const cors = [/ut-dnr-dwr-wri-app-at\.web\.app$/, /localhost:\d+$/];
+const options = {
+  cors,
+  region: 'us-west3',
+};
 
 const config: Knex.Config = {
   client: 'sqlite3',
@@ -23,14 +27,14 @@ const db = knex(config);
 
 const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;
 
-const health = onRequest({ cors, region: 'us-west3' }, async (_, res) => {
+const health = onRequest(options, async (_, res) => {
   res.send('healthy');
 });
 
 // Only export health check in emulator mode
 export const healthCheck = process.env.FUNCTIONS_EMULATOR === 'true' ? health : undefined;
 
-export const project = onCall({ cors, region: 'us-west3' }, async (request) => {
+export const project = onCall(options, async (request) => {
   const id = parseInt(request.data?.id?.toString() ?? '-1', 10);
 
   if (id === -1) {

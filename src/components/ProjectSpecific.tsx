@@ -224,7 +224,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     )}
                   </Group>
                 </TabPanel>
-                <TabPanel id="features">
+                <TabPanel shouldForceMount id="features" className="data-[inert]:hidden">
                   <Group className="flex flex-col gap-y-2 dark:text-zinc-100 [&>hr:last-child]:hidden">
                     {Object.keys(data.polygons ?? {}).length > 0 &&
                       Object.values(data.polygons).map((polygon, i) => (
@@ -270,7 +270,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                             >
                               <InfoIcon className="size-5" />
                             </Button>
-                            {mapView && (
+                            {mapView?.ready && mapView?.map?.findLayerById(`project-${projectId}-feature-poly`) && (
                               <OpacityManager
                                 layer={
                                   mapView?.map?.findLayerById(
@@ -288,7 +288,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                       ))}
                   </Group>
                 </TabPanel>
-                <TabPanel id="reference" className="flex flex-col gap-2">
+                <TabPanel shouldForceMount id="reference" className="flex flex-col gap-2 data-[inert]:hidden">
                   <AdjacentProjects mapView={mapView} />
                   {referenceLayers.length > 0 ? (
                     <div>

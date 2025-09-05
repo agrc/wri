@@ -1,5 +1,5 @@
 import { Switch } from '@ugrc/utah-design-system';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OpacityManager } from './OpacityManager';
 
 type AdjacentProjectsProps = {
@@ -10,11 +10,11 @@ export function AdjacentProjects({ mapView }: AdjacentProjectsProps) {
   const [on, setOn] = useState(false);
   const layers = useRef<__esri.Collection<__esri.Layer> | null>(null);
 
-  useState(() => {
-    if (!mapView?.map) return;
+  useEffect(() => {
+    if (!mapView?.map || !mapView?.ready) return;
 
     layers.current = mapView.map.layers.filter((layer) => layer.id.startsWith('feature-'));
-  });
+  }, [mapView?.map, mapView?.ready]);
 
   const toggleFeatureLayers = (selected: boolean) => {
     setOn(selected);
@@ -28,7 +28,9 @@ export function AdjacentProjects({ mapView }: AdjacentProjectsProps) {
       <Switch onChange={toggleFeatureLayers} isSelected={on}>
         Adjacent Projects
       </Switch>
-      {on && <OpacityManager layers={layers.current as __esri.Collection<__esri.FeatureLayer>} />}
+      {mapView?.ready && (
+        <OpacityManager disabled={!on} layers={layers.current as __esri.Collection<__esri.FeatureLayer>} />
+      )}
     </div>
   );
 }

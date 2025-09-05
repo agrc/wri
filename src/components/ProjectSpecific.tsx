@@ -9,6 +9,7 @@ import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Fragment } from 'react/jsx-runtime';
 import {
+  AdjacentProjects,
   OpacityManager,
   ProjectStatusTag,
   ReferenceData,
@@ -271,13 +272,12 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                             </Button>
                             {mapView && (
                               <OpacityManager
-                                layers={
-                                  allLayers.filter((x) =>
-                                    x.id.startsWith('project-'),
-                                  ) as Collection<__esri.FeatureLayer>
+                                layer={
+                                  mapView?.map?.findLayerById(
+                                    `project-${projectId}-feature-poly`,
+                                  ) as __esri.FeatureLayer
                                 }
-                                feature={polygon[0]}
-                                currentProject={projectId}
+                                oid={polygon[0]?.id}
                               />
                             )}
                           </Toolbar>
@@ -288,12 +288,13 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                       ))}
                   </Group>
                 </TabPanel>
-                <TabPanel id="reference">
+                <TabPanel id="reference" className="flex flex-col gap-2">
+                  <AdjacentProjects mapView={mapView} />
                   {referenceLayers.length > 0 ? (
-                    <>
+                    <div>
                       <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />
                       <ReferenceLabelSwitch layers={referenceLayers}>Labels</ReferenceLabelSwitch>
-                    </>
+                    </div>
                   ) : (
                     <TagGroupLoader />
                   )}

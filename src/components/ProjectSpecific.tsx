@@ -79,6 +79,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
   const getProjectInfo = httpsCallable(functions, 'project');
+  const highlightHandle = useRef<__esri.Handle | null>(null);
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
@@ -249,18 +250,20 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                               variant="icon"
                               className="h-8 min-w-8 rounded border border-zinc-400"
                               onPress={() => {
-                                const poly = allLayers.filter((x) => x.id.startsWith('feature-poly'));
-                                if (!poly || poly.length === 0) {
-                                  return;
-                                }
-
-                                const layer = poly.getItemAt(0);
+                                const layer = mapView?.map?.findLayerById(`project-${projectId}-feature-poly`);
                                 if (!layer) {
                                   return;
                                 }
 
+                                if (highlightHandle.current) {
+                                  highlightHandle.current.remove();
+                                  highlightHandle.current = null;
+                                }
+
                                 mapView?.whenLayerView(layer).then((view) => {
-                                  (view as __esri.FeatureLayerView).highlight(polygon[0]?.id as number);
+                                  highlightHandle.current = (view as __esri.FeatureLayerView).highlight(
+                                    polygon[0]?.id as number,
+                                  );
                                 });
                               }}
                             >

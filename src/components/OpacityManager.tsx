@@ -12,7 +12,7 @@ const updateOpacity = async (layer: __esri.FeatureLayer | null, id: number, valu
 
   const results = await layer.queryFeatures({
     where: `FeatureID=${id}`,
-    outFields: ['FeatureID', '_opacity', 'ESRI_OID'],
+    outFields: ['FeatureID', '_opacity'],
     returnGeometry: false,
   });
 

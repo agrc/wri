@@ -144,7 +144,8 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
     }
 
     const where = `Project_ID=${currentProject}`;
-    const outFields = ['FeatureID', 'Project_ID', 'TypeDescription', 'StatusDescription', 'Title'];
+    const featureIdFieldName = 'FeatureID';
+    const outFields = [featureIdFieldName, 'Project_ID', 'TypeDescription', 'StatusDescription', 'Title'];
 
     const getFeatures = async () => {
       for (const layer of operationalLayers.current) {
@@ -170,8 +171,8 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
           id: `project-${currentProject}-` + layer.id,
           title: layer.title,
           geometryType: layer.geometryType,
-          fields: layer.fields.concat([new Field({ name: virtualFieldName, type: 'double' })]),
-          objectIdField: layer.objectIdField,
+          fields: featureSet.fields.concat([new Field({ name: virtualFieldName, type: 'double' })]),
+          objectIdField: featureIdFieldName,
           labelingInfo: layer.labelingInfo,
           source: featureSet.features.map(
             (feature) =>

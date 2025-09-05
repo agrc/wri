@@ -30,6 +30,7 @@ import {
 import { ProjectContext } from './contexts';
 import { useMap, useProjectNavigation } from './hooks';
 import { NavigationHistory } from './NavigationHistory';
+import { PrintMap } from './PrintMap.tsx';
 import { Tooltip } from './Tooltip.tsx';
 
 type ExtentQueryResult = {
@@ -267,6 +268,7 @@ export const MapContainer = ({ configuration }: { configuration: string }) => {
             ]}
           />
           <NavigationHistory view={mapView.current} />
+          <PrintMap view={mapView.current} position="top-right" />
           <BusyBar busy={isLoading} />
           {layersReady && (
             <Tooltip

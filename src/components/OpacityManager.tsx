@@ -1,15 +1,34 @@
+import Collection from '@arcgis/core/core/Collection';
 import { Button, Popover, Slider } from '@ugrc/utah-design-system';
 import { BlendIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { DialogTrigger } from 'react-aria-components';
 
-import type { Line, Point, Polygon } from './ProjectSpecific';
-
-const updateOpacity = async (layer: __esri.FeatureLayer | null, id: number, value: number) => {
-  if (!layer || id === -1) {
+const updateOpacity = async (
+  layer: __esri.FeatureLayer | __esri.Collection<__esri.FeatureLayer> | null,
+  value: number,
+  id?: number,
+) => {
+  if (!layer) {
     return;
   }
 
+  // multiple layers
+  if (layer instanceof Collection) {
+    layer.forEach((lyr) => {
+      lyr.opacity = value / 100;
+    });
+
+    return;
+  }
+
+  // single layer, no specific feature
+  if (!id) {
+    layer.opacity = value / 100;
+
+    return;
+  }
+
+  // specific feature
   const results = await layer.queryFeatures({
     where: `FeatureID=${id}`,
     outFields: ['FeatureID', '_opacity'],
@@ -32,30 +51,26 @@ const updateOpacity = async (layer: __esri.FeatureLayer | null, id: number, valu
     });
 };
 
-export const OpacityManager = ({
-  feature,
-  layers,
-  currentProject,
-}: {
-  feature?: Polygon | Line | Point;
-  layers: __esri.Collection<__esri.FeatureLayer>;
-  currentProject: number;
-}) => {
-  const layer = useRef<__esri.FeatureLayer | null>(null);
+const DEFAULT_POLY_OPACITY = 70;
 
-  useEffect(() => {
-    if (!feature) {
-      return;
+type OpacityManagerProps =
+  | {
+      layer: __esri.FeatureLayer;
+      oid?: number;
     }
+  | {
+      layers: __esri.Collection<__esri.FeatureLayer> | null;
+    };
 
-    const managedLayer = layers.find((x) => x.id === `project-${currentProject}-` + feature.layer);
-
-    if (!managedLayer) {
-      return;
-    }
-
-    layer.current = managedLayer;
-  }, [currentProject, feature, layers]);
+export const OpacityManager = (props: OpacityManagerProps) => {
+  let defaultValue = 100;
+  let layerOrLayers;
+  if ('layer' in props) {
+    defaultValue = props?.layer?.id?.includes('poly') ? DEFAULT_POLY_OPACITY : defaultValue;
+    layerOrLayers = props.layer;
+  } else {
+    layerOrLayers = props.layers;
+  }
 
   return (
     <DialogTrigger>
@@ -66,9 +81,9 @@ export const OpacityManager = ({
       </div>
       <Popover placement="right bottom" className="w-44 px-4 py-2">
         <Slider
-          label="feature opacity"
-          defaultValue={feature?.layer.includes('poly') ? 70 : 100}
-          onChange={(value) => updateOpacity(layer.current, feature?.id ?? -1, value)}
+          label="Feature opacity"
+          defaultValue={defaultValue}
+          onChange={(value) => updateOpacity(layerOrLayers, value, 'oid' in props ? props.oid : undefined)}
         />
       </Popover>
     </DialogTrigger>

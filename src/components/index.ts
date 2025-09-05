@@ -1,3 +1,4 @@
+export * from './AdjacentProjects.tsx';
 export * from './AreaOfInterest.tsx';
 export * from './CentroidToggle.tsx';
 export * from './DrawerView.tsx';

@@ -12,6 +12,7 @@ export * from './ProjectSpecific.tsx';
 export * from './ProjectStatus.tsx';
 export * from './ProjectStatusTag.tsx';
 export * from './ReferenceData.tsx';
+export * from './Search.tsx';
 export * from './Tooltip.tsx';
 export * from './utils.ts';
 export * from './WriFundedToggle.tsx';

@@ -4,7 +4,6 @@ import Field from '@arcgis/core/layers/support/Field';
 import EsriMap from '@arcgis/core/Map';
 import OpacityVariable from '@arcgis/core/renderers/visualVariables/OpacityVariable';
 import MapView from '@arcgis/core/views/MapView';
-
 import type { LayerSelectorProps } from '@ugrc/utah-design-system';
 import { BusyBar, HomeButton, LayerSelector } from '@ugrc/utah-design-system';
 import { useMapReady, useViewLoading, utahMercatorExtent } from '@ugrc/utilities/hooks';

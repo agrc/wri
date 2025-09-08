@@ -1,3 +1,4 @@
+@import '@arcgis/map-components/main.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

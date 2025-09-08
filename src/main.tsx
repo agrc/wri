@@ -1,3 +1,4 @@
+/// <reference types="@arcgis/map-components/types/react" />
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import initializeTheme from '@ugrc/esri-theme-toggle';
 import { FirebaseAppProvider, FirebaseFunctionsProvider } from '@ugrc/utah-design-system';

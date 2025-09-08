@@ -1,10 +1,6 @@
 import Collection from '@arcgis/core/core/Collection';
 import { ErrorBoundary } from 'react-error-boundary';
-import { CentroidToggle } from './CentroidToggle';
-import { ErrorFallback } from './ErrorFallBack';
-import { FeatureData } from './FeatureData';
-import { TagGroupLoader } from './Loaders';
-import { ProjectStatus } from './ProjectStatus';
+import { CentroidToggle, ErrorFallback, FeatureData, ProjectStatus, Search, TagGroupLoader } from './';
 import { ReferenceData, ReferenceLabelSwitch, type ReferenceLayer } from './ReferenceData';
 import { WriFundingToggle } from './WriFundedToggle';
 import { featureTypes, projectStatus } from './data/filters';
@@ -23,6 +19,7 @@ export const GeneralView = () => {
       <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <h5 className="dark:text-zinc-200">Search tool</h5>
+          {mapView && <Search view={mapView} />}
         </ErrorBoundary>
       </div>
       <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">

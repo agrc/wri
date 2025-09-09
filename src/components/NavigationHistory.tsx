@@ -149,7 +149,7 @@ export const NavigationHistory = ({
         IconComponent={Undo2Icon}
         label="Go to previous map extent"
         isDisabled={backwardIsDisabled}
-        className="border-b-[1px] border-b-[#6e6e64d]"
+        className="border-b-[1px] border-b-[#6e6e64]"
         onPress={() => dispatch({ type: 'back' })}
       />
       <MapButton

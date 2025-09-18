@@ -14,9 +14,7 @@ type PrintMapProps = {
   position?: __esri.UIAddComponent['position'];
 };
 
-// TODO: switch out the base of this URL to point to env var once it is published to that server
-// const URL = `${import.meta.env.VITE_GIS_BASE_URL}/arcgis/rest/services/WRI/ExportWebMap/GPServer/Export%20Web%20Map`
-const URL = 'https://mapserv.utah.gov/arcgis/rest/services/WRI/ExportWebMap/GPServer/Export%20Web%20Map';
+const URL = `https://print.ugrc.utah.gov/v2/${import.meta.env.VITE_PRINT_PROXY_ACCOUNT}/arcgis/rest/services/WRI/ExportWebMap/GPServer/Export%20Web%20Map`;
 const DEFAULT_TITLE = 'Created by WRI Online Map';
 
 type ArcGISServerError = {
@@ -33,7 +31,7 @@ async function executePrint({ view, title }: { view: __esri.MapView; title: stri
     },
     format: 'pdf',
     // @ts-expect-error - our custom layout id is missing from their type definitions
-    layout: 'layout',
+    layout: 'Layout',
   });
 
   const params = new PrintParameters({

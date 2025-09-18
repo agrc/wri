@@ -141,3 +141,5 @@ dist
 
 /maps/Index
 /maps/.backups
+/maps/GpMessages
+*.lock

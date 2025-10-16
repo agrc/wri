@@ -1,7 +1,11 @@
 import { onCall, onRequest } from 'firebase-functions/v2/https';
 import { default as knex, type Knex } from 'knex';
 
-const cors = [/ut-dnr-dwr-wri-app-at\.web\.app$/, /localhost:\d+$/];
+const cors = [
+  /localhost:\d+$/, // Local dev
+  /ut-dnr-dwr-wri-app-at\.web\.app$/, // deploy previews
+  /utah\.gov$/, // remote dev, at, production
+];
 const options = {
   cors,
   region: 'us-west3',

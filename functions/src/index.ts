@@ -1,3 +1,4 @@
+import { AuthTypes, Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
 import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall, onRequest, type HttpsOptions } from 'firebase-functions/v2/https';
 import { default as knex, type Knex } from 'knex';
@@ -22,8 +23,9 @@ const options: HttpsOptions = {
 
 // lazy loaded singleton
 let db: knex.Knex | null = null;
+let connector: Connector | null = null;
 
-const getDb = () => {
+const getDb = async () => {
   if (!db) {
     const config: Knex.Config = {
       client: 'sqlite3',
@@ -38,35 +40,47 @@ const getDb = () => {
         throw new HttpsError('failed-precondition', 'Database credentials are not set');
       }
 
-      // Production config for Cloud SQL
+      connector = new Connector();
+
+      const clientOptions = await connector.getTediousOptions({
+        instanceConnectionName: dbInfo.instance,
+        ipType: IpAddressTypes.PUBLIC,
+        authType: AuthTypes.PASSWORD,
+      });
+
       config.client = 'mssql';
       config.connection = {
-        server: `/cloudsql/${process.env.CLOUD_SQL_CONNECTION}`,
         database: 'WRI',
-        // Add credentials if using SQL Server authentication
+        server: '0.0.0.0', // The proxy server address
         user: dbInfo.user,
         password: dbInfo.password,
         options: {
-          encrypt: false, // Unix socket connections don't use TLS
-          trustServerCertificate: true,
+          ...clientOptions,
+          encrypt: true, // required for MS Cloud SQL
+          trustServerCertificate: true, // required for MS Cloud SQL
           enableArithAbort: true,
+          connectTimeout: 10000,
+          requestTimeout: 10000,
         },
-      };
+      } as Knex.MsSqlConnectionConfig;
+
       config.pool = {
-        min: 0, // Allow scaling to zero for serverless
-        max: 5, // Limit connections for Cloud Functions
+        min: 0,
+        max: 5,
         idleTimeoutMillis: 30000,
+        acquireTimeoutMillis: 30000,
       };
     }
 
     db = knex(config);
   }
+
   return db;
 };
 
 export const project = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const id = parseInt(request.data?.id?.toString() ?? '-1', 10);
 
     if (isNaN(id) || id <= 0 || id > Number.MAX_SAFE_INTEGER) {

@@ -23,3 +23,15 @@ This is required for the export to PDF functionality. We need our own service to
 - Leave the service set to `asynchronous`
 
 After the service has been published, you can update the layout by exporting the Layout to `Layout.pagx` (overwrite) in the ArcGIS Server directory (e.g. `arcgisserver\directories\arcgissystem\arcgisinput\WRI\ExportWebMap.GPServer\extracted\cd\layouts`). No need to republish the service.
+
+## Deployment
+
+- secret DATABASE_INFORMATION needs to be accessible with
+
+  ```json
+  {
+    "user": "",
+    "password": "",
+    "instance": ""
+  }
+  ```

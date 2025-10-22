@@ -25,6 +25,46 @@ const options: HttpsOptions = {
 let db: knex.Knex | null = null;
 let connector: Connector | null = null;
 
+// Ensure connector is cleaned up on process exit
+const cleanupConnector = async () => {
+  if (connector) {
+    try {
+      connector.close();
+    } catch (e) {
+      // Optionally log error
+      console.error('Error closing connector:', e);
+    }
+    connector = null;
+  }
+};
+
+// Register cleanup on process exit events
+interface RegisterCleanupFunction {
+  (): void;
+  _registered?: boolean;
+}
+
+const registerCleanup: RegisterCleanupFunction = () => {
+  // Only register once
+  if (registerCleanup._registered) {
+    return;
+  }
+
+  registerCleanup._registered = true;
+
+  process.on('exit', () => {
+    cleanupConnector();
+  });
+  process.on('SIGINT', () => {
+    cleanupConnector().then(() => process.exit(0));
+  });
+  process.on('SIGTERM', () => {
+    cleanupConnector().then(() => process.exit(0));
+  });
+};
+
+registerCleanup();
+
 const getDb = async () => {
   if (!db) {
     const config: Knex.Config = {

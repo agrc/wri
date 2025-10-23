@@ -61,15 +61,16 @@ export type Polygon = {
   size: string;
 };
 
-export type Line = { id: number; type: string; subtype: string; action: string; layer: FeatureLayerId; length: string };
+export type Line = { id: number; type: string; subtype: string; action: string; layer: FeatureLayerId; size: string };
 
 export type Point = {
   id: number;
   type: string;
+  action: string;
   subtype: string;
   description: string;
   layer: FeatureLayerId;
-  count: string;
+  size: string;
 };
 
 export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
@@ -236,8 +237,8 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                                 {polygon[0]?.size}
                               </p>
                             </div>
-                            <p>Retreatment - {polygon[0]?.retreatment}</p>
-                            <ol className="list-inside list-decimal pl-3">
+                            {polygon[0]?.retreatment && <p>Retreatment</p>}
+                            <ol className="list-inside list-decimal pl-2">
                               {polygon.map((polygonType) => (
                                 <li key={`${polygonType.action}-${polygonType.subtype}`}>
                                   {polygonType.action} - {polygonType.subtype}{' '}
@@ -281,9 +282,114 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                               />
                             )}
                           </Toolbar>
-                          {i < Object.keys(data.polygons).length - 1 && (
-                            <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
-                          )}
+                          <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
+                        </Fragment>
+                      ))}
+                    {Object.keys(data.lines ?? {}).length > 0 &&
+                      Object.values(data.lines).map((line, i) => (
+                        <Fragment key={`${i}-${line?.type}`}>
+                          <div>
+                            <div className="flex justify-between">
+                              <p className="font-bold">{line?.type}</p>
+                              <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
+                                {line?.size}
+                              </p>
+                            </div>
+                            <p className="pl-2">
+                              {line?.subtype} - {line?.action}
+                            </p>
+                          </div>
+                          <Toolbar aria-label="Feature options" className="flex gap-x-1">
+                            <Button
+                              variant="icon"
+                              className="h-8 min-w-8 rounded border border-zinc-400"
+                              onPress={() => {
+                                const layer = mapView?.map?.findLayerById(`project-${projectId}-feature-line`);
+                                if (!layer) {
+                                  return;
+                                }
+
+                                if (highlightHandle.current) {
+                                  highlightHandle.current.remove();
+                                  highlightHandle.current = null;
+                                }
+
+                                mapView?.whenLayerView(layer).then((view) => {
+                                  highlightHandle.current = (view as __esri.FeatureLayerView).highlight(
+                                    line?.id as number,
+                                  );
+                                });
+                              }}
+                            >
+                              <InfoIcon className="size-5" />
+                            </Button>
+                            {mapView?.ready && mapView?.map?.findLayerById(`project-${projectId}-feature-line`) && (
+                              <OpacityManager
+                                layer={
+                                  mapView?.map?.findLayerById(
+                                    `project-${projectId}-feature-line`,
+                                  ) as __esri.FeatureLayer
+                                }
+                                oid={line?.id}
+                              />
+                            )}
+                          </Toolbar>
+                          <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
+                        </Fragment>
+                      ))}
+                    {Object.keys(data.points ?? {}).length > 0 &&
+                      Object.values(data.points).map((point, i) => (
+                        <Fragment key={`${i}-${point?.type}`}>
+                          <div>
+                            <div className="flex justify-between">
+                              <p className="font-bold">{point?.type}</p>
+                              <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
+                                {point?.size}
+                              </p>
+                            </div>
+                            <div className="pl-2">
+                              {(point?.subtype || point?.action) && (
+                                <p>{[point?.subtype, point?.action].filter(Boolean).join(' - ')}</p>
+                              )}
+                              {point?.description && <p className="pl-2">{point.description}</p>}
+                            </div>
+                          </div>
+                          <Toolbar aria-label="Feature options" className="flex gap-x-1">
+                            <Button
+                              variant="icon"
+                              className="h-8 min-w-8 rounded border border-zinc-400"
+                              onPress={() => {
+                                const layer = mapView?.map?.findLayerById(`project-${projectId}-feature-point`);
+                                if (!layer) {
+                                  return;
+                                }
+
+                                if (highlightHandle.current) {
+                                  highlightHandle.current.remove();
+                                  highlightHandle.current = null;
+                                }
+
+                                mapView?.whenLayerView(layer).then((view) => {
+                                  highlightHandle.current = (view as __esri.FeatureLayerView).highlight(
+                                    point?.id as number,
+                                  );
+                                });
+                              }}
+                            >
+                              <InfoIcon className="size-5" />
+                            </Button>
+                            {mapView?.ready && mapView?.map?.findLayerById(`project-${projectId}-feature-point`) && (
+                              <OpacityManager
+                                layer={
+                                  mapView?.map?.findLayerById(
+                                    `project-${projectId}-feature-point`,
+                                  ) as __esri.FeatureLayer
+                                }
+                                oid={point?.id}
+                              />
+                            )}
+                          </Toolbar>
+                          <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
                         </Fragment>
                       ))}
                   </Group>

@@ -191,7 +191,7 @@ describe('createDefinitionExpression', () => {
     result = generateDefinitionExpression(state);
 
     expect(result).toEqual({
-      centroids: `Project_ID in(select Project_ID from POINT where TypeDescription in('Fish passage structure') union select Project_ID from LINE where TypeDescription in('Dam') union select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area'))`,
+      centroids: `(Project_ID in(select Project_ID from POINT where TypeDescription in('Fish passage structure')) or Project_ID in(select Project_ID from LINE where TypeDescription in('Dam')) or Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area')))`,
       point: `TypeDescription in('Fish passage structure')`,
       line: `TypeDescription in('Dam')`,
       poly: `TypeDescription in('Terrestrial Treatment Area')`,
@@ -217,7 +217,7 @@ describe('createDefinitionExpression', () => {
     const result = generateDefinitionExpression(state);
 
     expect(result).toEqual({
-      centroids: `Project_ID in(select Project_ID from POINT where TypeDescription in('Guzzler') union select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area','Affected Area'))`,
+      centroids: `(Project_ID in(select Project_ID from POINT where TypeDescription in('Guzzler')) or Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area','Affected Area')))`,
       point: `TypeDescription in('Guzzler')`,
       line: `1=0`,
       poly: `TypeDescription in('Terrestrial Treatment Area','Affected Area')`,
@@ -233,7 +233,7 @@ describe('createDefinitionExpression', () => {
     const result = generateDefinitionExpression(state);
 
     expect(result).toEqual({
-      centroids: `Project_ID in(select Project_ID from POINT where TypeDescription in('Guzzler') union select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area','Affected Area'))`,
+      centroids: `(Project_ID in(select Project_ID from POINT where TypeDescription in('Guzzler')) or Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area','Affected Area')))`,
       point: `TypeDescription in('Guzzler')`,
       line: `1=0`,
       poly: `TypeDescription in('Terrestrial Treatment Area','Affected Area')`,

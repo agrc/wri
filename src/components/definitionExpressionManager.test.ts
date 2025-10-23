@@ -249,9 +249,9 @@ describe('createDefinitionExpression', () => {
     let result = generateDefinitionExpression(state);
 
     expect(result).toEqual({
-      centroids: `Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure' intersect select Project_ID from LINE where TypeDescription='Dam')`,
-      point: `TypeDescription in('Fish passage structure') and Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure' intersect select Project_ID from LINE where TypeDescription='Dam')`,
-      line: `TypeDescription in('Dam') and Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure' intersect select Project_ID from LINE where TypeDescription='Dam')`,
+      centroids: `Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
+      point: `TypeDescription in('Fish passage structure') and Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
+      line: `TypeDescription in('Dam') and Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
       poly: `1=0`,
     });
 

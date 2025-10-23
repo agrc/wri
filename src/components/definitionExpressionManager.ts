@@ -167,19 +167,13 @@ const generateExpressions = (
       return result;
     }
 
-    if (result.centroids) {
-      if (expressions.length > 0) {
-        result.centroids = addPossibleConjunction(result.centroids);
-      }
+    result.centroids = addPossibleConjunction(result.centroids);
 
-      if (expressions.length === 1) {
-        result.centroids += `Project_ID in(${expressions[0]})`;
-
-        return result;
-      }
+    if (expressions.length === 1) {
+      result.centroids += `Project_ID in(${expressions[0]})`;
+    } else {
+      result.centroids += `(${expressions.map((exp) => `Project_ID in(${exp})`).join(` or `)})`;
     }
-
-    result.centroids += `Project_ID in(${expressions.join(` union `)})`;
 
     return result;
   } else {

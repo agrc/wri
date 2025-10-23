@@ -30,36 +30,22 @@ export async function seed(knex: Knex): Promise<void> {
     },
   ]);
 
-  table = 'POLY';
+  table = 'POINT';
   await knex(table).del();
   await knex(table).insert([
     {
-      FeatureID: 3960,
-      TypeDescription: 'Terrestrial Treatment Area',
-      TypeCode: 1,
+      FeatureID: 1,
+      TypeDescription: 'Water development point feature',
+      TypeCode: 13,
+      FeatureSubTypeID: 24,
+      FeatureSubTypeDescription: 'Trough',
+      ActionID: 8,
+      ActionDescription: 'Construction',
+      Description: 'The water control structures will be 48" wide X 48" tall risers, with 24" culverts.',
+      Project_FK: '07FFF610-6170-4625-98DC-1BA62645BE0D',
       Project_ID: 1922,
       StatusDescription: 'Completed',
       StatusCode: 5,
-      AreaSqMeters: 443479.02900905,
-    },
-    {
-      FeatureID: 4127,
-      TypeDescription: 'Terrestrial Treatment Area',
-      TypeCode: 1,
-      Project_ID: 1922,
-      StatusDescription: 'Completed',
-      StatusCode: 5,
-      AreaSqMeters: 125059.47220436,
-    },
-    {
-      FeatureID: 10354,
-      TypeDescription: 'Terrestrial Treatment Area',
-      TypeCode: 1,
-      Project_ID: 5772,
-      StatusDescription: 'Current',
-      StatusCode: 5,
-      AreaSqMeters: 562344.13737306,
-      Retreatment: 'Y',
     },
   ]);
 
@@ -121,6 +107,39 @@ export async function seed(knex: Knex): Promise<void> {
       StatusDescription: 'Cancelled',
       StatusCode: 6,
       LengthLnMeters: 467.75,
+    },
+  ]);
+
+  table = 'POLY';
+  await knex(table).del();
+  await knex(table).insert([
+    {
+      FeatureID: 3960,
+      TypeDescription: 'Terrestrial Treatment Area',
+      TypeCode: 1,
+      Project_ID: 1922,
+      StatusDescription: 'Completed',
+      StatusCode: 5,
+      AreaSqMeters: 443479.02900905,
+    },
+    {
+      FeatureID: 4127,
+      TypeDescription: 'Terrestrial Treatment Area',
+      TypeCode: 1,
+      Project_ID: 1922,
+      StatusDescription: 'Completed',
+      StatusCode: 5,
+      AreaSqMeters: 125059.47220436,
+    },
+    {
+      FeatureID: 10354,
+      TypeDescription: 'Terrestrial Treatment Area',
+      TypeCode: 1,
+      Project_ID: 5772,
+      StatusDescription: 'Current',
+      StatusCode: 5,
+      AreaSqMeters: 562344.13737306,
+      Retreatment: 'Y',
     },
   ]);
 

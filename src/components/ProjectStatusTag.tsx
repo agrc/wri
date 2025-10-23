@@ -2,7 +2,7 @@ import { tv } from 'tailwind-variants';
 import type { Status } from './ProjectStatus';
 
 const tagStyles = tv({
-  base: 'flex max-w-fit cursor-default items-center gap-1 rounded-md border px-3 py-0.5 text-xs text-white',
+  base: 'flex max-w-fit cursor-default items-center gap-1 self-center rounded-md border px-3 py-0.5 text-xs text-white',
   variants: {
     status: {
       draft: 'border-gray-200 bg-zinc-500',

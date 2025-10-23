@@ -14,7 +14,9 @@ clonedCentroids.definitionExpression = null;
 
 const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearchSource>)[] = [
   {
-    layer: regions.clone(), // we clone the layers so that the search component will put a graphic in the default graphics layer rather than highlight the feature in the original layer thus making it required that it is turned on
+    // We clone the layers so that the search component will put a graphic in the default graphics layer
+    // rather than highlight the feature in the original layer, which would require the layer to be turned on.
+    layer: regions.clone(),
     searchFields: ['DWR_REGION'],
     displayField: 'DWR_REGION',
     exactMatch: false,

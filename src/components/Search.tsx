@@ -1,4 +1,7 @@
+import Collection from '@arcgis/core/core/Collection';
+import { watch } from '@arcgis/core/core/reactiveUtils';
 import '@arcgis/map-components/components/arcgis-search';
+import { useRef } from 'react';
 import { blmDistricts, centroids, forestService, regions } from '../mapLayers';
 import './Search.css';
 
@@ -11,7 +14,7 @@ clonedCentroids.definitionExpression = null;
 
 const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearchSource>)[] = [
   {
-    layer: regions,
+    layer: regions.clone(), // we clone the layers so that the search component will put a graphic in the default graphics layer rather than highlight the feature in the original layer thus making it required that it is turned on
     searchFields: ['DWR_REGION'],
     displayField: 'DWR_REGION',
     exactMatch: false,
@@ -21,7 +24,7 @@ const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearch
     resultGraphicEnabled: true,
   },
   {
-    layer: blmDistricts,
+    layer: blmDistricts.clone(),
     searchFields: ['FO_NAME'],
     displayField: 'FO_NAME',
     exactMatch: false,
@@ -31,7 +34,7 @@ const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearch
     resultGraphicEnabled: true,
   },
   {
-    layer: forestService,
+    layer: forestService.clone(),
     searchFields: ['LABEL_FEDERAL'],
     displayField: 'LABEL_FEDERAL',
     exactMatch: false,
@@ -65,16 +68,33 @@ const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearch
     url: 'https://masquerade.ugrc.utah.gov/arcgis/rest/services/UtahLocator/GeocodeServer',
   },
 ];
+const sourcesCollection = new Collection(sources);
 
 export function Search({ view }: SearchProps) {
+  const searchElementRef = useRef<HTMLArcgisSearchElement>(null);
+
+  const onSelectResult = async () => {
+    const graphic = searchElementRef.current?.resultGraphic;
+    if (graphic) {
+      watch(
+        () => view.interacting,
+        () => {
+          (graphic.layer as __esri.GraphicsLayer)?.graphics.remove(graphic);
+        },
+      );
+    }
+  };
+
   return (
     <arcgis-search
-      all-placeholder="Search for anything"
-      include-default-sources-disabled
-      location-disabled={true}
-      popup-disabled={true}
-      // @ts-expect-error could not figure out how to make this type work
-      sources={sources}
+      ref={searchElementRef}
+      onarcgisSelectResult={onSelectResult}
+      allPlaceholder="Search for anything"
+      includeDefaultSourcesDisabled
+      locationDisabled={true}
+      popupDisabled={true}
+      sources={sourcesCollection}
+      // @ts-expect-error this prop is not documented in the types
       view={view}
     ></arcgis-search>
   );

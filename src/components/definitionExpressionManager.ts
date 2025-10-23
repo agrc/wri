@@ -90,7 +90,9 @@ const centroidStatusExpression = (predicateCsv: string) => `Status in(${predicat
 const unionProjectIdSubqueries = (g: GeometryKey, items: FeatureItem[]) =>
   `select Project_ID from ${TABLES[g]} where TypeDescription in(${items.map(({ type }) => type).join(',')})`;
 const intersectProjectIdSubqueries = (g: GeometryKey, items: FeatureItem[]) =>
-  items.map(({ type }) => `select Project_ID from ${TABLES[g]} where TypeDescription=${type}`).join(' intersect ');
+  items
+    .map(({ type }) => `Project_ID in(select Project_ID from ${TABLES[g]} where TypeDescription=${type})`)
+    .join(' and ');
 
 const allTypesSelectedForAllGeometries = (predicates: NormalizedFeaturePredicates) =>
   (['point', 'line', 'poly'] as GeometryKey[]).every((k) => predicates[k] === allRecords);
@@ -224,7 +226,7 @@ const generateExpressions = (
     result.line = addPossibleConjunction(result.line);
     result.poly = addPossibleConjunction(result.poly);
 
-    const expression = `Project_ID in(${expressions.join(` intersect `)})`;
+    const expression = expressions.join(` and `);
     result.centroids += expression;
 
     if (result.point && result.point != noRecords) {

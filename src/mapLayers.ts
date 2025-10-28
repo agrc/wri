@@ -248,7 +248,7 @@ export const precipitation = new FeatureLayer({
 export const rangeSites = new FeatureLayer({
   title: 'Range Trend Studies',
   id: 'reference-range-sites',
-  url: `${baseUrl}/arcgis/rest/services/WRI/Reference/MapServer/7`,
+  url: `https://dwrmapserv.utah.gov/arcgis/rest/services/RangeTrendUGRC/RANGE_TREND_PROD_AGRC/MapServer/0`,
   outFields: ['STUDY_NAME', 'GlobalID'],
   visible: false,
   renderer: new SimpleRenderer({
@@ -274,7 +274,7 @@ export const rangeSites = new FeatureLayer({
 export const regions = new FeatureLayer({
   title: 'UWRI Regions',
   id: 'reference-regions',
-  url: `${baseUrl}/arcgis/rest/services/WRI/Reference/MapServer/5`,
+  url: 'https://services.arcgis.com/ZzrwjTRez6FJiOq4/arcgis/rest/services/DWR_Administrative_Regions/FeatureServer/0',
   outFields: ['DWR_REGION'],
   visible: false,
   labelsVisible: false,
@@ -764,7 +764,7 @@ export const forestService = new FeatureLayer({
 export const sageGrouse = new FeatureLayer({
   title: 'Sage Grouse Areas',
   id: 'reference-sage-grouse',
-  url: `${baseUrl}/arcgis/rest/services/WRI/Reference/MapServer/4`,
+  url: 'https://dwrmapserv.utah.gov/dwrarcgis/rest/services/Sage_grouse/SGMA_outlines/FeatureServer/0',
   outFields: ['Area_name'],
   visible: false,
   labelsVisible: false,

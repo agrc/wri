@@ -79,7 +79,6 @@ export function Search({ view }: SearchProps) {
     const graphic = searchElementRef.current?.resultGraphic;
     if (graphic) {
       whenOnce(() => view.interacting).then(() => {
-        console.log('view interacting changed');
         (graphic.layer as __esri.GraphicsLayer)?.graphics.remove(graphic);
       });
     }

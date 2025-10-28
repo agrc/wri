@@ -21,7 +21,7 @@ const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearch
     displayField: 'DWR_REGION',
     exactMatch: false,
     name: regions.title ?? 'DWR Regions',
-    placeholder: 'example: SERO',
+    placeholder: 'example: SER',
     suggestionsEnabled: true,
     resultGraphicEnabled: true,
   },

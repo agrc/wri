@@ -8,7 +8,6 @@ browser[0].ignores = [
   'functions/generated/**/*',
   '.github/*',
   'data/*',
-  'forklift/*',
   'maps/*',
   'mockups/*',
   'scripts/*',

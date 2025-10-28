@@ -1,5 +1,5 @@
 import Collection from '@arcgis/core/core/Collection';
-import { watch } from '@arcgis/core/core/reactiveUtils';
+import { whenOnce } from '@arcgis/core/core/reactiveUtils';
 import '@arcgis/map-components/components/arcgis-search';
 import { useRef } from 'react';
 import { blmDistricts, centroids, forestService, regions } from '../mapLayers';
@@ -78,12 +78,10 @@ export function Search({ view }: SearchProps) {
   const onSelectResult = async () => {
     const graphic = searchElementRef.current?.resultGraphic;
     if (graphic) {
-      watch(
-        () => view.interacting,
-        () => {
-          (graphic.layer as __esri.GraphicsLayer)?.graphics.remove(graphic);
-        },
-      );
+      whenOnce(() => view.interacting).then(() => {
+        console.log('view interacting changed');
+        (graphic.layer as __esri.GraphicsLayer)?.graphics.remove(graphic);
+      });
     }
   };
 

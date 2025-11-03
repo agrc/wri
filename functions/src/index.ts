@@ -112,6 +112,37 @@ const getDb = async () => {
       };
     }
 
+    if (process.env.USE_PROD_DB === 'true') {
+      const dbInfo = JSON.parse(databaseInformation.value() || '{}');
+
+      if (!dbInfo.user || !dbInfo.password) {
+        throw new HttpsError('failed-precondition', 'Database credentials are not set');
+      }
+
+      config.client = 'mssql';
+      config.connection = {
+        database: dbInfo.database ?? 'WRI',
+        server: '127.0.0.1', // proxy address
+        port: parseInt(dbInfo.port),
+        user: dbInfo.user,
+        password: dbInfo.password,
+        options: {
+          encrypt: true,
+          trustServerCertificate: true,
+          enableArithAbort: true,
+          connectTimeout: 10000,
+          requestTimeout: 10000,
+        },
+      } as Knex.MsSqlConnectionConfig;
+
+      config.pool = {
+        min: 0,
+        max: 5,
+        idleTimeoutMillis: 30000,
+        acquireTimeoutMillis: 30000,
+      };
+    }
+
     db = knex(config);
   }
 

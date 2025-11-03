@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "start": "concurrently 'cd functions && npm run build:watch' 'npm run dev:vite' 'npm run dev:firebase-emulators'",
     "start:ci": "vite --host",
+    "start:with-db": "cross-env USE_PROD_DB=true npm run start",
     "storybook": "storybook dev -p 6006",
     "test": "vitest"
   },
@@ -65,6 +66,7 @@
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
     "cpy-cli": "^5.0.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9.35.0",
     "eslint-plugin-storybook": "9.1.6",
     "firebase-tools": "^14.17.0",

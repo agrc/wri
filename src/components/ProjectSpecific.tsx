@@ -104,7 +104,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
             <>
               <div className="flex justify-between">
                 <p>
-                  <a href={`./project/title.html?id=${projectId}`}>{data.title}</a>
+                  <a href={`/wri/project/title.html?id=${projectId}`}>{data.title}</a>
                 </p>
                 <ProjectStatusTag status={data.status} />
               </div>

@@ -122,7 +122,7 @@ const getDb = async () => {
       config.client = 'mssql';
       config.connection = {
         database: dbInfo.database ?? 'WRI',
-        server: '127.0.0.1', // proxy address
+        server: 'localhost', // proxy address
         port: parseInt(dbInfo.port),
         user: dbInfo.user,
         password: dbInfo.password,

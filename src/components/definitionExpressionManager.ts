@@ -145,6 +145,11 @@ const generateExpressions = (
       result.point += `TypeDescription in(${types})`;
     } else if (featurePredicates.point === noRecords) {
       result.point = noRecords;
+    } else if (
+      featurePredicates.point === allRecords &&
+      (featurePredicates.line !== allRecords || featurePredicates.poly !== allRecords)
+    ) {
+      expressions.push(`select Project_ID from ${TABLES.point}`);
     }
 
     if (Array.isArray(featurePredicates.line)) {
@@ -154,6 +159,11 @@ const generateExpressions = (
       result.line += `TypeDescription in(${types})`;
     } else if (featurePredicates.line === noRecords) {
       result.line = noRecords;
+    } else if (
+      featurePredicates.line === allRecords &&
+      (featurePredicates.point !== allRecords || featurePredicates.poly !== allRecords)
+    ) {
+      expressions.push(`select Project_ID from ${TABLES.line}`);
     }
 
     if (Array.isArray(featurePredicates.poly)) {
@@ -163,6 +173,11 @@ const generateExpressions = (
       result.poly += `TypeDescription in(${types})`;
     } else if (featurePredicates.poly === noRecords) {
       result.poly = noRecords;
+    } else if (
+      featurePredicates.poly === allRecords &&
+      (featurePredicates.point !== allRecords || featurePredicates.line !== allRecords)
+    ) {
+      expressions.push(`select Project_ID from ${TABLES.poly}`);
     }
 
     if (expressions.length === 0) {
@@ -194,27 +209,60 @@ const generateExpressions = (
       result.point = addPossibleConjunction(result.point);
       const predicate = intersectProjectIdSubqueries('point', featurePredicates.point);
       expressions.push(predicate);
-      result.point += `TypeDescription in${featurePredicates.point.map(({ type }) => `(${type})`).join(',')}`;
+      result.point += `TypeDescription in(${featurePredicates.point.map(({ type }) => `${type}`).join(',')})`;
     } else if (featurePredicates.point === noRecords) {
       result.point = noRecords;
+    } else if (
+      featurePredicates.point === allRecords &&
+      (featurePredicates.line !== allRecords || featurePredicates.poly !== allRecords)
+    ) {
+      const values = featureTypes.filter((x) => x.type === 'point');
+      expressions.push(
+        ...values.map(
+          ({ featureType }) =>
+            `Project_ID in(select Project_ID from ${TABLES.point} where TypeDescription = '${featureType}')`,
+        ),
+      );
     }
 
     if (Array.isArray(featurePredicates.line)) {
       result.line = addPossibleConjunction(result.line);
       const predicate = intersectProjectIdSubqueries('line', featurePredicates.line);
       expressions.push(predicate);
-      result.line += `TypeDescription in${featurePredicates.line.map(({ type }) => `(${type})`).join(',')}`;
+      result.line += `TypeDescription in(${featurePredicates.line.map(({ type }) => `${type}`).join(',')})`;
     } else if (featurePredicates.line === noRecords) {
       result.line = noRecords;
+    } else if (
+      featurePredicates.line === allRecords &&
+      (featurePredicates.point !== allRecords || featurePredicates.poly !== allRecords)
+    ) {
+      const values = featureTypes.filter((x) => x.type === 'line');
+      expressions.push(
+        ...values.map(
+          ({ featureType }) =>
+            `Project_ID in(select Project_ID from ${TABLES.line} where TypeDescription = '${featureType}')`,
+        ),
+      );
     }
 
     if (Array.isArray(featurePredicates.poly)) {
       result.poly = addPossibleConjunction(result.poly);
       const predicate = intersectProjectIdSubqueries('poly', featurePredicates.poly);
       expressions.push(predicate);
-      result.poly += `TypeDescription in${featurePredicates.poly.map(({ type }) => `(${type})`).join(',')}`;
+      result.poly += `TypeDescription in(${featurePredicates.poly.map(({ type }) => `${type}`).join(',')})`;
     } else if (featurePredicates.poly === noRecords) {
       result.poly = noRecords;
+    } else if (
+      featurePredicates.poly === allRecords &&
+      (featurePredicates.point !== allRecords || featurePredicates.line !== allRecords)
+    ) {
+      const values = featureTypes.filter((x) => x.type === 'poly');
+      expressions.push(
+        ...values.map(
+          ({ featureType }) =>
+            `Project_ID in(select Project_ID from ${TABLES.poly} where TypeDescription = '${featureType}')`,
+        ),
+      );
     }
 
     if (expressions.length === 0) {
@@ -222,22 +270,7 @@ const generateExpressions = (
     }
 
     result.centroids = addPossibleConjunction(result.centroids);
-    result.point = addPossibleConjunction(result.point);
-    result.line = addPossibleConjunction(result.line);
-    result.poly = addPossibleConjunction(result.poly);
-
-    const expression = expressions.join(` and `);
-    result.centroids += expression;
-
-    if (result.point && result.point != noRecords) {
-      result.point += expression;
-    }
-    if (result.line && result.line != noRecords) {
-      result.line += expression;
-    }
-    if (result.poly && result.poly != noRecords) {
-      result.poly += expression;
-    }
+    result.centroids += expressions.join(` and `);
 
     return result;
   }

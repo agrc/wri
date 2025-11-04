@@ -239,6 +239,57 @@ describe('createDefinitionExpression', () => {
       poly: `TypeDescription in('Terrestrial Treatment Area','Affected Area')`,
     });
   });
+  it('should handle when all types in a geometry are selected correctly using or', () => {
+    const state: State = {
+      projects: new Set<Key>(['Proposed', 'Current', 'Pending Completed', 'Completed']),
+      features: new Set<Key>(['Fence', 'Dam', 'Pipeline']),
+      join: or,
+      wriFunding: false,
+    };
+    const result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids:
+        "Status in('Proposed','Current','Pending Completed','Completed') and Project_ID in(select Project_ID from LINE)",
+      point: '1=0',
+      line: "StatusDescription in('Proposed','Current','Pending Completed','Completed')",
+      poly: '1=0',
+    });
+  });
+  it('should handle when all types in a geometry are selected correctly using and', () => {
+    const state: State = {
+      projects: new Set<Key>(['Proposed', 'Current', 'Pending Completed', 'Completed']),
+      features: new Set<Key>(['Fence', 'Dam', 'Pipeline']),
+      join: and,
+      wriFunding: false,
+    };
+    const result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids:
+        "Status in('Proposed','Current','Pending Completed','Completed') and Project_ID in(select Project_ID from LINE where TypeDescription = 'Fence') and Project_ID in(select Project_ID from LINE where TypeDescription = 'Pipeline') and Project_ID in(select Project_ID from LINE where TypeDescription = 'Dam')",
+      point: '1=0',
+      line: "StatusDescription in('Proposed','Current','Pending Completed','Completed')",
+      poly: '1=0',
+    });
+  });
+  it('should handle when some types in a geometry are selected correctly using and', () => {
+    const state: State = {
+      projects: new Set<Key>(['Proposed', 'Current', 'Pending Completed', 'Completed']),
+      features: new Set<Key>(['Fence', 'Dam']),
+      join: and,
+      wriFunding: false,
+    };
+    const result = generateDefinitionExpression(state);
+
+    expect(result).toEqual({
+      centroids:
+        "Status in('Proposed','Current','Pending Completed','Completed') and Project_ID in(select Project_ID from LINE where TypeDescription='Fence') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')",
+      point: '1=0',
+      line: "StatusDescription in('Proposed','Current','Pending Completed','Completed') and TypeDescription in('Fence','Dam')",
+      poly: '1=0',
+    });
+  });
   it('should use the user input join value intersect when selecting feature types with and', () => {
     const state: State = {
       projects: all,
@@ -250,8 +301,8 @@ describe('createDefinitionExpression', () => {
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
-      point: `TypeDescription in('Fish passage structure') and Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
-      line: `TypeDescription in('Dam') and Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
+      point: `TypeDescription in('Fish passage structure')`,
+      line: `TypeDescription in('Dam')`,
       poly: `1=0`,
     });
 
@@ -261,7 +312,7 @@ describe('createDefinitionExpression', () => {
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
       point: `1=0`,
-      line: `TypeDescription in('Dam') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
+      line: `TypeDescription in('Dam')`,
       poly: `1=0`,
     });
   });

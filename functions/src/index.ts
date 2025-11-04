@@ -154,6 +154,11 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
     const db = await getDb();
     const id = parseInt(request.data?.id?.toString() ?? '-1', 10);
 
+    // SQLite doesn't support sql spatial, so use a literal 1 for size in that case.
+    const client = db.client;
+    const clientName = (client.config?.client ?? client.dialect ?? '').toString();
+    const sizeExpression = clientName.includes('sqlite') ? db.raw('1') : db.raw('Shape.STNumPoints()');
+
     if (isNaN(id) || id <= 0 || id > Number.MAX_SAFE_INTEGER) {
       throw new HttpsError('invalid-argument', 'Invalid project ID');
     }
@@ -239,7 +244,7 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
           description: 'pt.description',
           retreatment: db.raw('NULL'),
           herbicide: db.raw('NULL'),
-          size: db.raw('0'), // TODO!: replace with .STNumPoints()
+          size: sizeExpression,
         })
         .from({ pt: 'POINT' })
         .where('pt.Project_ID', id)

@@ -1,3 +1,6 @@
+import { composeRenderProps } from 'react-aria-components';
+import { twMerge } from 'tailwind-merge';
+
 export const randomize = <T>(items: T[]): { item: T; index: number } => {
   if (items.length === 0) {
     throw new Error('The items array must not be empty');
@@ -32,3 +35,10 @@ export const titleCase = (str: string | undefined) => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 };
+
+export function composeTailwindRenderProps<T>(
+  className: string | ((v: T) => string) | undefined,
+  tw: string,
+): string | ((v: T) => string) {
+  return composeRenderProps(className, (className) => twMerge(tw, className));
+}

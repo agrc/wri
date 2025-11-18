@@ -93,7 +93,6 @@ export function Search({ view }: SearchProps) {
       locationDisabled={true}
       popupDisabled={true}
       sources={sourcesCollection}
-      // @ts-expect-error this prop is not documented in the types
       view={view}
     ></arcgis-search>
   );

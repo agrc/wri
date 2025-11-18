@@ -1,25 +1,26 @@
 import Collection from '@arcgis/core/core/Collection';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
+import { Switch, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
 import { httpsCallable } from 'firebase/functions';
-import { DiamondIcon, InfoIcon } from 'lucide-react';
-import { useRef } from 'react';
-import { Group, Toolbar } from 'react-aria-components';
+import { DiamondIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Fragment } from 'react/jsx-runtime';
 import {
   AdjacentProjects,
   OpacityManager,
   ProjectStatusTag,
   ReferenceData,
   ReferenceLabelSwitch,
-  type ReferenceLayer,
   TagGroupLoader,
   titleCase,
+  type ReferenceLayer,
 } from './';
 import { ErrorFallback } from './ErrorFallBack';
 import { useMap } from './hooks';
+import { useHighlight } from './hooks/useHighlight';
+import ProjectFeaturesList from './ProjectFeaturesList';
 
 export type ProjectResponse = {
   id: number;
@@ -37,9 +38,9 @@ export type ProjectResponse = {
   county: CountyIntersection[];
   owner: LandOwnerIntersection[];
   sgma: SageGrouseIntersection[];
-  polygons: Polygons;
-  lines: Line[];
-  points: Point[];
+  polygons: PolygonFeatures;
+  lines: Feature[];
+  points: Feature[];
 };
 
 export type CountyIntersection = { county: string; area: string };
@@ -48,40 +49,33 @@ export type LandOwnerIntersection = { owner: string; admin: string; area: string
 
 export type SageGrouseIntersection = { name: string; area: string };
 
-export type Polygons = { [key: string]: Polygon[] };
+export type PolygonFeatures = { [key: string]: PolygonFeature[] };
 
-export type Polygon = {
+export type Feature = {
   id: number;
   type: string;
-  subtype: string;
-  action: string;
-  herbicide: string;
-  retreatment: string;
-  layer: FeatureLayerId;
+  subtype: string | nullish;
+  action: string | nullish;
+  description: string | nullish;
   size: string;
+  layer: FeatureLayerId;
 };
 
-export type Line = { id: number; type: string; subtype: string; action: string; layer: FeatureLayerId; size: string };
-
-export type Point = {
-  id: number;
-  type: string;
-  action: string;
-  subtype: string;
-  description: string;
-  layer: FeatureLayerId;
-  size: string;
+export type PolygonFeature = Feature & {
+  herbicide: string | nullish;
+  retreatment: 'Y' | 'N' | nullish;
 };
 
 export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 
 export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
+  const [selected, setSelected] = useState<boolean>(true);
   const { mapView, currentMapScale } = useMap();
+  const { highlight, clear } = useHighlight(mapView);
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
   const getProjectInfo = httpsCallable(functions, 'project');
-  const highlightHandle = useRef<__esri.Handle | null>(null);
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
@@ -225,174 +219,31 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     )}
                   </Group>
                 </TabPanel>
-                <TabPanel shouldForceMount id="features" className="data-[inert]:hidden">
-                  <Group className="flex flex-col gap-y-2 dark:text-zinc-100 [&>hr:last-child]:hidden">
-                    {Object.keys(data.polygons ?? {}).length > 0 &&
-                      Object.values(data.polygons).map((polygon, i) => (
-                        <Fragment key={`${i}-${polygon[0]?.type}`}>
-                          <div>
-                            <div className="flex justify-between">
-                              <p className="font-bold">{polygon[0]?.type}</p>
-                              <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
-                                {polygon[0]?.size}
-                              </p>
-                            </div>
-                            {polygon[0]?.retreatment && <p>Retreatment</p>}
-                            <ol className="list-inside list-decimal pl-2">
-                              {polygon.map((polygonType) => (
-                                <li key={`${polygonType.action}-${polygonType.subtype}`}>
-                                  {polygonType.action} - {polygonType.subtype}{' '}
-                                  {polygonType.herbicide && `- ${polygonType.herbicide}`}
-                                </li>
-                              ))}
-                            </ol>
-                          </div>
-                          <Toolbar aria-label="Feature options" className="flex gap-x-1">
-                            <Button
-                              variant="icon"
-                              className="h-8 min-w-8 rounded border border-zinc-400"
-                              onPress={() => {
-                                const layer = mapView?.map?.findLayerById(`project-${projectId}-feature-poly`);
-                                if (!layer) {
-                                  return;
-                                }
+                <TabPanel shouldForceMount id="features" className="px-0 data-[inert]:hidden">
+                  <Switch aria-label="Zoom to selection" isSelected={selected} onChange={setSelected}>
+                    Zoom to selection
+                  </Switch>
+                  <ProjectFeaturesList
+                    projectId={projectId}
+                    polygons={data.polygons ?? {}}
+                    lines={data.lines ?? []}
+                    points={data.points ?? []}
+                    onSelect={(details) => {
+                      const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
+                      if (isActive === false) {
+                        clear();
+                      }
 
-                                if (highlightHandle.current) {
-                                  highlightHandle.current.remove();
-                                  highlightHandle.current = null;
-                                }
+                      return isActive;
+                    }}
+                    onClear={() => clear()}
+                    renderOpacity={(layerId, oid) => {
+                      const layer = mapView?.map?.findLayerById(layerId) as __esri.FeatureLayer | undefined | null;
+                      if (!mapView?.ready || !layer) return null;
 
-                                mapView?.whenLayerView(layer).then((view) => {
-                                  highlightHandle.current = (view as __esri.FeatureLayerView).highlight(
-                                    polygon[0]?.id as number,
-                                  );
-                                });
-                              }}
-                            >
-                              <InfoIcon className="size-5" />
-                            </Button>
-                            {mapView?.ready && mapView?.map?.findLayerById(`project-${projectId}-feature-poly`) && (
-                              <OpacityManager
-                                layer={
-                                  mapView?.map?.findLayerById(
-                                    `project-${projectId}-feature-poly`,
-                                  ) as __esri.FeatureLayer
-                                }
-                                oid={polygon[0]?.id}
-                              />
-                            )}
-                          </Toolbar>
-                          <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
-                        </Fragment>
-                      ))}
-                    {Object.keys(data.lines ?? {}).length > 0 &&
-                      Object.values(data.lines).map((line, i) => (
-                        <Fragment key={`${i}-${line?.type}`}>
-                          <div>
-                            <div className="flex justify-between">
-                              <p className="font-bold">{line?.type}</p>
-                              <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
-                                {line?.size}
-                              </p>
-                            </div>
-                            <p className="pl-2">
-                              {line?.subtype} - {line?.action}
-                            </p>
-                          </div>
-                          <Toolbar aria-label="Feature options" className="flex gap-x-1">
-                            <Button
-                              variant="icon"
-                              className="h-8 min-w-8 rounded border border-zinc-400"
-                              onPress={() => {
-                                const layer = mapView?.map?.findLayerById(`project-${projectId}-feature-line`);
-                                if (!layer) {
-                                  return;
-                                }
-
-                                if (highlightHandle.current) {
-                                  highlightHandle.current.remove();
-                                  highlightHandle.current = null;
-                                }
-
-                                mapView?.whenLayerView(layer).then((view) => {
-                                  highlightHandle.current = (view as __esri.FeatureLayerView).highlight(
-                                    line?.id as number,
-                                  );
-                                });
-                              }}
-                            >
-                              <InfoIcon className="size-5" />
-                            </Button>
-                            {mapView?.ready && mapView?.map?.findLayerById(`project-${projectId}-feature-line`) && (
-                              <OpacityManager
-                                layer={
-                                  mapView?.map?.findLayerById(
-                                    `project-${projectId}-feature-line`,
-                                  ) as __esri.FeatureLayer
-                                }
-                                oid={line?.id}
-                              />
-                            )}
-                          </Toolbar>
-                          <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
-                        </Fragment>
-                      ))}
-                    {Object.keys(data.points ?? {}).length > 0 &&
-                      Object.values(data.points).map((point, i) => (
-                        <Fragment key={`${i}-${point?.type}`}>
-                          <div>
-                            <div className="flex justify-between">
-                              <p className="font-bold">{point?.type}</p>
-                              <p className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600">
-                                {point?.size}
-                              </p>
-                            </div>
-                            <div className="pl-2">
-                              {(point?.subtype || point?.action) && (
-                                <p>{[point?.subtype, point?.action].filter(Boolean).join(' - ')}</p>
-                              )}
-                              {point?.description && <p className="pl-2">{point.description}</p>}
-                            </div>
-                          </div>
-                          <Toolbar aria-label="Feature options" className="flex gap-x-1">
-                            <Button
-                              variant="icon"
-                              className="h-8 min-w-8 rounded border border-zinc-400"
-                              onPress={() => {
-                                const layer = mapView?.map?.findLayerById(`project-${projectId}-feature-point`);
-                                if (!layer) {
-                                  return;
-                                }
-
-                                if (highlightHandle.current) {
-                                  highlightHandle.current.remove();
-                                  highlightHandle.current = null;
-                                }
-
-                                mapView?.whenLayerView(layer).then((view) => {
-                                  highlightHandle.current = (view as __esri.FeatureLayerView).highlight(
-                                    point?.id as number,
-                                  );
-                                });
-                              }}
-                            >
-                              <InfoIcon className="size-5" />
-                            </Button>
-                            {mapView?.ready && mapView?.map?.findLayerById(`project-${projectId}-feature-point`) && (
-                              <OpacityManager
-                                layer={
-                                  mapView?.map?.findLayerById(
-                                    `project-${projectId}-feature-point`,
-                                  ) as __esri.FeatureLayer
-                                }
-                                oid={point?.id}
-                              />
-                            )}
-                          </Toolbar>
-                          <hr className="my-0.5 h-px border-0 bg-zinc-200 dark:bg-zinc-600" />
-                        </Fragment>
-                      ))}
-                  </Group>
+                      return <OpacityManager layer={layer as __esri.FeatureLayer} oid={oid} />;
+                    }}
+                  />
                 </TabPanel>
                 <TabPanel shouldForceMount id="reference" className="flex flex-col gap-2 data-[inert]:hidden">
                   <AdjacentProjects mapView={mapView} />

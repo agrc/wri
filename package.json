@@ -32,12 +32,14 @@
     ]
   },
   "dependencies": {
-    "@arcgis/core": "^4.33.14",
+    "@arcgis/core": "^4.34.8",
     "@arcgis/map-components": "^4.34.9",
     "@tanstack/react-query": "^5.89.0",
+    "@terraformer/arcgis": "^2.1.2",
     "@ugrc/eslint-config": "^1.2.3",
     "@ugrc/esri-theme-toggle": "^1.1.2",
     "@ugrc/utah-design-system": "^1.32.1",
+    "betterknown": "^1.1.1",
     "clsx": "^2.1.1",
     "firebase": "^12.2.1",
     "firebase-functions": "^7.0.0",

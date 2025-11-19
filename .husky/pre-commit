@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Run TypeScript checks and lint before committing
+echo "Running pre-commit checks: npm run check && npm run lint"
+npm run check && npm run lint

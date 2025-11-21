@@ -1,16 +1,18 @@
 import Basemap from '@arcgis/core/Basemap';
 import esriConfig from '@arcgis/core/config.js';
+import Graphic from '@arcgis/core/Graphic';
 import WebTileLayer from '@arcgis/core/layers/WebTileLayer';
 import type { EventHandler } from '@arcgis/lumina';
 import '@arcgis/map-components/components/arcgis-map';
 import '@arcgis/map-components/components/arcgis-sketch';
 import '@arcgis/map-components/components/arcgis-zoom';
 import { arcgisToGeoJSON } from '@terraformer/arcgis';
-import { Button, ToggleButton } from '@ugrc/utah-design-system';
+import { ToggleButton } from '@ugrc/utah-design-system';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
+import { useShapefileUpload } from './hooks/useShapefileUpload';
 
 const ErrorFallback = ({ error }: { error: Error }) => {
   return (
@@ -43,9 +45,43 @@ const constraints: __esri.View2DConstraints = { snapToZoom: false };
 
 export default function App() {
   const [showDrawTools, setShowDrawTools] = useState(false);
-
+  const mapRef = useRef<HTMLArcgisMapElement>(null);
   const areaOfInterestNode = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
+
+  const handleUploadSuccess = useCallback(
+    ({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
+      const graphicsLayer = searchRef.current?.layer as __esri.GraphicsLayer | undefined;
+
+      if (!graphicsLayer) {
+        throw new Error('Search graphics layer not found');
+      }
+
+      graphicsLayer.removeAll();
+      const graphic = new Graphic({ geometry, symbol: searchRef.current?.polygonSymbol });
+      graphicsLayer.add(graphic);
+
+      if (!areaOfInterestNode.current) {
+        throw new Error('Area of interest input node not found');
+      }
+
+      areaOfInterestNode.current.value = wkt3857;
+
+      if (mapRef.current?.view) {
+        void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
+      }
+    },
+    [mapRef],
+  );
+
+  const {
+    error: shapefileError,
+    handleFileChange,
+    isLoading,
+  } = useShapefileUpload({
+    allowedGeometryTypes: ['polygon'],
+    onSuccess: handleUploadSuccess,
+  });
 
   const onSketchPropertyChange: EventHandler<HTMLArcgisSketchElement['arcgisPropertyChange']> = (event) => {
     // clear any existing graphics when activating the draw tool
@@ -81,49 +117,57 @@ export default function App() {
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <div className="px-2">
           <h2>Area of Interest</h2>
-          <div className="flex w-fit gap-2 py-3">
-            <span>
-              <ToggleButton onChange={() => setShowDrawTools(!showDrawTools)} isSelected={showDrawTools}>
-                Draw a polygon
-              </ToggleButton>
-            </span>
-            <span>
-              <Button isDisabled>Upload a shapefile</Button>
-            </span>
+          <div className="flex w-fit items-center gap-4 py-3">
+            <ToggleButton onChange={() => setShowDrawTools(!showDrawTools)} isSelected={showDrawTools}>
+              Draw a polygon
+            </ToggleButton>
+            OR
+            <label>
+              <span className="text-sm">Upload a shapefile (zipped .shp, .shx, .dbf, .prj)</span>
+              <input
+                type="file"
+                accept=".zip"
+                onChange={handleFileChange}
+                disabled={isLoading}
+                className="block cursor-pointer rounded border border-dashed border-zinc-400 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              {shapefileError && <p className="pt-1 text-sm text-red-600">{shapefileError}</p>}
+              {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
+            </label>
           </div>
-          <input ref={areaOfInterestNode} id="aoiGeometry" type="text" className="hidden" />
+          <input ref={areaOfInterestNode} id="aoiGeometry" type="text" />
         </div>
         <arcgis-map
+          ref={mapRef}
           className="rounded-md border"
           basemap={basemap}
           extent={utahMercatorExtent.expand(1.15)}
           constraints={constraints}
         >
           <arcgis-zoom slot="top-left"></arcgis-zoom>
-          {showDrawTools && (
-            <arcgis-sketch
-              ref={searchRef}
-              availableCreateTools={['polygon', 'rectangle']}
-              // deactivate tool after one graphic is created
-              creationMode="single"
-              hideCreateToolsCircle
-              hideCreateToolsPoint
-              hideCreateToolsPolyline
-              hideDeleteButton
-              hideDuplicateButton
-              hideLabelsToggle
-              hideSelectionCountLabel
-              hideSelectionToolsLassoSelection
-              hideSelectionToolsRectangleSelection
-              hideSettingsMenu
-              hideSnappingControls
-              hideTooltipsToggle
-              hideUndoRedoMenu
-              onarcgisCreate={onSketchCreate}
-              onarcgisPropertyChange={onSketchPropertyChange}
-              slot="top-right"
-            ></arcgis-sketch>
-          )}
+          <arcgis-sketch
+            className={showDrawTools ? '' : 'hidden'}
+            ref={searchRef}
+            availableCreateTools={['polygon', 'rectangle']}
+            // deactivate tool after one graphic is created
+            creationMode="single"
+            hideCreateToolsCircle
+            hideCreateToolsPoint
+            hideCreateToolsPolyline
+            hideDeleteButton
+            hideDuplicateButton
+            hideLabelsToggle
+            hideSelectionCountLabel
+            hideSelectionToolsLassoSelection
+            hideSelectionToolsRectangleSelection
+            hideSettingsMenu
+            hideSnappingControls
+            hideTooltipsToggle
+            hideUndoRedoMenu
+            onarcgisCreate={onSketchCreate}
+            onarcgisPropertyChange={onSketchPropertyChange}
+            slot="top-right"
+          ></arcgis-sketch>
         </arcgis-map>
       </ErrorBoundary>
     </section>

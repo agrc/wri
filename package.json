@@ -51,6 +51,7 @@
     "react-dom": "^19.2.0",
     "react-error-boundary": "^6.0.0",
     "react-stately": "^3.42.0",
+    "shpjs": "^6.2.0",
     "tailwind-merge": "2.6.0",
     "tailwind-variants": "0.3.1",
     "use-immer": "^0.11.0"
@@ -63,6 +64,7 @@
     "@storybook/react-vite": "^9.1.6",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "@types/shpjs": "^3.4.7",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@ugrc/tsconfigs": "^1.0.3",
     "@vitejs/plugin-react": "^5.0.2",

@@ -28,9 +28,15 @@ const addPossibleConjunction = (phrase: string) => {
 
 const full = featureTypes.reduce(
   (acc, { type }) => {
-    if (type === 'point') acc.point += 1;
-    if (type === 'line') acc.line += 1;
-    if (type === 'poly') acc.poly += 1;
+    if (type === 'point') {
+      acc.point += 1;
+    }
+    if (type === 'line') {
+      acc.line += 1;
+    }
+    if (type === 'poly') {
+      acc.poly += 1;
+    }
     return acc;
   },
   { point: 0, line: 0, poly: 0 },
@@ -53,7 +59,9 @@ const getFeatureTablePredicates = (keys: Selection): NormalizedFeaturePredicates
 
   for (const type of Array.from(keys)) {
     const feature = featureTypes.find(({ featureType }) => featureType === type);
-    if (!feature) continue;
+    if (!feature) {
+      continue;
+    }
     buckets[feature.type as GeometryKey].push({ code: feature.code, type: `'${feature.featureType}'` });
   }
 

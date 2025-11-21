@@ -3,7 +3,7 @@ import rac from 'tailwindcss-react-aria-components';
 import colors from 'tailwindcss/colors';
 
 export default {
-  content: ['./node_modules/@ugrc/**/*.{tsx,jsx,js}', './index.html', './search.html', './src/**/*.{tsx,jsx,js}'],
+  content: ['./node_modules/@ugrc/**/*.{ts,tsx,jsx,js}', './index.html', './search.html', './src/**/*.{tsx,jsx,js}'],
   theme: {
     extend: {
       colors: {

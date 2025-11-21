@@ -11,7 +11,9 @@ export function AdjacentProjects({ mapView }: AdjacentProjectsProps) {
   const layers = useRef<__esri.Collection<__esri.Layer> | null>(null);
 
   useEffect(() => {
-    if (!mapView?.map || !mapView?.ready) return;
+    if (!mapView?.map || !mapView?.ready) {
+      return;
+    }
 
     layers.current = mapView.map.layers.filter((layer) => layer.id.startsWith('feature-'));
   }, [mapView?.map, mapView?.ready]);

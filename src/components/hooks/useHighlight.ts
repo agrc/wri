@@ -13,33 +13,54 @@ type ZoomDetails = {
 
 const MUTED_EFFECT = 'grayscale(70%) opacity(70%) invert(10%)';
 const HIGHLIGHT_EFFECT = 'drop-shadow(0px 0px 10px white) saturate(150%) opacity(100%)';
+
 const isProjectFeatureLayerId = (id?: string | null): boolean =>
   typeof id === 'string' && id.startsWith('project-') && id.includes('-feature-');
+
+const clearFeatureEffects = (map: __esri.Map | nullish) => {
+  map?.allLayers.forEach((layer) => {
+    if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
+      const featureLayer = layer as __esri.FeatureLayer;
+      featureLayer.featureEffect = null;
+    }
+  });
+};
+
+const muteAllFeatures = (map: __esri.Map | nullish) => {
+  map?.allLayers.forEach((layer) => {
+    if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
+      const featureLayer = layer as __esri.FeatureLayer;
+      featureLayer.featureEffect = {
+        excludedEffect: MUTED_EFFECT,
+      };
+    }
+  });
+};
+
+const queryAndPrepareZoomGeometry = async (
+  view: __esri.FeatureLayerView,
+  featureId: number,
+  extentScale?: number,
+): Promise<__esri.Geometry | null> => {
+  if (!Number.isFinite(featureId)) {
+    throw new Error(`Invalid feature id: ${featureId}`);
+  }
+
+  const result = await view.queryFeatures({ where: `FeatureID=${featureId}`, returnGeometry: true });
+  const features = Array.isArray(result.features) ? result.features : [];
+
+  if (features.length > 0 && features[0]?.geometry) {
+    const geometry = features[0].geometry;
+    return extentScale && geometry.extent ? (geometry.extent.expand(extentScale) as __esri.Geometry) : geometry;
+  }
+
+  return null;
+};
 
 export const useHighlight = (mapView: __esri.MapView | nullish) => {
   const highlightedRef = useRef<HighlightDetails | null>(null);
   const zoomRequestIdRef = useRef(0);
   const initialViewpointRef = useRef<__esri.Viewpoint | null>(null);
-
-  const clearFeatureEffects = useCallback((map: __esri.Map | nullish) => {
-    map?.allLayers.forEach((layer) => {
-      if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
-        const featureLayer = layer as __esri.FeatureLayer;
-        featureLayer.featureEffect = null;
-      }
-    });
-  }, []);
-
-  const muteAllFeatures = useCallback((map: __esri.Map | nullish) => {
-    map?.allLayers.forEach((layer) => {
-      if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
-        const featureLayer = layer as __esri.FeatureLayer;
-        featureLayer.featureEffect = {
-          excludedEffect: MUTED_EFFECT,
-        };
-      }
-    });
-  }, []);
 
   const clear = useCallback(() => {
     highlightedRef.current = null;
@@ -50,7 +71,7 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
       mapView.goTo(initialViewpointRef.current, { duration: 1000 });
       initialViewpointRef.current = null;
     }
-  }, [clearFeatureEffects, mapView]);
+  }, [mapView]);
 
   const highlight = useCallback(
     (details: HighlightDetails, zoom?: ZoomDetails) => {
@@ -93,44 +114,35 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
 
         mapView
           .whenLayerView(layer)
-          .then((view) => {
+          .then(async (view) => {
             if (zoomRequestIdRef.current !== requestId) {
               return;
             }
 
-            if (!Number.isFinite(details.id)) {
-              throw new Error(`Invalid feature id: ${details.id}`);
+            try {
+              const targetGeometry = await queryAndPrepareZoomGeometry(
+                view as __esri.FeatureLayerView,
+                details.id,
+                zoom?.extentScale,
+              );
+
+              if (zoomRequestIdRef.current !== requestId || !targetGeometry) {
+                return;
+              }
+
+              const isExpandedExtent = zoom?.extentScale && targetGeometry.extent;
+              mapView.goTo(
+                new Viewpoint({
+                  targetGeometry,
+                  scale: zoom?.scale ?? (isExpandedExtent ? undefined : 4500),
+                }),
+                { duration: 1000 },
+              );
+            } catch (err) {
+              if (zoomRequestIdRef.current === requestId) {
+                console.error('Error querying features for highlight:', err);
+              }
             }
-
-            return (view as __esri.FeatureLayerView)
-              .queryFeatures({ where: `FeatureID=${details.id}`, returnGeometry: true })
-              .then((result) => {
-                if (zoomRequestIdRef.current !== requestId) {
-                  return;
-                }
-
-                const features = Array.isArray(result.features) ? result.features : [];
-                if (features.length > 0 && features[0]?.geometry) {
-                  const geometry = features[0].geometry;
-                  const targetGeometry =
-                    zoom?.extentScale && geometry.extent
-                      ? (geometry.extent.expand(zoom.extentScale) as __esri.Geometry)
-                      : geometry;
-
-                  mapView.goTo(
-                    new Viewpoint({
-                      targetGeometry,
-                      scale: zoom?.scale ?? (targetGeometry === geometry ? 4500 : undefined),
-                    }),
-                    { duration: 1000 },
-                  );
-                }
-              })
-              .catch((err) => {
-                if (zoomRequestIdRef.current === requestId) {
-                  console.error('Error querying features for highlight:', err);
-                }
-              });
           })
           .catch((err) => {
             if (zoomRequestIdRef.current === requestId) {
@@ -141,7 +153,7 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
 
       return true;
     },
-    [mapView, clear, clearFeatureEffects, muteAllFeatures],
+    [mapView, clear],
   );
 
   useEffect(() => {

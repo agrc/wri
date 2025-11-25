@@ -61,6 +61,8 @@ export type Feature = {
   layer: FeatureLayerId;
 };
 
+export type FeatureDetailsContract = Pick<Feature, 'id' | 'type'>;
+
 export type PolygonFeature = Feature & {
   herbicide: string | nullish;
   retreatment: 'Y' | 'N' | nullish;
@@ -71,11 +73,13 @@ export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
+  const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
   const getProjectInfo = httpsCallable(functions, 'project');
+  const getFeatureInfo = httpsCallable(functions, 'feature');
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
@@ -87,6 +91,17 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
 
       return result.data as ProjectResponse;
     },
+    enabled: projectId > 0,
+  });
+
+  const { data: featureData, status: featureStatus } = useQuery<ProjectResponse>({
+    queryKey: ['featureDetails', projectId, featureDetails],
+    queryFn: async () => {
+      const result = await getFeatureInfo({ id: projectId, type: featureDetails?.type, featureId: featureDetails?.id });
+
+      return result.data as ProjectResponse;
+    },
+    enabled: featureDetails !== null,
   });
 
   return (
@@ -115,8 +130,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                 </div>
               </div>
               <Tabs
-                onSelectionChange={(key) => {
-                  console.log(key);
+                onSelectionChange={() => {
                   setTimeout(
                     () =>
                       tabRef.current
@@ -128,12 +142,21 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
               >
                 <div className="overflow-x-auto overflow-y-hidden pb-4 pt-1">
                   <TabList aria-label="Project details">
-                    <Tab id="details">Details</Tab>
-                    <Tab id="features">Features</Tab>
-                    <Tab id="reference">Reference</Tab>
+                    <Tab id="project" aria-label="Project details">
+                      Project
+                    </Tab>
+                    <Tab id="features" aria-label="Features within the project">
+                      Features
+                    </Tab>
+                    <Tab id="featureDetails" aria-label="Details of a selected feature">
+                      Details
+                    </Tab>
+                    <Tab id="reference" aria-label="Reference data controls">
+                      Reference
+                    </Tab>
                   </TabList>
                 </div>
-                <TabPanel id="details">
+                <TabPanel id="project">
                   <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
                     <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                       <p>Description</p>
@@ -229,6 +252,9 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     lines={data.lines ?? []}
                     points={data.points ?? []}
                     onSelect={(details) => {
+                      console.log('details', details);
+                      setFeatureDetails(details);
+
                       const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
                       if (isActive === false) {
                         clear();
@@ -254,6 +280,22 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     </div>
                   ) : (
                     <TagGroupLoader />
+                  )}
+                </TabPanel>
+                <TabPanel shouldForceMount id="featureDetails" className="px-0 data-[inert]:hidden">
+                  {featureStatus === 'pending' && <List className="w-96" />}
+                  {featureStatus === 'success' && !featureData && <>Select a feature to view details</>}
+                  {featureStatus === 'success' && featureData && (
+                    <div className="flex flex-col gap-1 dark:text-zinc-100">
+                      <h3 className="text-lg font-bold">
+                        {featureData.title} (ID: {featureData.id})
+                      </h3>
+                      <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                        <p>Description</p>
+                        <p>{featureData.description}</p>
+                      </div>
+                      {/* Additional feature details can be added here */}
+                    </div>
                   )}
                 </TabPanel>
               </Tabs>

@@ -28,6 +28,14 @@ export async function seed(knex: Knex): Promise<void> {
       County: 'SANPETE',
       Intersection: 562344.14,
     },
+    {
+      FeatureID: 3960,
+      FeatureClass: 'POLY',
+      CountyInfoID: 13406,
+      County_ID: 49039,
+      County: 'SANPETE',
+      Intersection: 443479.03,
+    },
   ]);
 
   table = 'POINT';
@@ -242,6 +250,14 @@ export async function seed(knex: Knex): Promise<void> {
       Admin: 'Private',
       Intersection: 125059.47,
     },
+    {
+      FeatureID: 3690,
+      FeatureClass: 'POLY',
+      LandOwnerID: 2919,
+      Owner: 'Private',
+      Admin: 'Private',
+      Intersection: 443479.03,
+    },
   ]);
 
   table = 'SGMA';
@@ -253,6 +269,25 @@ export async function seed(knex: Knex): Promise<void> {
       SGMA_ID: 1133,
       SGMA: 'Bald Hills',
       Intersection: 1891838.47,
+    },
+    {
+      FeatureID: 3690,
+      FeatureClass: 'POLY',
+      SGMA_ID: 1133,
+      SGMA: 'Bald Hills',
+      Intersection: 1891838.47,
+    },
+  ]);
+
+  table = 'STREAM';
+  await knex(table).del();
+  await knex(table).insert([
+    {
+      FeatureID: 3690,
+      StreamId: 1,
+      Intersection: 16.57,
+      ProjectID: 34,
+      StreamDescription: 'Stream/River - Intermittent',
     },
   ]);
 }

@@ -11,9 +11,10 @@
     "deploy": "firebase deploy --only functions",
     "lint": "eslint .",
     "logs": "firebase functions:log",
+    "migrate": "node --import tsx/esm ./node_modules/.bin/knex migrate:up",
     "migrate:create": "node --import tsx/esm ./node_modules/.bin/knex migrate:make -x ts",
     "seed": "node --import tsx/esm ./node_modules/.bin/knex seed:run",
-    "seed:create": "node --import tsx/esm ./node_modules/.bin/knex seed:make 02_rollup -x ts",
+    "seed:create": "node --import tsx/esm ./node_modules/.bin/knex seed:make -x ts",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run serve"

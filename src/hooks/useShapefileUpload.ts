@@ -154,14 +154,11 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
 
         if (geometryType === 'point' || geometryType === 'multipoint') {
           unionedGeometry = combinePoints(esriGeometries);
-        } else if (geometryType === 'polygon') {
+        } else if (geometryType === 'polygon' || geometryType === 'polyline') {
           unionedGeometry =
             esriGeometries.length === 1
               ? firstProjectedGeometry
               : (unionOperator.executeMany(esriGeometries as __esri.GeometryUnion[]) as __esri.Geometry);
-        } else {
-          // For polylines, unionOperator is not applicable; use first geometry
-          unionedGeometry = firstProjectedGeometry;
         }
 
         if (!unionedGeometry) {

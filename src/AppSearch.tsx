@@ -47,8 +47,7 @@ export default function App() {
   const areaOfInterestNode = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
 
-  const handleUploadSuccess = useCallback(
-    ({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
+  const handleUploadSuccess = useCallback(({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
       const graphicsLayer = searchRef.current?.layer as __esri.GraphicsLayer | undefined;
 
       if (!graphicsLayer) {
@@ -68,9 +67,7 @@ export default function App() {
       if (mapRef.current?.view) {
         void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
       }
-    },
-    [mapRef],
-  );
+  }, []);
 
   const {
     error: shapefileError,

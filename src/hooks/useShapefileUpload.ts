@@ -121,6 +121,8 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
             ensureSpatialReference(geometry, sourceSpatialReference);
             if (geometry.spatialReference?.wkid === WEB_MERCATOR.wkid) {
               acc.push(geometry);
+
+              return acc;
             }
 
             const projected = projectOperator.execute(geometry, WEB_MERCATOR);

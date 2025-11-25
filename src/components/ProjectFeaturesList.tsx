@@ -3,7 +3,20 @@ import { GridList, GridListSection, Toolbar, type Key, type Selection } from 're
 import { FeatureCard } from './FeatureCard';
 import type { Feature, PolygonFeatures } from './ProjectSpecific';
 
-export type FeatureDetails = { layer: string; id: number };
+export type FeatureDetails = { layer: string; id: number; type: FeatureType };
+
+type FeatureType =
+  | 'terrestrial treatment area'
+  | 'aquatic/riparian treatment area'
+  | 'affected area'
+  | 'easement/acquisition'
+  | 'guzzler'
+  | 'water development point feature'
+  | 'other point feature'
+  | 'fish passage structure'
+  | 'fence'
+  | 'pipeline'
+  | 'dam';
 
 type FeatureKind = 'poly' | 'line' | 'point';
 
@@ -23,36 +36,24 @@ const notNull = <T,>(value: T | null | undefined): value is T => value != null;
 
 const getLayerId = (projectId: number, kind: FeatureKind) => `project-${projectId}-${baseLayerIdByKind[kind]}`;
 
-const createFeatureDetails = (
-  projectId: number,
-  kind: FeatureKind,
-  id?: number | nullish,
-): FeatureDetails | undefined => {
-  if (typeof id !== 'number') {
-    return undefined;
-  }
-
-  return { layer: getLayerId(projectId, kind), id };
+const serializeFeatureKey = (kind: FeatureKind, id: number): string => {
+  return `${kind}${FEATURE_KEY_SEPARATOR}${id}`;
 };
 
-const serializeFeatureDetails = (details: FeatureDetails): string => {
-  return `${details.layer}${FEATURE_KEY_SEPARATOR}${details.id}`;
-};
-
-const parseFeatureKey = (key?: Key): FeatureDetails | undefined => {
+const parseFeatureKey = (key?: Key): { kind: FeatureKind; id: number } | undefined => {
   if (key == null) {
     return undefined;
   }
 
   const raw = typeof key === 'string' ? key : String(key);
-  const [layer, idPart] = raw.split(FEATURE_KEY_SEPARATOR);
+  const [kind, idPart] = raw.split(FEATURE_KEY_SEPARATOR);
   const id = Number(idPart);
 
-  if (!layer || Number.isNaN(id)) {
+  if (!kind || Number.isNaN(id) || !(kind === 'poly' || kind === 'line' || kind === 'point')) {
     return undefined;
   }
 
-  return { layer, id };
+  return { kind: kind as FeatureKind, id };
 };
 
 const getFirstKey = (selection: Selection | Key | null | undefined): Key | undefined => {
@@ -68,10 +69,6 @@ const getFirstKey = (selection: Selection | Key | null | undefined): Key | undef
   }
 
   return selection as Key;
-};
-
-const extractDetailsFromSelection = (selection: Selection | Key | null | undefined): FeatureDetails | undefined => {
-  return parseFeatureKey(getFirstKey(selection));
 };
 
 type Props = {
@@ -113,12 +110,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   const polygonItems = Object.values(polygons ?? {})
     .map((featureGroup) => {
       const feature = featureGroup?.[0];
-      if (!feature) {
-        return null;
-      }
-
-      const details = createFeatureDetails(projectId, 'poly', feature.id);
-      if (!details) {
+      if (!feature || typeof feature.id !== 'number') {
         return null;
       }
 
@@ -130,7 +122,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       return (
         <FeatureCard
           key={`poly-${feature.id}`}
-          itemId={serializeFeatureDetails(details)}
+          itemId={serializeFeatureKey('poly', feature.id)}
           title={feature.type}
           size={feature.size}
           controls={renderControls('poly', feature.id)}
@@ -151,12 +143,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
 
   const lineItems = lines
     .map((feature, index) => {
-      if (!feature) {
-        return null;
-      }
-
-      const details = createFeatureDetails(projectId, 'line', feature.id);
-      if (!details) {
+      if (!feature || typeof feature.id !== 'number') {
         return null;
       }
 
@@ -165,7 +152,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       return (
         <FeatureCard
           key={`line-${feature.id ?? index}`}
-          itemId={serializeFeatureDetails(details)}
+          itemId={serializeFeatureKey('line', feature.id)}
           title={feature.type}
           size={feature.size}
           controls={renderControls('line', feature.id)}
@@ -179,12 +166,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
 
   const pointItems = points
     .map((feature, index) => {
-      if (!feature) {
-        return null;
-      }
-
-      const details = createFeatureDetails(projectId, 'point', feature.id);
-      if (!details) {
+      if (!feature || typeof feature.id !== 'number') {
         return null;
       }
 
@@ -193,7 +175,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       return (
         <FeatureCard
           key={`point-${feature.id ?? index}`}
-          itemId={serializeFeatureDetails(details)}
+          itemId={serializeFeatureKey('point', feature.id)}
           title={feature.type}
           size={feature.size}
           controls={renderControls('point', feature.id)}
@@ -221,12 +203,35 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       className="flex flex-col gap-y-2 dark:text-zinc-100"
       renderEmptyState={() => <p>This project has no features</p>}
       onSelectionChange={(selection: Selection) => {
-        const details = extractDetailsFromSelection(selection);
-        if (!details) {
+        const parsed = parseFeatureKey(getFirstKey(selection));
+        if (!parsed) {
           onClear?.();
 
           return;
         }
+
+        // Look up the full feature data based on the kind and id
+        let foundFeature: Feature | undefined;
+        if (parsed.kind === 'poly') {
+          const polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
+          foundFeature = polyGroup?.[0];
+        } else if (parsed.kind === 'line') {
+          foundFeature = lines.find((f) => f.id === parsed.id);
+        } else if (parsed.kind === 'point') {
+          foundFeature = points.find((f) => f.id === parsed.id);
+        }
+
+        if (!foundFeature) {
+          onClear?.();
+
+          return;
+        }
+
+        const details: FeatureDetails = {
+          layer: getLayerId(projectId, parsed.kind),
+          id: parsed.id,
+          type: foundFeature.type.toLowerCase() as FeatureType,
+        };
 
         const isActive = onSelect(details);
         if (isActive === false) {

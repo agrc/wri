@@ -130,7 +130,7 @@ export default function App() {
               {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
             </label>
           </div>
-          <input ref={areaOfInterestNode} id="aoiGeometry" type="text" />
+          <input ref={areaOfInterestNode} id="aoiGeometry" type="text" className="hidden" />
         </div>
         <arcgis-map
           ref={mapRef}

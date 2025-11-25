@@ -78,6 +78,32 @@ const combinePoints = (geometries: __esri.Geometry[]): Multipoint => {
   });
 };
 
+/**
+ * React hook for uploading and parsing shapefiles (.zip) and extracting geometry.
+ *
+ * @param {UseShapefileUploadOptions} options - Configuration options for the hook.
+ * @param {AllowedGeometryType[]} [options.allowedGeometryTypes] - Array of allowed geometry types ('point', 'multipoint', 'polyline', 'polygon'). Defaults to all.
+ * @param {(payload: { geometry: __esri.Geometry; wkt3857: string }) => void} options.onSuccess - Callback invoked when a shapefile is successfully parsed.
+ *   - `geometry`: The parsed geometry in ArcGIS format, projected to Web Mercator (EPSG:3857).
+ *   - `wkt3857`: The geometry as a WKT string in EPSG:3857.
+ *
+ * @returns {UseShapefileUploadResult} Object containing:
+ *   - `error`: Error message if upload or parsing fails, otherwise null.
+ *   - `handleFileChange`: Function to handle file input change events.
+ *   - `isLoading`: Boolean indicating if the upload/parsing is in progress.
+ *
+ * @example
+ * const { error, handleFileChange, isLoading } = useShapefileUpload({
+ *   allowedGeometryTypes: ['polygon'],
+ *   onSuccess: ({ geometry, wkt3857 }) => {
+ *     // Use geometry and WKT string
+ *   },
+ * });
+ *
+ * The hook expects a .zip file containing a valid ESRI Shapefile. The shapefile should contain features of the allowed geometry types.
+ * If the shapefile contains unsupported geometry types or no features, an error will be returned.
+ */
+
 const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUploadResult => {
   const { allowedGeometryTypes = DEFAULT_ALLOWED_TYPES, onSuccess } = options;
 
@@ -149,10 +175,6 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
 
         let unionedGeometry: __esri.Geometry | nullish = null;
         const firstProjectedGeometry = esriGeometries[0];
-
-        if (!firstProjectedGeometry) {
-          throw new Error(EMPTY_FILE_ERROR);
-        }
 
         if (geometryType === 'point' || geometryType === 'multipoint') {
           unionedGeometry = combinePoints(esriGeometries);

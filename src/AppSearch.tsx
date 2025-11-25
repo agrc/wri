@@ -7,10 +7,9 @@ import '@arcgis/map-components/components/arcgis-map';
 import '@arcgis/map-components/components/arcgis-sketch';
 import '@arcgis/map-components/components/arcgis-zoom';
 import { arcgisToGeoJSON } from '@terraformer/arcgis';
-import { ToggleButton } from '@ugrc/utah-design-system';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useShapefileUpload } from './hooks/useShapefileUpload';
 
@@ -44,7 +43,6 @@ const basemap = new Basemap({
 const constraints: __esri.View2DConstraints = { snapToZoom: false };
 
 export default function App() {
-  const [showDrawTools, setShowDrawTools] = useState(false);
   const mapRef = useRef<HTMLArcgisMapElement>(null);
   const areaOfInterestNode = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
@@ -118,10 +116,7 @@ export default function App() {
         <div className="px-2">
           <h2>Area of Interest</h2>
           <div className="flex w-fit items-center gap-4 py-3">
-            <ToggleButton onChange={() => setShowDrawTools(!showDrawTools)} isSelected={showDrawTools}>
-              Draw a polygon
-            </ToggleButton>
-            OR
+            <p>Draw a polygon on the map using the tools below or ...</p>
             <label>
               <span className="text-sm">Upload a shapefile (zipped .shp, .shx, .dbf, .prj)</span>
               <input
@@ -146,7 +141,6 @@ export default function App() {
         >
           <arcgis-zoom slot="top-left"></arcgis-zoom>
           <arcgis-sketch
-            className={showDrawTools ? '' : 'hidden'}
             ref={searchRef}
             availableCreateTools={['polygon', 'rectangle']}
             // deactivate tool after one graphic is created

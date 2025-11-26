@@ -17,6 +17,7 @@ import {
   titleCase,
   type ReferenceLayer,
 } from './';
+import { FeatureSelectionProvider, useFeatureSelection } from './contexts';
 import { ErrorFallback } from './ErrorFallBack';
 import { useMap } from './hooks';
 import { useHighlight } from './hooks/useHighlight';
@@ -70,12 +71,13 @@ export type PolygonFeature = Feature & {
 
 export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 
-export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
+const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
   const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
+  const { selectedFeature } = useFeatureSelection();
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
   const getProjectInfo = httpsCallable(functions, 'project');
@@ -283,19 +285,84 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                   )}
                 </TabPanel>
                 <TabPanel shouldForceMount id="featureDetails" className="px-0 data-[inert]:hidden">
-                  {featureStatus === 'pending' && <List className="w-96" />}
-                  {featureStatus === 'success' && !featureData && <>Select a feature to view details</>}
-                  {featureStatus === 'success' && featureData && (
-                    <div className="flex flex-col gap-1 dark:text-zinc-100">
-                      <h3 className="text-lg font-bold">
-                        {featureData.title} (ID: {featureData.id})
-                      </h3>
-                      <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Description</p>
-                        <p>{featureData.description}</p>
+                  {!selectedFeature && <>Select a feature to view details</>}
+                  {selectedFeature && (
+                    <>
+                      <div className="flex justify-between">
+                        <p className="font-bold">{selectedFeature.type}</p>
+                        {selectedFeature.size && (
+                          <span
+                            className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600"
+                            aria-label="Feature size"
+                          >
+                            {selectedFeature.size}
+                          </span>
+                        )}
                       </div>
-                      {/* Additional feature details can be added here */}
-                    </div>
+                      {selectedFeature.isRetreatment && (
+                        <div className="mb-2 rounded bg-amber-50 px-2 py-1 text-sm dark:bg-amber-900/20">
+                          <span className="font-semibold">Retreatment</span>
+                        </div>
+                      )}
+                      {selectedFeature.details && selectedFeature.details.length > 0 && (
+                        <div className="mb-2">
+                          <ol className="list-inside list-decimal space-y-1">
+                            {selectedFeature.details.map((line, idx) => (
+                              <li key={`${selectedFeature.id}-detail-${idx}`} className="text-sm">
+                                {line}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                      {featureStatus === 'pending' && <List className="w-96" />}
+                      {featureStatus === 'success' && featureData && (
+                        <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
+                          {(data.stream?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Stream miles</p>
+                              <p>{data.stream}</p>
+                            </div>
+                          )}
+                          {(data.county?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold">
+                              <p>County</p>
+                              <ul className="pl-3">
+                                {data.county.map((x: Record<string, string>) => (
+                                  <li key={x.county}>
+                                    {titleCase(x.county)} - {x.area}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(data.owner?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Land ownership</p>
+                              <ul className="pl-3">
+                                {data.owner.map((x: Record<string, string>) => (
+                                  <li key={`${x.owner}${x.admin}`}>
+                                    {x.owner}, {x.admin} - {x.area}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(data.sgma?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Sage grouse</p>
+                              <ul className="pl-3">
+                                {data.sgma.map((x: Record<string, string>) => (
+                                  <li key={x.sgma}>
+                                    {x.sgma} - {x.area}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </Group>
+                      )}
+                    </>
                   )}
                 </TabPanel>
               </Tabs>
@@ -304,5 +371,13 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
         </ErrorBoundary>
       </div>
     </div>
+  );
+};
+
+export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
+  return (
+    <FeatureSelectionProvider>
+      <ProjectSpecificContent projectId={projectId} />
+    </FeatureSelectionProvider>
   );
 };

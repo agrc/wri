@@ -1,7 +1,8 @@
 import React, { type JSX } from 'react';
 import { GridList, GridListSection, Toolbar, type Key, type Selection } from 'react-aria-components';
+import { useFeatureSelection } from './contexts';
 import { FeatureCard } from './FeatureCard';
-import type { Feature, PolygonFeatures } from './ProjectSpecific';
+import type { Feature, PolygonFeature, PolygonFeatures } from './ProjectSpecific';
 
 export type FeatureDetails = { layer: string; id: number; type: FeatureType };
 
@@ -90,6 +91,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   onClear,
   renderOpacity,
 }) => {
+  const { setSelectedFeature, enrichFeature } = useFeatureSelection();
   const renderControls = (kind: FeatureKind, featureId?: number | nullish) => {
     if (!renderOpacity || typeof featureId !== 'number') {
       return null;
@@ -205,13 +207,15 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       onSelectionChange={(selection: Selection) => {
         const parsed = parseFeatureKey(getFirstKey(selection));
         if (!parsed) {
+          setSelectedFeature(null);
           onClear?.();
 
           return;
         }
 
         // Look up the full feature data based on the kind and id
-        let foundFeature: Feature | undefined;
+        let foundFeature: Feature | PolygonFeature | undefined;
+
         if (parsed.kind === 'poly') {
           const polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
           foundFeature = polyGroup?.[0];
@@ -222,10 +226,22 @@ export const ProjectFeaturesList: React.FC<Props> = ({
         }
 
         if (!foundFeature) {
+          setSelectedFeature(null);
           onClear?.();
 
           return;
         }
+
+        // Enrich feature using context helper
+        const enrichedFeature =
+          parsed.kind === 'poly'
+            ? enrichFeature({ kind: 'poly', feature: foundFeature as PolygonFeature, polygons })
+            : parsed.kind === 'line'
+              ? enrichFeature({ kind: 'line', feature: foundFeature })
+              : enrichFeature({ kind: 'point', feature: foundFeature });
+
+        // Store enriched feature in context
+        setSelectedFeature(enrichedFeature);
 
         const details: FeatureDetails = {
           layer: getLayerId(projectId, parsed.kind),
@@ -235,6 +251,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
 
         const isActive = onSelect(details);
         if (isActive === false) {
+          setSelectedFeature(null);
           onClear?.();
         }
       }}

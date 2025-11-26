@@ -1,4 +1,5 @@
 import { AuthTypes, Connector, IpAddressTypes } from '@google-cloud/cloud-sql-connector';
+import * as logger from 'firebase-functions/logger';
 import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall, onRequest, type HttpsOptions } from 'firebase-functions/v2/https';
 import { default as knex, type Knex } from 'knex';
@@ -31,8 +32,7 @@ const cleanupConnector = async () => {
     try {
       connector.close();
     } catch (e) {
-      // Optionally log error
-      console.error('Error closing connector:', e);
+      logger.error('Error closing connector:', e);
     }
     connector = null;
   }
@@ -149,19 +149,31 @@ const getDb = async () => {
   return db;
 };
 
-export const project = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
-  try {
-    const db = await getDb();
-    const id = parseInt(request.data?.id?.toString() ?? '-1', 10);
+const throwIfNoFormData = (data: unknown) => {
+  if (!data) {
+    logger.debug('No data provided');
 
-    const client = db.client;
-    const clientName = (client.config?.client ?? client.dialect ?? '').toString();
-    // SQLite doesn't support sql spatial, so use a literal 1 for size in that case.
-    const sizeExpression = clientName.includes('sqlite') ? db.raw('1') : db.raw('Shape.STNumPoints()');
+    throw new HttpsError('invalid-argument', 'No data provided');
+  }
+};
+
+export const project = onCall({ ...options, secrets: [databaseInformation] }, async ({ data }) => {
+  throwIfNoFormData(data);
+
+  try {
+    const id = parseInt(data?.id?.toString() ?? '-1', 10);
 
     if (isNaN(id) || id <= 0 || id > Number.MAX_SAFE_INTEGER) {
       throw new HttpsError('invalid-argument', 'Invalid project ID');
     }
+
+    const db = await getDb();
+    const client = db.client;
+    const clientName = (client.config?.client ?? client.dialect ?? '').toString();
+    // SQLite doesn't support sql spatial in dev, so use a literal 1 for size in that case.
+    const sizeExpression = clientName.includes('sqlite') ? db.raw('1') : db.raw('Shape.STNumPoints()');
+
+    logger.info('Fetching project data', { id });
 
     const [project, rollup, features] = await Promise.all([
       db
@@ -322,17 +334,11 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
       throw new HttpsError('not-found', `Project ${id} not found`);
     }
 
+    const processed = processRollup(rollup);
+
     return {
       ...project,
-      county: rollup
-        .filter((r) => r.origin === 'county')
-        .map((r) => ({ county: r.name, area: convertMetersToAcres(r.space) })),
-      owner: rollup
-        .filter((r) => r.origin === 'owner')
-        .map((r) => ({ owner: r.name, admin: r.extra, area: convertMetersToAcres(r.space) })),
-      sgma: rollup
-        .filter((r) => r.origin === 'sgma')
-        .map((r) => ({ sgma: r.name, area: convertMetersToAcres(r.space) })),
+      ...processed,
       polygons: groupedPolygons,
       lines: features
         .filter((f) => f.origin === 'line')
@@ -357,7 +363,7 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
         })),
     };
   } catch (error) {
-    console.error('Error fetching project data:', error);
+    logger.error('Error fetching project data:', error);
 
     if (error instanceof HttpsError) {
       throw error;
@@ -367,18 +373,12 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
   }
 });
 
-export const feature = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+export const feature = onCall({ ...options, secrets: [databaseInformation] }, async ({ data }) => {
+  throwIfNoFormData(data);
+
   try {
-    const db = await getDb();
-
-    console.log('Request data:', request.data);
-    const project = parseInt(request.data?.id?.toString() ?? '-1', 10);
-    const featureId = parseInt(request.data?.featureId?.toString() ?? '-1', 10);
-    const type = request.data?.type?.toString().toLowerCase() ?? '';
-
-    if (isNaN(project) || project <= 0 || project > Number.MAX_SAFE_INTEGER) {
-      throw new HttpsError('invalid-argument', 'Invalid project ID');
-    }
+    const featureId = parseInt(data?.featureId?.toString() ?? '-1', 10);
+    const type = data?.type?.toString().toLowerCase() ?? '';
 
     if (isNaN(featureId) || featureId <= 0 || featureId > Number.MAX_SAFE_INTEGER) {
       throw new HttpsError('invalid-argument', 'Invalid feature ID');
@@ -390,6 +390,9 @@ export const feature = onCall({ ...options, secrets: [databaseInformation] }, as
 
     const table = tableLookup[type] as string;
 
+    logger.info('Fetching feature data', { featureId, table });
+
+    const db = await getDb();
     const rollupQuery = db
       .select({
         origin: db.raw(`'county'`),
@@ -437,19 +440,13 @@ export const feature = onCall({ ...options, secrets: [databaseInformation] }, as
           .andWhereRaw('?=?', [table, 'POLY']),
       ]);
 
-    console.log('Rollup query SQL:', rollupQuery.toString());
+    logger.debug('Feature data query', { query: rollupQuery.toString() });
+
     const rollup = await rollupQuery;
 
-    console.log('Rollup results:', rollup);
-
-    return {
-      county: rollup.filter((x) => x.origin === 'county'),
-      sageGrouse: rollup.filter((x) => x.origin === 'sgma'),
-      landOwnership: rollup.filter((x) => x.origin === 'owner'),
-      stream: rollup.filter((x) => x.origin === 'nhd'),
-    };
+    return processRollup(rollup, true);
   } catch (error) {
-    console.error('Error fetching feature data:', error);
+    logger.error('Error fetching feature data:', error);
 
     if (error instanceof HttpsError) {
       throw error;
@@ -473,7 +470,55 @@ const tableLookup: Record<string, string> = {
   dam: 'LINE',
 };
 
-const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;
+/**
+ * Processes rollup data by origin type, sorts by space descending, and converts to acres
+ * @param rollup - Array of rollup records from database
+ * @param includeStreamArray - If true, includes stream array in result; if false, stream property is omitted
+ * @returns Object containing county, owner, and sgma arrays, plus optional stream array
+ */
+const processRollup = (
+  rollup: Array<{ origin: string; name: string; extra: string; space: number }>,
+  includeStreamArray = false,
+) => {
+  const sorted = rollup.sort((a, b) => b.space - a.space);
+
+  const result = {
+    county: sorted
+      .filter((r) => r.origin === 'county')
+      .map((r) => ({ name: r.name, area: convertMetersToAcres(r.space) })),
+    owner: sorted
+      .filter((r) => r.origin === 'owner')
+      .map((r) => ({ owner: r.name, admin: r.extra, area: convertMetersToAcres(r.space) })),
+    sgma: sorted.filter((r) => r.origin === 'sgma').map((r) => ({ name: r.name, area: convertMetersToAcres(r.space) })),
+  };
+
+  if (includeStreamArray) {
+    return {
+      ...result,
+      stream: sorted
+        .filter((r) => r.origin === 'nhd')
+        .map((r) => ({ name: r.name, area: convertMetersToAcres(r.space) })),
+    };
+  }
+
+  return result;
+};
+
+/**
+ * Converts square meters to acres and formats with US locale thousand separators
+ * @param squareMeters - The area in square meters
+ * @returns Formatted string with acres and "ac" suffix (e.g., "1,234.56 ac")
+ */
+const convertMetersToAcres = (squareMeters: number) => {
+  const meters = squareMeters * 0.00024710538187021526;
+  const acres = meters.toFixed(2);
+
+  if (Number(acres) === 0) {
+    return '< 0.01 ac';
+  }
+
+  return `${Number(acres).toLocaleString('en-US')} ac`;
+};
 
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {
   res.send('healthy');

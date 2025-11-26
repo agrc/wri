@@ -13,14 +13,6 @@ export async function seed(knex: Knex): Promise<void> {
       Intersection: 443479.03,
     },
     {
-      COUNTY_ID: 4127,
-      FeatureID: 3960,
-      FeatureClass: 'POLY',
-      CountyInfoID: 13407,
-      County: 'SANPETE',
-      Intersection: 125059.47,
-    },
-    {
       COUNTY_ID: 49039,
       FeatureID: 10354,
       FeatureClass: 'POLY',
@@ -29,10 +21,10 @@ export async function seed(knex: Knex): Promise<void> {
       Intersection: 562344.14,
     },
     {
-      FeatureID: 3960,
+      COUNTY_ID: 49039,
+      FeatureID: 1922,
       FeatureClass: 'POLY',
       CountyInfoID: 13406,
-      County_ID: 49039,
       County: 'SANPETE',
       Intersection: 443479.03,
     },
@@ -253,7 +245,7 @@ export async function seed(knex: Knex): Promise<void> {
     {
       FeatureID: 3690,
       FeatureClass: 'POLY',
-      LandOwnerID: 2919,
+      LandownerID: 2919,
       Owner: 'Private',
       Admin: 'Private',
       Intersection: 443479.03,

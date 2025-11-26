@@ -1,7 +1,10 @@
+import { Button, Tooltip } from '@ugrc/utah-design-system';
+import { BookOpenText } from 'lucide-react';
 import React, { type JSX } from 'react';
-import { GridList, GridListSection, Toolbar, type Key, type Selection } from 'react-aria-components';
+import { GridList, GridListSection, Toolbar, TooltipTrigger, type Key, type Selection } from 'react-aria-components';
+import { enrichFeature, useFeatureSelection } from './contexts';
 import { FeatureCard } from './FeatureCard';
-import type { Feature, PolygonFeatures } from './ProjectSpecific';
+import type { Feature, PolygonFeature, PolygonFeatures } from './ProjectSpecific';
 
 export type FeatureDetails = { layer: string; id: number; type: FeatureType };
 
@@ -78,6 +81,7 @@ type Props = {
   points: Feature[];
   onSelect: (details: FeatureDetails) => boolean;
   onClear?: () => void;
+  onViewDetails?: () => void;
   renderOpacity?: (layerId: string, oid?: number) => JSX.Element | null;
 };
 
@@ -88,21 +92,41 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   points,
   onSelect,
   onClear,
+  onViewDetails,
   renderOpacity,
 }) => {
+  const { setSelectedFeature } = useFeatureSelection();
+  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(new Set());
+
   const renderControls = (kind: FeatureKind, featureId?: number | nullish) => {
-    if (!renderOpacity || typeof featureId !== 'number') {
+    if (typeof featureId !== 'number') {
       return null;
     }
 
-    const control = renderOpacity(getLayerId(projectId, kind), featureId);
-    if (!control) {
-      return null;
-    }
+    const featureKey = serializeFeatureKey(kind, featureId);
+    const isSelected = selectedKeys === 'all' || selectedKeys.has(featureKey);
+    const opacityControl = renderOpacity?.(getLayerId(projectId, kind), featureId);
 
     return (
       <Toolbar aria-label="Feature options" className="flex gap-x-1">
-        {control}
+        {opacityControl}
+        {onViewDetails && isSelected && (
+          <TooltipTrigger>
+            <div>
+              <Button
+                variant="icon"
+                className="h-8 min-w-8 rounded border border-zinc-400"
+                onPress={() => {
+                  onViewDetails();
+                }}
+                aria-label="View details"
+              >
+                <BookOpenText className="size-4" />
+              </Button>
+            </div>
+            <Tooltip>View Feature Details</Tooltip>
+          </TooltipTrigger>
+        )}
       </Toolbar>
     );
   };
@@ -203,17 +227,22 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       className="flex flex-col gap-y-2 dark:text-zinc-100"
       renderEmptyState={() => <p>This project has no features</p>}
       onSelectionChange={(selection: Selection) => {
+        setSelectedKeys(selection);
+
         const parsed = parseFeatureKey(getFirstKey(selection));
         if (!parsed) {
+          setSelectedFeature(null);
           onClear?.();
 
           return;
         }
 
         // Look up the full feature data based on the kind and id
-        let foundFeature: Feature | undefined;
+        let foundFeature: Feature | PolygonFeature | undefined;
+        let polyGroup: PolygonFeature[] | undefined;
+
         if (parsed.kind === 'poly') {
-          const polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
+          polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
           foundFeature = polyGroup?.[0];
         } else if (parsed.kind === 'line') {
           foundFeature = lines.find((f) => f.id === parsed.id);
@@ -222,10 +251,22 @@ export const ProjectFeaturesList: React.FC<Props> = ({
         }
 
         if (!foundFeature) {
+          setSelectedFeature(null);
           onClear?.();
 
           return;
         }
+
+        // Enrich feature using context helper
+        const enrichedFeature =
+          parsed.kind === 'poly'
+            ? enrichFeature({ kind: 'poly', feature: foundFeature as PolygonFeature, polyGroup: polyGroup! })
+            : parsed.kind === 'line'
+              ? enrichFeature({ kind: 'line', feature: foundFeature })
+              : enrichFeature({ kind: 'point', feature: foundFeature });
+
+        // Store enriched feature in context
+        setSelectedFeature(enrichedFeature);
 
         const details: FeatureDetails = {
           layer: getLayerId(projectId, parsed.kind),

@@ -38,10 +38,10 @@ npm run seed
 
 #### `npm run seed:create`
 
-Creates a new Knex seed file. Pass the seed name as an argument prefix with a padded number to run them in order.
+Creates a new Knex seed file. Seed files should be prefixed with a padded number (e.g., `01_`, `02_`) to control execution order.
 
 ```bash
-npm run seed:create -- seed_name
+npm run seed:create -- name
 ```
 
 Example:

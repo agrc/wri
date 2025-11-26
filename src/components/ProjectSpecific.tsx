@@ -17,6 +17,7 @@ import {
   titleCase,
   type ReferenceLayer,
 } from './';
+import { FeatureSelectionProvider, useFeatureSelection } from './contexts';
 import { ErrorFallback } from './ErrorFallBack';
 import { useMap } from './hooks';
 import { useHighlight } from './hooks/useHighlight';
@@ -61,6 +62,8 @@ export type Feature = {
   layer: FeatureLayerId;
 };
 
+export type FeatureDetailsContract = Pick<Feature, 'id' | 'type'>;
+
 export type PolygonFeature = Feature & {
   herbicide: string | nullish;
   retreatment: 'Y' | 'N' | nullish;
@@ -68,14 +71,17 @@ export type PolygonFeature = Feature & {
 
 export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 
-export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
+const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
+  const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
+  const { selectedFeature } = useFeatureSelection();
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
   const getProjectInfo = httpsCallable(functions, 'project');
+  const getFeatureInfo = httpsCallable(functions, 'feature');
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
@@ -87,6 +93,17 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
 
       return result.data as ProjectResponse;
     },
+    enabled: projectId > 0,
+  });
+
+  const { data: featureData, status: featureStatus } = useQuery<ProjectResponse>({
+    queryKey: ['featureDetails', projectId, featureDetails],
+    queryFn: async () => {
+      const result = await getFeatureInfo({ id: projectId, type: featureDetails?.type, featureId: featureDetails?.id });
+
+      return result.data as ProjectResponse;
+    },
+    enabled: featureDetails !== null,
   });
 
   return (
@@ -115,8 +132,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                 </div>
               </div>
               <Tabs
-                onSelectionChange={(key) => {
-                  console.log(key);
+                onSelectionChange={() => {
                   setTimeout(
                     () =>
                       tabRef.current
@@ -128,12 +144,21 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
               >
                 <div className="overflow-x-auto overflow-y-hidden pb-4 pt-1">
                   <TabList aria-label="Project details">
-                    <Tab id="details">Details</Tab>
-                    <Tab id="features">Features</Tab>
-                    <Tab id="reference">Reference</Tab>
+                    <Tab id="project" aria-label="Project details">
+                      Project
+                    </Tab>
+                    <Tab id="features" aria-label="Features within the project">
+                      Features
+                    </Tab>
+                    <Tab id="featureDetails" aria-label="Details of a selected feature">
+                      Details
+                    </Tab>
+                    <Tab id="reference" aria-label="Reference data controls">
+                      Reference
+                    </Tab>
                   </TabList>
                 </div>
-                <TabPanel id="details">
+                <TabPanel id="project">
                   <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
                     <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                       <p>Description</p>
@@ -229,6 +254,9 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     lines={data.lines ?? []}
                     points={data.points ?? []}
                     onSelect={(details) => {
+                      console.log('details', details);
+                      setFeatureDetails(details);
+
                       const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
                       if (isActive === false) {
                         clear();
@@ -256,11 +284,100 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     <TagGroupLoader />
                   )}
                 </TabPanel>
+                <TabPanel shouldForceMount id="featureDetails" className="px-0 data-[inert]:hidden">
+                  {!selectedFeature && <>Select a feature to view details</>}
+                  {selectedFeature && (
+                    <>
+                      <div className="flex justify-between">
+                        <p className="font-bold">{selectedFeature.type}</p>
+                        {selectedFeature.size && (
+                          <span
+                            className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600"
+                            aria-label="Feature size"
+                          >
+                            {selectedFeature.size}
+                          </span>
+                        )}
+                      </div>
+                      {selectedFeature.isRetreatment && (
+                        <div className="mb-2 rounded bg-amber-50 px-2 py-1 text-sm dark:bg-amber-900/20">
+                          <span className="font-semibold">Retreatment</span>
+                        </div>
+                      )}
+                      {selectedFeature.details && selectedFeature.details.length > 0 && (
+                        <div className="mb-2">
+                          <ol className="list-inside list-decimal space-y-1">
+                            {selectedFeature.details.map((line, idx) => (
+                              <li key={`${selectedFeature.id}-detail-${idx}`} className="text-sm">
+                                {line}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                      {featureStatus === 'pending' && <List className="w-96" />}
+                      {featureStatus === 'success' && featureData && (
+                        <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
+                          {(data.stream?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Stream miles</p>
+                              <p>{data.stream}</p>
+                            </div>
+                          )}
+                          {(data.county?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold">
+                              <p>County</p>
+                              <ul className="pl-3">
+                                {data.county.map((x: Record<string, string>) => (
+                                  <li key={x.county}>
+                                    {titleCase(x.county)} - {x.area}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(data.owner?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Land ownership</p>
+                              <ul className="pl-3">
+                                {data.owner.map((x: Record<string, string>) => (
+                                  <li key={`${x.owner}${x.admin}`}>
+                                    {x.owner}, {x.admin} - {x.area}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(data.sgma?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Sage grouse</p>
+                              <ul className="pl-3">
+                                {data.sgma.map((x: Record<string, string>) => (
+                                  <li key={x.sgma}>
+                                    {x.sgma} - {x.area}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </Group>
+                      )}
+                    </>
+                  )}
+                </TabPanel>
               </Tabs>
             </>
           )}
         </ErrorBoundary>
       </div>
     </div>
+  );
+};
+
+export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
+  return (
+    <FeatureSelectionProvider>
+      <ProjectSpecificContent projectId={projectId} />
+    </FeatureSelectionProvider>
   );
 };

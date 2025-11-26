@@ -154,9 +154,9 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
     const db = await getDb();
     const id = parseInt(request.data?.id?.toString() ?? '-1', 10);
 
-    // SQLite doesn't support sql spatial, so use a literal 1 for size in that case.
     const client = db.client;
     const clientName = (client.config?.client ?? client.dialect ?? '').toString();
+    // SQLite doesn't support sql spatial, so use a literal 1 for size in that case.
     const sizeExpression = clientName.includes('sqlite') ? db.raw('1') : db.raw('Shape.STNumPoints()');
 
     if (isNaN(id) || id <= 0 || id > Number.MAX_SAFE_INTEGER) {
@@ -366,6 +366,112 @@ export const project = onCall({ ...options, secrets: [databaseInformation] }, as
     throw new HttpsError('internal', 'Failed to fetch project data');
   }
 });
+
+export const feature = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+  try {
+    const db = await getDb();
+
+    console.log('Request data:', request.data);
+    const project = parseInt(request.data?.id?.toString() ?? '-1', 10);
+    const featureId = parseInt(request.data?.featureId?.toString() ?? '-1', 10);
+    const type = request.data?.type?.toString().toLowerCase() ?? '';
+
+    if (isNaN(project) || project <= 0 || project > Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError('invalid-argument', 'Invalid project ID');
+    }
+
+    if (isNaN(featureId) || featureId <= 0 || featureId > Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError('invalid-argument', 'Invalid feature ID');
+    }
+
+    if (!(type in tableLookup)) {
+      throw new HttpsError('invalid-argument', 'Invalid feature type');
+    }
+
+    const table = tableLookup[type] as string;
+
+    const rollupQuery = db
+      .select({
+        origin: db.raw(`'county'`),
+        table: db.raw('?', [table]),
+        name: 'c.County',
+        extra: db.raw('null'),
+        space: 'c.Intersection',
+      })
+      .from({ c: 'COUNTY' })
+      .where('c.FeatureID', featureId)
+      .andWhere('c.FeatureClass', table)
+      .unionAll([
+        db
+          .select({
+            origin: db.raw(`'sgma'`),
+            table: db.raw('?', [table]),
+            name: 's.SGMA',
+            extra: db.raw('null'),
+            space: 's.Intersection',
+          })
+          .from({ s: 'SGMA' })
+          .where('s.FeatureID', featureId)
+          .andWhere('s.FeatureClass', table),
+        db
+          .select({
+            origin: db.raw(`'owner'`),
+            table: db.raw('?', [table]),
+            name: 'l.Owner',
+            extra: 'l.Admin',
+            space: 'l.Intersection',
+          })
+          .from({ l: 'LANDOWNER' })
+          .where('l.FeatureID', featureId)
+          .andWhere('l.FeatureClass', table),
+        db
+          .select({
+            origin: db.raw(`'nhd'`),
+            table: db.raw('?', [table]),
+            name: 'n.StreamDescription',
+            extra: db.raw('null'),
+            space: 'n.Intersection',
+          })
+          .from({ n: 'STREAM' })
+          .where('n.FeatureID', featureId)
+          .andWhereRaw('?=?', [table, 'POLY']),
+      ]);
+
+    console.log('Rollup query SQL:', rollupQuery.toString());
+    const rollup = await rollupQuery;
+
+    console.log('Rollup results:', rollup);
+
+    return {
+      county: rollup.filter((x) => x.origin === 'county'),
+      sageGrouse: rollup.filter((x) => x.origin === 'sgma'),
+      landOwnership: rollup.filter((x) => x.origin === 'owner'),
+      stream: rollup.filter((x) => x.origin === 'nhd'),
+    };
+  } catch (error) {
+    console.error('Error fetching feature data:', error);
+
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    throw new HttpsError('internal', 'Failed to fetch feature data');
+  }
+});
+
+const tableLookup: Record<string, string> = {
+  'terrestrial treatment area': 'POLY',
+  'aquatic/riparian treatment area': 'POLY',
+  'affected area': 'POLY',
+  'easement/acquisition': 'POLY',
+  guzzler: 'POINT',
+  'water development point feature': 'POINT',
+  'other point feature': 'POINT',
+  'fish passage structure': 'POINT',
+  fence: 'LINE',
+  pipeline: 'LINE',
+  dam: 'LINE',
+};
 
 const convertMetersToAcres = (meters: number) => `${(meters * 0.00024710538187021526).toFixed(2)} ac`;
 

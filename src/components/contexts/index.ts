@@ -1,3 +1,4 @@
+export * from './FeatureSelectionContext';
 export * from './FilterContext';
 export * from './FilterProvider';
 export * from './MapProvider';

@@ -17,12 +17,13 @@ import {
   titleCase,
   type ReferenceLayer,
 } from './';
+import { FeatureSelectionProvider, useFeatureSelection } from './contexts';
 import { ErrorFallback } from './ErrorFallBack';
 import { useMap } from './hooks';
 import { useHighlight } from './hooks/useHighlight';
 import ProjectFeaturesList from './ProjectFeaturesList';
 
-export type ProjectResponse = {
+export type Project = {
   id: number;
   manager: string;
   agency: string;
@@ -30,27 +31,32 @@ export type ProjectResponse = {
   status: string;
   description: string;
   region: string;
-  affected: string;
-  terrestrial: string;
-  aquatic: string;
-  easement: string;
-  stream: string;
-  county: CountyIntersection[];
-  owner: LandOwnerIntersection[];
-  sgma: SageGrouseIntersection[];
+  affected: number;
+  terrestrial: number;
+  aquatic: number;
+  easement: number;
+  stream: number;
+};
+export type ProjectFeatures = {
   polygons: PolygonFeatures;
   lines: Feature[];
   points: Feature[];
 };
-
-export type CountyIntersection = { county: string; area: string };
-
+export type ProjectResponse = {
+  county: FeatureIntersection[];
+  owner: LandOwnerIntersection[];
+  sgma: FeatureIntersection[];
+} & Project &
+  ProjectFeatures;
+export type FeatureIntersections = {
+  county: FeatureIntersection[];
+  owner: LandOwnerIntersection[];
+  sgma: FeatureIntersection[];
+  stream: FeatureIntersection[];
+};
+export type FeatureIntersection = { name: string; area: string };
 export type LandOwnerIntersection = { owner: string; admin: string; area: string };
-
-export type SageGrouseIntersection = { name: string; area: string };
-
 export type PolygonFeatures = { [key: string]: PolygonFeature[] };
-
 export type Feature = {
   id: number;
   type: string;
@@ -60,9 +66,7 @@ export type Feature = {
   size: string;
   layer: FeatureLayerId;
 };
-
 export type FeatureDetailsContract = Pick<Feature, 'id' | 'type'>;
-
 export type PolygonFeature = Feature & {
   herbicide: string | nullish;
   retreatment: 'Y' | 'N' | nullish;
@@ -70,14 +74,16 @@ export type PolygonFeature = Feature & {
 
 export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
 
-export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
+const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
   const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
+  const { selectedFeature } = useFeatureSelection();
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
+
   const getProjectInfo = httpsCallable(functions, 'project');
   const getFeatureInfo = httpsCallable(functions, 'feature');
 
@@ -94,12 +100,12 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
     enabled: projectId > 0,
   });
 
-  const { data: featureData, status: featureStatus } = useQuery<ProjectResponse>({
+  const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
     queryKey: ['featureDetails', projectId, featureDetails],
     queryFn: async () => {
       const result = await getFeatureInfo({ id: projectId, type: featureDetails?.type, featureId: featureDetails?.id });
 
-      return result.data as ProjectResponse;
+      return result.data as FeatureIntersections;
     },
     enabled: featureDetails !== null,
   });
@@ -174,34 +180,34 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                       <p>Region</p>
                       <p>{data.region}</p>
                     </div>
-                    {(data.affected?.length ?? 0) > 0 && (
+                    {data.affected > 0 && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Affected acres</p>
-                        <p>{data.affected}</p>
+                        <p>{data.affected.toFixed(2)} ac</p>
                       </div>
                     )}
-                    {(data.terrestrial?.length ?? 0) > 0 && (
+                    {data.terrestrial > 0 && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Terrestrial acres</p>
-                        <p>{data.terrestrial}</p>
+                        <p>{data.terrestrial.toFixed(2)} ac</p>
                       </div>
                     )}
-                    {(data.aquatic?.length ?? 0) > 0 && (
+                    {data.aquatic > 0 && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Aquatic and riparian acres</p>
-                        <p>{data.aquatic}</p>
+                        <p>{data.aquatic.toFixed(2)} ac</p>
                       </div>
                     )}
-                    {(data.easement?.length ?? 0) > 0 && (
+                    {data.easement > 0 && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Easement and acquisition acres</p>
-                        <p>{data.easement}</p>
+                        <p>{data.easement} ac</p>
                       </div>
                     )}
-                    {(data.stream?.length ?? 0) > 0 && (
+                    {data.stream > 0 && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Stream miles</p>
-                        <p>{data.stream}</p>
+                        <p>{data.stream} mi</p>
                       </div>
                     )}
                     {(data.county?.length ?? 0) > 0 && (
@@ -209,8 +215,8 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                         <p>County</p>
                         <ul className="pl-3">
                           {data.county.map((x: Record<string, string>) => (
-                            <li key={x.county}>
-                              {titleCase(x.county)} - {x.area}
+                            <li key={x.name}>
+                              {titleCase(x.name)} ({x.area})
                             </li>
                           ))}
                         </ul>
@@ -222,7 +228,7 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                         <ul className="pl-3">
                           {data.owner.map((x: Record<string, string>) => (
                             <li key={`${x.owner}${x.admin}`}>
-                              {x.owner}, {x.admin} - {x.area}
+                              {x.owner}, {x.admin} ({x.area})
                             </li>
                           ))}
                         </ul>
@@ -233,8 +239,8 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                         <p>Sage grouse</p>
                         <ul className="pl-3">
                           {data.sgma.map((x: Record<string, string>) => (
-                            <li key={x.sgma}>
-                              {x.sgma} - {x.area}
+                            <li key={x.name}>
+                              {x.name} ({x.area})
                             </li>
                           ))}
                         </ul>
@@ -252,7 +258,6 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                     lines={data.lines ?? []}
                     points={data.points ?? []}
                     onSelect={(details) => {
-                      console.log('details', details);
                       setFeatureDetails(details);
 
                       const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
@@ -283,19 +288,90 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
                   )}
                 </TabPanel>
                 <TabPanel shouldForceMount id="featureDetails" className="px-0 data-[inert]:hidden">
-                  {featureStatus === 'pending' && <List className="w-96" />}
-                  {featureStatus === 'success' && !featureData && <>Select a feature to view details</>}
-                  {featureStatus === 'success' && featureData && (
-                    <div className="flex flex-col gap-1 dark:text-zinc-100">
-                      <h3 className="text-lg font-bold">
-                        {featureData.title} (ID: {featureData.id})
-                      </h3>
-                      <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Description</p>
-                        <p>{featureData.description}</p>
+                  {!selectedFeature && <>Select a feature to view details</>}
+                  {selectedFeature && (
+                    <>
+                      <div className="flex justify-between">
+                        <p className="font-bold">{selectedFeature.type}</p>
+                        {selectedFeature.size && (
+                          <span
+                            className="flex-none self-start whitespace-nowrap rounded border px-1 py-0.5 text-xs dark:border-zinc-600"
+                            aria-label="Feature size"
+                          >
+                            {selectedFeature.size}
+                          </span>
+                        )}
                       </div>
-                      {/* Additional feature details can be added here */}
-                    </div>
+                      {selectedFeature.isRetreatment && (
+                        <div className="mb-2 rounded bg-amber-50 px-2 py-1 text-sm dark:bg-amber-900/20">
+                          <span className="font-semibold">Retreatment</span>
+                        </div>
+                      )}
+                      {selectedFeature.details && selectedFeature.details.length > 0 && (
+                        <div className="mb-2">
+                          <ol className="list-inside list-decimal space-y-1">
+                            {selectedFeature.details.map((line, idx) => (
+                              <li key={`${selectedFeature.id}-detail-${idx}`} className="text-sm">
+                                {line}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                      {featureStatus === 'pending' && <List className="w-96" />}
+                      {featureStatus === 'success' && featureData && (
+                        <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
+                          {(featureData.stream?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold">
+                              <p>Stream miles</p>
+                              <ul className="pl-3">
+                                {featureData.stream.map((x: Record<string, string>, i) => (
+                                  <li key={`${i}-${x.name}`}>
+                                    {titleCase(x.name)} ({x.area})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(featureData.county?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold">
+                              <p>County</p>
+                              <ul className="pl-3">
+                                {featureData.county.map((x: Record<string, string>, i) => (
+                                  <li key={`${i}-${x.name}`}>
+                                    {titleCase(x.name)} ({x.area})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(featureData.owner?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Land ownership</p>
+                              <ul className="pl-3">
+                                {featureData.owner.map((x: Record<string, string>) => (
+                                  <li key={`${x.owner}${x.admin}`}>
+                                    {x.owner}, {x.admin} ({x.area})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {(featureData.sgma?.length ?? 0) > 0 && (
+                            <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
+                              <p>Sage grouse</p>
+                              <ul className="pl-3">
+                                {featureData.sgma.map((x: Record<string, string>) => (
+                                  <li key={x.name}>
+                                    {x.name} ({x.area})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </Group>
+                      )}
+                    </>
                   )}
                 </TabPanel>
               </Tabs>
@@ -304,5 +380,13 @@ export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
         </ErrorBoundary>
       </div>
     </div>
+  );
+};
+
+export const ProjectSpecificView = ({ projectId }: { projectId: number }) => {
+  return (
+    <FeatureSelectionProvider>
+      <ProjectSpecificContent projectId={projectId} />
+    </FeatureSelectionProvider>
   );
 };

@@ -1,8 +1,8 @@
 import Collection from '@arcgis/core/core/Collection';
-import { Button, Popover, Slider } from '@ugrc/utah-design-system';
+import { Button, Popover, Slider, Tooltip } from '@ugrc/utah-design-system';
 import { BlendIcon } from 'lucide-react';
 import { useState } from 'react';
-import { DialogTrigger } from 'react-aria-components';
+import { DialogTrigger, TooltipTrigger } from 'react-aria-components';
 
 const updateOpacity = async (
   layer: __esri.FeatureLayer | __esri.Collection<__esri.FeatureLayer> | null,
@@ -81,9 +81,12 @@ export const OpacityManager = (props: OpacityManagerProps) => {
   return (
     <DialogTrigger>
       <div>
-        <Button isDisabled={props.disabled} variant="icon" className="h-8 min-w-8 rounded border border-zinc-400">
-          <BlendIcon className="size-5" />
-        </Button>
+        <TooltipTrigger>
+          <Button isDisabled={props.disabled} variant="icon" className="h-8 min-w-8 rounded border border-zinc-400">
+            <BlendIcon className="size-5" />
+          </Button>
+          <Tooltip>Adjust Feature Opacity</Tooltip>
+        </TooltipTrigger>
       </div>
       <Popover placement="right bottom" className="w-44 px-4 py-2">
         <Slider

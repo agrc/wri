@@ -82,7 +82,7 @@ export default function App() {
   }, []);
 
   const clear = () => {
-    (searchRef.current?.layer as __esri.GraphicsLayer).removeAll();
+    (searchRef.current?.layer as __esri.GraphicsLayer)?.removeAll();
     if (areaOfInterestRef.current) {
       areaOfInterestRef.current.value = '';
     }

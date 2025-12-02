@@ -42,10 +42,10 @@ const basemap = new Basemap({
 
 // @ts-expect-error the types are wrong, you can pass a partial constraints object
 const constraints: __esri.View2DConstraints = { snapToZoom: false };
+const areaOfInterestNode = document.getElementById('aoiGeometry') as HTMLInputElement;
 
 export default function App() {
   const mapRef = useRef<HTMLArcgisMapElement>(null);
-  const areaOfInterestNode = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
 
   const handleUploadSuccess = useCallback(({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
@@ -59,11 +59,11 @@ export default function App() {
     const graphic = new Graphic({ geometry, symbol: searchRef.current?.polygonSymbol });
     graphicsLayer.add(graphic);
 
-    if (!areaOfInterestNode.current) {
+    if (!areaOfInterestNode) {
       throw new Error('Area of interest input node not found');
     }
 
-    areaOfInterestNode.current.value = wkt3857;
+    areaOfInterestNode.value = wkt3857;
 
     if (mapRef.current?.view) {
       void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
@@ -72,8 +72,8 @@ export default function App() {
 
   const clear = () => {
     (searchRef.current?.layer as __esri.GraphicsLayer).removeAll();
-    if (areaOfInterestNode.current) {
-      areaOfInterestNode.current.value = '';
+    if (areaOfInterestNode) {
+      areaOfInterestNode.value = '';
     }
   };
 
@@ -104,15 +104,14 @@ export default function App() {
         const geoJson = arcgisToGeoJSON(esriJson);
         const wkt = geoJSONToWkt(geoJson);
 
-        if (!areaOfInterestNode.current) {
+        if (!areaOfInterestNode) {
           throw new Error('Area of interest input node not found');
         }
 
-        areaOfInterestNode.current.value = wkt;
+        areaOfInterestNode.value = wkt;
       }
     }
   };
-
 
   return (
     <section className="h-96">

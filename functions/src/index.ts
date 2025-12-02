@@ -506,11 +506,11 @@ const processRollup = (
 
 /**
  * Converts square meters to acres and formats with US locale thousand separators
- * @param size - The area in square meters
+ * @param squareMeters - The area in square meters
  * @returns Formatted string with acres and "ac" suffix (e.g., "1,234.56 ac")
  */
-const convertMetersToAcres = (size: number) => {
-  const meters = size * 0.00024710538187021526;
+const convertMetersToAcres = (squareMeters: number) => {
+  const meters = squareMeters * 0.00024710538187021526;
   const acres = meters.toFixed(2);
 
   if (Number(acres) === 0) {

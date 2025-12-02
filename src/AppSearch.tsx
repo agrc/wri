@@ -114,7 +114,7 @@ export default function App() {
   };
 
   return (
-    <section className="h-96">
+    <section>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <div className="px-2">
           <h2>Area of Interest</h2>
@@ -138,11 +138,10 @@ export default function App() {
             />
             {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
           </div>
-          <input ref={areaOfInterestNode} id="aoiGeometry" type="text" className="hidden" aria-hidden />
         </div>
         <arcgis-map
           ref={mapRef}
-          className="rounded-md border"
+          className="h-96 bg-white"
           basemap={basemap}
           extent={utahMercatorExtent.expand(1.15)}
           constraints={constraints}

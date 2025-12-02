@@ -1,6 +1,37 @@
-<div class="agrc-container">
-  <noscript> You need to enable JavaScript to run this app. </noscript>
-  <div id="root"></div>
-  <script type="module" src="/src/mainSearch.tsx"></script>
-</div>
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en"> <!--<![endif]-->
+
+<head>
+  <title>Utah's Watershed Restoration Initiative</title>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <meta name='author' content='Utah Department of Technology Services'>
+  <meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+  <meta name='description' content='Water Restoration Initiative run by DNR'>
+
+  <style>
+    #searchContainer {
+      width: 97%;
+      background: #e6e7e8;
+      padding: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="searchContainer">
+    <div class="agrc-container">
+      <noscript> You need to enable JavaScript to run this app. </noscript>
+      <div id="root"></div>
+      <script type="module" src="/src/mainSearch.tsx"></script>
+    </div>
     <input id="aoiGeometry" name="aoiGeometry" type="text" class="hidden">
+  </div>
+
+</body>
+
+</html>

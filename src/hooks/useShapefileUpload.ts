@@ -15,11 +15,12 @@ type AllowedGeometryType = 'point' | 'multipoint' | 'polyline' | 'polygon';
 type UseShapefileUploadOptions = {
   allowedGeometryTypes?: AllowedGeometryType[];
   onSuccess: (payload: { geometry: __esri.Geometry; wkt3857: string }) => void;
+  onClear?: () => void;
 };
 
 type UseShapefileUploadResult = {
   error: string | null;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  handleFileChange: (files: FileList | null) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -105,27 +106,28 @@ const combinePoints = (geometries: __esri.Geometry[]): Multipoint => {
  */
 
 const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUploadResult => {
-  const { allowedGeometryTypes = DEFAULT_ALLOWED_TYPES, onSuccess } = options;
+  const { allowedGeometryTypes = DEFAULT_ALLOWED_TYPES, onSuccess, onClear } = options;
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
+    async (files: FileList | null) => {
+      const file = files?.[0];
+      setError(null);
 
       if (!file) {
+        onClear?.();
+
         return;
       }
 
       if (!file.name.toLowerCase().endsWith('.zip')) {
         setError(ZIP_FILE_ERROR);
-        event.target.value = '';
         return;
       }
 
       setIsLoading(true);
-      setError(null);
 
       try {
         const arrayBuffer = await file.arrayBuffer();
@@ -198,10 +200,9 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
         setError(message);
       } finally {
         setIsLoading(false);
-        event.target.value = '';
       }
     },
-    [allowedGeometryTypes, onSuccess],
+    [allowedGeometryTypes, onClear, onSuccess],
   );
 
   return {

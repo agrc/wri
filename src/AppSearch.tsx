@@ -137,17 +137,19 @@ export default function App() {
               </Button>
             </div>
             <p>or</p>
-            <FileInput
-              acceptedFileTypes={['application/zip']}
-              description="The .zip file should contain at least the following files: *.shp, *.dbf, *.prj"
-              errorMessage={shapefileError || undefined}
-              isDisabled={isLoading}
-              isInvalid={!!shapefileError}
-              label="Upload a shapefile"
-              onSelect={handleFileChange}
-              showFileSize={false}
-            />
-            {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
+            <div>
+              <FileInput
+                acceptedFileTypes={['application/zip']}
+                description="The .zip file should contain at least the following files: *.shp, *.dbf, *.prj"
+                errorMessage={shapefileError || undefined}
+                isDisabled={isLoading}
+                isInvalid={!!shapefileError}
+                label="Upload a shapefile"
+                onSelect={handleFileChange}
+                showFileSize={false}
+              />
+              {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
+            </div>
           </div>
         </div>
         <arcgis-map

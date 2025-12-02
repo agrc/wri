@@ -79,6 +79,9 @@ export const MapContainer = () => {
           breakpoint: false,
         },
       },
+      constraints: {
+        snapToZoom: false,
+      },
       ui: {
         components: ['zoom'],
       },

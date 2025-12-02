@@ -42,6 +42,11 @@ const basemap = new Basemap({
 
 // @ts-expect-error the types are wrong, you can pass a partial constraints object
 const constraints: __esri.View2DConstraints = { snapToZoom: false };
+
+// @ts-expect-error the types are wrong, you can pass a partial constraints object
+const mapNavigation: __esri.Navigation = {
+  mouseWheelZoomEnabled: false,
+};
 const areaOfInterestNode = document.getElementById('aoiGeometry') as HTMLInputElement;
 
 export default function App() {
@@ -145,6 +150,7 @@ export default function App() {
           basemap={basemap}
           extent={utahMercatorExtent.expand(1.15)}
           constraints={constraints}
+          navigation={mapNavigation}
         >
           <arcgis-zoom slot="top-left"></arcgis-zoom>
           <arcgis-sketch

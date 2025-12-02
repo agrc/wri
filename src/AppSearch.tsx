@@ -113,7 +113,6 @@ export default function App() {
     }
   };
 
-  console.log('render');
 
   return (
     <section className="h-96">

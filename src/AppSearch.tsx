@@ -10,7 +10,7 @@ import { arcgisToGeoJSON } from '@terraformer/arcgis';
 import { Button, FileInput } from '@ugrc/utah-design-system';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useShapefileUpload } from './hooks/useShapefileUpload';
 
@@ -47,11 +47,15 @@ const constraints: __esri.View2DConstraints = { snapToZoom: false };
 const mapNavigation: __esri.Navigation = {
   mouseWheelZoomEnabled: false,
 };
-const areaOfInterestNode = document.getElementById('aoiGeometry') as HTMLInputElement;
 
 export default function App() {
   const mapRef = useRef<HTMLArcgisMapElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
+  const areaOfInterestRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    areaOfInterestRef.current = document.getElementById('aoiGeometry') as HTMLInputElement;
+  }, []);
 
   const handleUploadSuccess = useCallback(({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
     const graphicsLayer = searchRef.current?.layer as __esri.GraphicsLayer | undefined;
@@ -64,11 +68,11 @@ export default function App() {
     const graphic = new Graphic({ geometry, symbol: searchRef.current?.polygonSymbol });
     graphicsLayer.add(graphic);
 
-    if (!areaOfInterestNode) {
+    if (!areaOfInterestRef.current) {
       throw new Error('Area of interest input node not found');
     }
 
-    areaOfInterestNode.value = wkt3857;
+    areaOfInterestRef.current.value = wkt3857;
 
     if (mapRef.current?.view) {
       void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
@@ -77,8 +81,8 @@ export default function App() {
 
   const clear = () => {
     (searchRef.current?.layer as __esri.GraphicsLayer).removeAll();
-    if (areaOfInterestNode) {
-      areaOfInterestNode.value = '';
+    if (areaOfInterestRef.current) {
+      areaOfInterestRef.current.value = '';
     }
   };
 
@@ -109,11 +113,11 @@ export default function App() {
         const geoJson = arcgisToGeoJSON(esriJson);
         const wkt = geoJSONToWkt(geoJson);
 
-        if (!areaOfInterestNode) {
+        if (!areaOfInterestRef.current) {
           throw new Error('Area of interest input node not found');
         }
 
-        areaOfInterestNode.value = wkt;
+        areaOfInterestRef.current.value = wkt;
       }
     }
   };

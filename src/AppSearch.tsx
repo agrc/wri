@@ -123,7 +123,7 @@ export default function App() {
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <div className="px-2">
           <h2>Area of Interest</h2>
-          <div className="flex w-fit items-center gap-4 py-3">
+          <div className="flex w-fit flex-col items-center gap-4 py-3 sm:flex-row">
             <div>
               <p className="max-w-52">Draw a polygon on the map using the tools below...</p>
               <Button className="mt-4" variant="secondary" onClick={clear}>

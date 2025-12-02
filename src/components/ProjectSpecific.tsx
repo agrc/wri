@@ -103,7 +103,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
     queryKey: ['featureDetails', projectId, featureDetails],
     queryFn: async () => {
-      const result = await getFeatureInfo({ id: projectId, type: featureDetails?.type, featureId: featureDetails?.id });
+      const result = await getFeatureInfo({ type: featureDetails?.type, featureId: featureDetails?.id });
 
       return result.data as FeatureIntersections;
     },

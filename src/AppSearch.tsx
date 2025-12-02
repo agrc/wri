@@ -43,9 +43,11 @@ const basemap = new Basemap({
 // @ts-expect-error the types are wrong, you can pass a partial constraints object
 const constraints: __esri.View2DConstraints = { snapToZoom: false };
 
-// @ts-expect-error the types are wrong, you can pass a partial constraints object
 const mapNavigation: __esri.Navigation = {
-  mouseWheelZoomEnabled: false,
+  // @ts-expect-error the types are wrong, you can pass a partial constraints object
+  actionMap: {
+    mouseWheel: 'none',
+  },
 };
 
 export default function App() {

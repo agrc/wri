@@ -125,7 +125,7 @@ export default function App() {
   return (
     <section>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <div className="px-2">
+        <div className="px-2 dark:bg-zinc-800 dark:text-zinc-200">
           <h2>Area of Interest</h2>
           <div className="flex w-fit flex-col items-center gap-4 py-3 sm:flex-row">
             <div>

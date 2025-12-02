@@ -7,6 +7,7 @@ import '@arcgis/map-components/components/arcgis-map';
 import '@arcgis/map-components/components/arcgis-sketch';
 import '@arcgis/map-components/components/arcgis-zoom';
 import { arcgisToGeoJSON } from '@terraformer/arcgis';
+import { FileInput } from '@ugrc/utah-design-system';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
 import { useCallback, useRef } from 'react';
@@ -48,26 +49,33 @@ export default function App() {
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
 
   const handleUploadSuccess = useCallback(({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
-      const graphicsLayer = searchRef.current?.layer as __esri.GraphicsLayer | undefined;
+    const graphicsLayer = searchRef.current?.layer as __esri.GraphicsLayer | undefined;
 
-      if (!graphicsLayer) {
-        throw new Error('Search graphics layer not found');
-      }
+    if (!graphicsLayer) {
+      throw new Error('Search graphics layer not found');
+    }
 
-      graphicsLayer.removeAll();
-      const graphic = new Graphic({ geometry, symbol: searchRef.current?.polygonSymbol });
-      graphicsLayer.add(graphic);
+    graphicsLayer.removeAll();
+    const graphic = new Graphic({ geometry, symbol: searchRef.current?.polygonSymbol });
+    graphicsLayer.add(graphic);
 
-      if (!areaOfInterestNode.current) {
-        throw new Error('Area of interest input node not found');
-      }
+    if (!areaOfInterestNode.current) {
+      throw new Error('Area of interest input node not found');
+    }
 
-      areaOfInterestNode.current.value = wkt3857;
+    areaOfInterestNode.current.value = wkt3857;
 
-      if (mapRef.current?.view) {
-        void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
-      }
+    if (mapRef.current?.view) {
+      void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
+    }
   }, []);
+
+  const clear = () => {
+    (searchRef.current?.layer as __esri.GraphicsLayer).removeAll();
+    if (areaOfInterestNode.current) {
+      areaOfInterestNode.current.value = '';
+    }
+  };
 
   const {
     error: shapefileError,
@@ -76,15 +84,13 @@ export default function App() {
   } = useShapefileUpload({
     allowedGeometryTypes: ['polygon'],
     onSuccess: handleUploadSuccess,
+    onClear: clear,
   });
 
   const onSketchPropertyChange: EventHandler<HTMLArcgisSketchElement['arcgisPropertyChange']> = (event) => {
     // clear any existing graphics when activating the draw tool
     if (event.target.state === 'active') {
-      (searchRef.current?.layer as __esri.GraphicsLayer).removeAll();
-      if (areaOfInterestNode.current) {
-        areaOfInterestNode.current.value = '';
-      }
+      clear();
     }
   };
 
@@ -107,25 +113,27 @@ export default function App() {
     }
   };
 
+  console.log('render');
+
   return (
     <section className="h-96">
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <div className="px-2">
           <h2>Area of Interest</h2>
           <div className="flex w-fit items-center gap-4 py-3">
-            <p>Draw a polygon on the map using the tools below or ...</p>
-            <label>
-              <span className="text-sm">Upload a shapefile (zipped .shp, .shx, .dbf, .prj)</span>
-              <input
-                type="file"
-                accept=".zip"
-                onChange={handleFileChange}
-                disabled={isLoading}
-                className="block cursor-pointer rounded border border-dashed border-zinc-400 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
-              />
-              {shapefileError && <p className="pt-1 text-sm text-red-600">{shapefileError}</p>}
-              {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
-            </label>
+            <p className="max-w-52">Draw a polygon on the map using the tools below...</p>
+            <p>OR</p>
+            <FileInput
+              acceptedFileTypes={['application/zip']}
+              description="The .zip file should contain at least the following files: *.shp, *.dbf, *.prj"
+              errorMessage={shapefileError || undefined}
+              isDisabled={isLoading}
+              isInvalid={!!shapefileError}
+              label="Upload a shapefile"
+              onSelect={handleFileChange}
+              showFileSize={false}
+            />
+            {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}
           </div>
           <input ref={areaOfInterestNode} id="aoiGeometry" type="text" className="hidden" />
         </div>

@@ -1267,7 +1267,7 @@ export const lines = new FeatureLayer({
       },
       labelPlacement: 'center-along',
       labelExpressionInfo: {
-        expression: '$feature.Project_ID + ": " + $feature.TypeDescription',
+        expression: '"Project id: " + $feature.Project_ID',
       },
       minScale: 0,
       maxScale: 0,
@@ -1379,8 +1379,9 @@ export const polygons = new FeatureLayer({
           weight: 'normal',
         },
       },
+      labelPlacement: 'center-along',
       labelExpressionInfo: {
-        expression: '$feature.Project_ID + ": " + $feature.TypeDescription',
+        expression: '"Project id: " + $feature.Project_ID',
       },
       minScale: 0,
       maxScale: 0,

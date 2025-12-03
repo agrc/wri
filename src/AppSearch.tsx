@@ -98,7 +98,9 @@ export default function App() {
 
   const onSketchPropertyChange: EventHandler<HTMLArcgisSketchElement['arcgisPropertyChange']> = (event) => {
     // clear any existing graphics when activating the draw tool
-    if (event.target.state === 'active') {
+    if (event.target.state === 'active' && event.target.activeTool === 'transform') {
+      event.preventDefault();
+    } else if (event.target.state === 'active' && event.target.activeTool !== null) {
       clear();
     }
   };

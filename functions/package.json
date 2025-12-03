@@ -39,6 +39,9 @@
     "better-sqlite3": "^12.4.1",
     "sqlite3": "^5.1.7"
   },
+  "overrides": {
+    "picomatch": "^4.0.3"
+  },
   "engines": {
     "node": "22"
   }

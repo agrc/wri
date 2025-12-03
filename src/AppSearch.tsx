@@ -31,8 +31,6 @@ const basemap = new Basemap({
       urlTemplate: `https://discover.agrc.utah.gov/login/path/${import.meta.env.VITE_DISCOVER}/tiles/utah/{level}/{col}/{row}`,
       copyright: 'Hexagon',
     }),
-  ],
-  referenceLayers: [
     new WebTileLayer({
       urlTemplate: `https://discover.agrc.utah.gov/login/path/${import.meta.env.VITE_DISCOVER}/tiles/overlay_basemap/{level}/{col}/{row}`,
       copyright: 'UGRC',

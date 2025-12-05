@@ -20,8 +20,10 @@ type UseShapefileUploadOptions = {
 
 type UseShapefileUploadResult = {
   error: string | null;
-  handleFileChange: (files: FileList | null) => Promise<void>;
+  handleFileChange: (files: File[] | null) => void;
   isLoading: boolean;
+  files: File[] | null;
+  setFiles: (files: File[] | null) => void;
 };
 
 const WEB_MERCATOR = new SpatialReference({ wkid: 3857 });
@@ -110,9 +112,11 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [files, setFiles] = useState<File[] | null>(null);
 
   const handleFileChange = useCallback(
-    async (files: FileList | null) => {
+    async (files: File[] | null) => {
+      setFiles(files);
       const file = files?.[0];
       setError(null);
 
@@ -209,6 +213,8 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
     error,
     handleFileChange,
     isLoading,
+    files,
+    setFiles,
   };
 };
 

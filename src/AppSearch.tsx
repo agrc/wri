@@ -87,12 +87,15 @@ export default function App() {
       areaOfInterestRef.current.value = '';
     }
     setClearBtnDisabled(true);
+    setFiles(null);
   };
 
   const {
     error: shapefileError,
     handleFileChange,
     isLoading,
+    files,
+    setFiles,
   } = useShapefileUpload({
     allowedGeometryTypes: ['polygon'],
     onSuccess: handleUploadSuccess,
@@ -150,7 +153,8 @@ export default function App() {
                 isDisabled={isLoading}
                 isInvalid={!!shapefileError}
                 label="Upload a shapefile"
-                onSelect={handleFileChange}
+                onChange={handleFileChange}
+                value={files}
                 showFileSize={false}
               />
               {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}

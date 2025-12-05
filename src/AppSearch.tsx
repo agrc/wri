@@ -10,7 +10,7 @@ import { arcgisToGeoJSON } from '@terraformer/arcgis';
 import { Button, FileInput } from '@ugrc/utah-design-system';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useShapefileUpload } from './hooks/useShapefileUpload';
 
@@ -52,6 +52,7 @@ export default function App() {
   const mapRef = useRef<HTMLArcgisMapElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
   const areaOfInterestRef = useRef<HTMLInputElement | null>(null);
+  const [clearBtnDisabled, setClearBtnDisabled] = useState(true);
 
   useEffect(() => {
     areaOfInterestRef.current = document.getElementById('aoiGeometry') as HTMLInputElement;
@@ -77,6 +78,7 @@ export default function App() {
     if (mapRef.current?.view) {
       void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
     }
+    setClearBtnDisabled(false);
   }, []);
 
   const clear = () => {
@@ -84,6 +86,7 @@ export default function App() {
     if (areaOfInterestRef.current) {
       areaOfInterestRef.current.value = '';
     }
+    setClearBtnDisabled(true);
   };
 
   const {
@@ -120,6 +123,8 @@ export default function App() {
         }
 
         areaOfInterestRef.current.value = wkt;
+
+        setClearBtnDisabled(false);
       }
     }
   };
@@ -132,7 +137,7 @@ export default function App() {
           <div className="flex w-fit flex-col items-center gap-4 py-3 sm:flex-row">
             <div>
               <p className="max-w-52">Draw a polygon on the map using the tools below...</p>
-              <Button className="mt-4" variant="secondary" onClick={clear}>
+              <Button className="mt-4" variant="secondary" onClick={clear} isDisabled={clearBtnDisabled}>
                 Clear Area of Interest
               </Button>
             </div>

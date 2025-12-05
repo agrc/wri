@@ -103,10 +103,13 @@ export default function App() {
   });
 
   const onSketchPropertyChange: EventHandler<HTMLArcgisSketchElement['arcgisPropertyChange']> = (event) => {
-    // clear any existing graphics when activating the draw tool
+    // Business rule: When the 'transform' tool is activated, prevent clearing the area of interest.
+    // The 'transform' tool is used to modify existing graphics, not to create new ones,
+    // so we do not want to clear the AOI or remove graphics in this case.
     if (event.target.state === 'active' && event.target.activeTool === 'transform') {
       event.preventDefault();
     } else if (event.target.state === 'active' && event.target.activeTool !== null) {
+      // clear any existing graphics when activating the a draw tool
       clear();
     }
   };

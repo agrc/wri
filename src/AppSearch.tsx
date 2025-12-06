@@ -10,7 +10,7 @@ import { arcgisToGeoJSON } from '@terraformer/arcgis';
 import { Button, FileInput } from '@ugrc/utah-design-system';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useShapefileUpload } from './hooks/useShapefileUpload';
 
@@ -31,8 +31,6 @@ const basemap = new Basemap({
       urlTemplate: `https://discover.agrc.utah.gov/login/path/${import.meta.env.VITE_DISCOVER}/tiles/utah/{level}/{col}/{row}`,
       copyright: 'Hexagon',
     }),
-  ],
-  referenceLayers: [
     new WebTileLayer({
       urlTemplate: `https://discover.agrc.utah.gov/login/path/${import.meta.env.VITE_DISCOVER}/tiles/overlay_basemap/{level}/{col}/{row}`,
       copyright: 'UGRC',
@@ -54,6 +52,7 @@ export default function App() {
   const mapRef = useRef<HTMLArcgisMapElement>(null);
   const searchRef = useRef<HTMLArcgisSketchElement>(null);
   const areaOfInterestRef = useRef<HTMLInputElement | null>(null);
+  const [clearBtnDisabled, setClearBtnDisabled] = useState(true);
 
   useEffect(() => {
     areaOfInterestRef.current = document.getElementById('aoiGeometry') as HTMLInputElement;
@@ -79,6 +78,7 @@ export default function App() {
     if (mapRef.current?.view) {
       void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
     }
+    setClearBtnDisabled(false);
   }, []);
 
   const clear = () => {
@@ -86,12 +86,16 @@ export default function App() {
     if (areaOfInterestRef.current) {
       areaOfInterestRef.current.value = '';
     }
+    setClearBtnDisabled(true);
+    setFiles(null);
   };
 
   const {
     error: shapefileError,
     handleFileChange,
     isLoading,
+    files,
+    setFiles,
   } = useShapefileUpload({
     allowedGeometryTypes: ['polygon'],
     onSuccess: handleUploadSuccess,
@@ -99,8 +103,13 @@ export default function App() {
   });
 
   const onSketchPropertyChange: EventHandler<HTMLArcgisSketchElement['arcgisPropertyChange']> = (event) => {
-    // clear any existing graphics when activating the draw tool
-    if (event.target.state === 'active') {
+    // Business rule: When the 'transform' tool is activated, prevent clearing the area of interest.
+    // The 'transform' tool is used to modify existing graphics, not to create new ones,
+    // so we do not want to clear the AOI or remove graphics in this case.
+    if (event.target.state === 'active' && event.target.activeTool === 'transform') {
+      event.preventDefault();
+    } else if (event.target.state === 'active' && event.target.activeTool !== null) {
+      // clear any existing graphics when activating a draw tool
       clear();
     }
   };
@@ -120,6 +129,8 @@ export default function App() {
         }
 
         areaOfInterestRef.current.value = wkt;
+
+        setClearBtnDisabled(false);
       }
     }
   };
@@ -132,7 +143,7 @@ export default function App() {
           <div className="flex w-fit flex-col items-center gap-4 py-3 sm:flex-row">
             <div>
               <p className="max-w-52">Draw a polygon on the map using the tools below...</p>
-              <Button className="mt-4" variant="secondary" onClick={clear}>
+              <Button className="mt-4" variant="secondary" onClick={clear} isDisabled={clearBtnDisabled}>
                 Clear Area of Interest
               </Button>
             </div>
@@ -145,7 +156,8 @@ export default function App() {
                 isDisabled={isLoading}
                 isInvalid={!!shapefileError}
                 label="Upload a shapefile"
-                onSelect={handleFileChange}
+                onChange={handleFileChange}
+                value={files}
                 showFileSize={false}
               />
               {isLoading && !shapefileError && <p className="pt-1 text-sm text-zinc-600">Processing shapefile…</p>}

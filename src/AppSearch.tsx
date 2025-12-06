@@ -109,7 +109,7 @@ export default function App() {
     if (event.target.state === 'active' && event.target.activeTool === 'transform') {
       event.preventDefault();
     } else if (event.target.state === 'active' && event.target.activeTool !== null) {
-      // clear any existing graphics when activating the a draw tool
+      // clear any existing graphics when activating a draw tool
       clear();
     }
   };

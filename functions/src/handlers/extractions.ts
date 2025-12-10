@@ -181,7 +181,9 @@ export async function projectGeometries(
   logger.debug('Projecting geometries', { fromSR, toSR });
 
   // Load projection engine
-  await projectOperator.load();
+  if (!projectOperator.isLoaded()) {
+    await projectOperator.load();
+  }
 
   const fromSpatialRef = new SpatialReference({ wkid: fromSR });
   const toSpatialRef = new SpatialReference({ wkid: toSR });

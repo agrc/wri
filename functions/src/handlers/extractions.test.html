@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geometry Extraction Validation | @arcgis/core</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-gray-50">
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-8">
+      <h1 class="mb-2 text-3xl font-bold text-gray-900">Geometry Extraction Validation</h1>
+      <p class="text-gray-600">Validate @arcgis/core geometry operators against ArcGIS Pro baseline results</p>
+    </header>
+
+    <div class="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="mb-6">
+        <label class="mb-2 block text-sm font-medium text-gray-700"> Feature Layer </label>
+        <select id="layerSelect"
+          class="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onchange="handleLayerChange()">
+          <option value="counties">Utah County Boundaries</option>
+          <option value="landOwnership">Land Ownership</option>
+          <option value="sgma">SGMA (Sage Grouse Management Areas)</option>
+          <option value="streams">Utah Streams (NHD)</option>
+        </select>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="runTest" onclick="runTest()"
+          class="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+          Run Validation
+        </button>
+        <button id="clearResults" onclick="clearResults()"
+          class="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+          Clear Results
+        </button>
+      </div>
+
+      <div id="infoBox" class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <h3 class="mb-2 text-sm font-semibold text-blue-900">Baseline Reference Values</h3>
+        <p class="mb-3 text-xs text-blue-800">
+          Baseline results calculated in ArcGIS Pro using planar measurements (UTM Zone 12N):
+        </p>
+        <ul id="baselineList" class="space-y-1 text-xs text-blue-900">
+          <li><strong>SALT LAKE:</strong> 5,825.92 acres</li>
+          <li><strong>DAVIS:</strong> 3,108.29 acres</li>
+          <li><strong>SUMMIT:</strong> 1,271.42 acres</li>
+          <li><strong>MORGAN:</strong> 582.50 acres</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 class="mb-4 text-xl font-semibold text-gray-900">Validation Results</h2>
+      <div id="resultsContainer" class="py-8 text-gray-500">
+        <p>Click "Run Validation" to see results</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://js.arcgis.com/4.34/"></script>
+
+  <script type="module">
+    const [
+      Polygon,
+      Polyline,
+      SpatialReference,
+      areaOperator,
+      lengthOperator,
+      intersectionOperator,
+      unionOperator,
+      projectOperator,
+    ] = await Promise.all([
+      $arcgis.import('@arcgis/core/geometry/Polygon.js'),
+      $arcgis.import('@arcgis/core/geometry/Polyline.js'),
+      $arcgis.import('@arcgis/core/geometry/SpatialReference.js'),
+      $arcgis.import('@arcgis/core/geometry/operators/areaOperator.js'),
+      $arcgis.import('@arcgis/core/geometry/operators/lengthOperator.js'),
+      $arcgis.import('@arcgis/core/geometry/operators/intersectionOperator.js'),
+      $arcgis.import('@arcgis/core/geometry/operators/unionOperator.js'),
+      $arcgis.import('@arcgis/core/geometry/operators/projectOperator.js'),
+    ]);
+
+    // Layer configurations
+    const LAYER_CONFIGS = {
+      counties: {
+        name: 'Utah County Boundaries',
+        featureServiceUrl:
+          'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahCountyBoundaries/FeatureServer/0',
+        attributeFields: ['NAME'],
+        baselineValues: {
+          'SALT LAKE': { pro: 5825.916598 },
+          DAVIS: { pro: 3108.286627 },
+          SUMMIT: { pro: 1271.419745 },
+          MORGAN: { pro: 582.49902 },
+        },
+      },
+      landOwnership: {
+        name: 'Land Ownership',
+        featureServiceUrl: 'https://gis.trustlands.utah.gov/mapping/rest/services/Land_Ownership/FeatureServer/0',
+        attributeFields: ['owner', 'admin'],
+        baselineValues: {
+          'Federal - USFS': { pro: 4058.203064 },
+          'Private - Private': { pro: 6729.91895 },
+        },
+      },
+      sgma: {
+        name: 'SGMA (Sage Grouse Management Areas)',
+        featureServiceUrl:
+          'https://dwrmapserv.utah.gov/dwrarcgis/rest/services/Sage_grouse/SGMA_outlines/FeatureServer/0',
+        attributeFields: ['Area_name'],
+        baselineValues: {
+          // Baseline values to be added
+        },
+      },
+      streams: {
+        name: 'Utah Streams (NHD)',
+        featureServiceUrl:
+          'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahStreamsNHD/FeatureServer/0',
+        attributeFields: ['FCode_Text'],
+        measurementType: 'length',
+        baselineValues: {
+          'Artificial Path': { pro: 0.302837 },
+          'Stream/River - Ephemeral': { pro: 28.502173 },
+          'Stream/River - Intermittent': { pro: 4.692356 },
+          'Stream/River - Perennial': { pro: 4.115252 },
+        },
+      },
+    };
+
+    // Current configuration
+    let currentConfig = LAYER_CONFIGS.counties;
+
+    // Shared configuration
+    const CONFIG = {
+      SPATIAL_REFERENCE: {
+        WEB_MERCATOR: 3857,
+        UTM_ZONE_12N: 26912,
+      },
+      CONVERSION: {
+        SQ_METERS_TO_ACRES: 0.000247105,
+        ACRES_TO_SQ_METERS: 4046.86,
+        METERS_TO_MILES: 0.000621371,
+      },
+    };
+
+    // Test polygon from ArcGIS Pro - polygon crossing Salt Lake, Davis, Summit, and Morgan counties
+    const TEST_POLYGON = {
+      rings: [
+        [
+          [-12445996.2817, 4996103.8417999968],
+          [-12423283.255800001, 4983110.6354999989],
+          [-12424733.0726, 4980576.2551999986],
+          [-12447446.0985, 4993569.4614999965],
+          [-12445996.2817, 4996103.8417999968],
+        ],
+      ],
+      spatialReference: { wkid: CONFIG.SPATIAL_REFERENCE.WEB_MERCATOR },
+    };
+
+    // Logging
+    const LogLevel = {
+      INFO: 'info',
+      SUCCESS: 'success',
+      WARNING: 'warning',
+      ERROR: 'error',
+    };
+
+    /**
+     * Log message to console
+     * @param {string} message - Log message
+     * @param {string} level - Log level (info, success, warning, error)
+     */
+    function log(message, level = LogLevel.INFO) {
+      const timestamp = new Date().toLocaleTimeString();
+      const logMessage = `[${timestamp}] ${message}`;
+
+      switch (level) {
+        case LogLevel.ERROR:
+          console.error(logMessage);
+          break;
+        case LogLevel.WARNING:
+          console.warn(logMessage);
+          break;
+        case LogLevel.SUCCESS:
+        case LogLevel.INFO:
+        default:
+          console.log(logMessage);
+          break;
+      }
+    }
+
+    /**
+     * Format square meters to acres with proper formatting
+     * @param {number} squareMeters - Area in square meters
+     * @returns {string} Formatted acres string
+     */
+    function formatAcres(squareMeters) {
+      const acres = squareMeters * CONFIG.CONVERSION.SQ_METERS_TO_ACRES;
+      if (acres < 0.01) return '< 0.01 ac';
+      return `${acres.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} ac`;
+    }
+
+    /**
+     * Format meters to miles with proper formatting
+     * @param {number} meters - Length in meters
+     * @returns {string} Formatted miles string
+     */
+    function formatMiles(meters) {
+      const miles = meters * CONFIG.CONVERSION.METERS_TO_MILES;
+      if (miles < 0.01) return '< 0.01 mi';
+      return `${miles.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} mi`;
+    }
+
+    /**
+     * Convert Esri JSON to ArcGIS API Geometry
+     * @param {Object} esriJson - Esri JSON geometry
+     * @param {SpatialReference} spatialReference - Spatial reference
+     * @returns {Polygon|Polyline} ArcGIS API Geometry
+     */
+    function createGeometryFromJSON(esriJson, spatialReference) {
+      if (esriJson.rings) {
+        return new Polygon({ rings: esriJson.rings, spatialReference });
+      }
+      if (esriJson.paths) {
+        return new Polyline({ paths: esriJson.paths, spatialReference });
+      }
+      throw new Error('Invalid geometry: only polygon and polyline geometries are supported');
+    }
+
+    /**
+     * Calculate variance from baseline values
+     * @param {string} featureName - Feature name
+     * @param {number} actualAcres - Calculated acres
+     * @returns {Object|null} Comparison object with differences
+     */
+    function calculateVariance(featureName, actualAcres) {
+      const baseline = currentConfig.baselineValues[featureName];
+      if (!baseline) return null;
+
+      return {
+        webDiff: (actualAcres - baseline.pro).toFixed(2),
+      };
+    }
+
+    /**
+     * Query feature service for intersecting features
+     * @returns {Promise<Object>} Feature service response
+     */
+    async function queryFeatureService() {
+      log('Querying feature service...', LogLevel.INFO);
+      const params = new URLSearchParams({
+        f: 'json',
+        geometry: JSON.stringify(TEST_POLYGON),
+        geometryType: 'esriGeometryPolygon',
+        spatialRel: 'esriSpatialRelIntersects',
+        outFields: currentConfig.attributeFields.join(','),
+        returnGeometry: 'true',
+        outSR: String(CONFIG.SPATIAL_REFERENCE.UTM_ZONE_12N),
+      });
+
+      const url = `${currentConfig.featureServiceUrl}/query?${params.toString()}`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Feature service query failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(`Feature service error: ${data.error.message || JSON.stringify(data.error)}`);
+      }
+
+      log(`Found ${data.features.length} intersecting features`, LogLevel.SUCCESS);
+
+      // Log first feature's attributes to debug
+      if (data.features.length > 0) {
+        log(`Sample feature attributes: ${JSON.stringify(data.features[0].attributes)}`, LogLevel.INFO);
+      }
+
+      return data;
+    }
+
+    window.runTest = async function () {
+      const runButton = document.getElementById('runTest');
+
+      try {
+        runButton.disabled = true;
+        runButton.innerHTML = '<span class="spinner"></span>Running...';
+
+        log('Starting validation', LogLevel.INFO);
+
+        // Load projection engine
+        log('Loading projection engine...', LogLevel.INFO);
+        await projectOperator.load();
+        log('Projection engine loaded', LogLevel.SUCCESS);
+
+        // Query feature service
+        const queryResponse = await queryFeatureService();
+
+        if (!queryResponse.features?.length) {
+          log('No intersecting features found', LogLevel.WARNING);
+          return;
+        }
+
+        // Project input geometry to UTM
+        log('Projecting input geometry to UTM Zone 12N...', LogLevel.INFO);
+        const sourceSR = new SpatialReference({ wkid: CONFIG.SPATIAL_REFERENCE.WEB_MERCATOR });
+        const targetSR = new SpatialReference({ wkid: CONFIG.SPATIAL_REFERENCE.UTM_ZONE_12N });
+
+        const inputGeometry = createGeometryFromJSON(TEST_POLYGON, sourceSR);
+        const projectedInput = projectOperator.execute(inputGeometry, targetSR);
+
+        if (!projectedInput) {
+          throw new Error('Failed to project input geometry');
+        }
+        log('Input geometry projected', LogLevel.SUCCESS);
+
+        // Calculate input geometry area
+        log('Calculating input geometry area...', LogLevel.INFO);
+        const inputAreaSquareMeters = areaOperator.execute(projectedInput, {
+          unit: 'square-meters',
+        });
+        const inputAreaFormatted = formatAcres(Math.abs(inputAreaSquareMeters));
+        log(`Input geometry area: ${inputAreaFormatted}`, LogLevel.SUCCESS);
+
+        // Process each feature and collect intersection geometries
+        const utmSR = new SpatialReference({ wkid: CONFIG.SPATIAL_REFERENCE.UTM_ZONE_12N });
+        const intersectionResults = [];
+
+        for (const feature of queryResponse.features) {
+          // Build feature name from configured fields
+          const featureName = currentConfig.attributeFields
+            .map((field) => feature.attributes[field])
+            .filter((val) => val !== null && val !== undefined)
+            .join(' - ');
+
+          log(`Processing ${featureName}...`, LogLevel.INFO);
+
+          // Convert feature geometry
+          const featureGeometry = createGeometryFromJSON(feature.geometry, utmSR);
+
+          // Calculate intersection
+          log(`  Calculating intersection...`, LogLevel.INFO);
+          const intersection = intersectionOperator.execute(projectedInput, featureGeometry);
+
+          if (!intersection) {
+            log(`  No intersection geometry`, LogLevel.WARNING);
+            continue;
+          }
+
+          intersectionResults.push({
+            name: featureName,
+            geometry: intersection,
+            attributes: feature.attributes,
+          });
+
+          log(`  ${featureName}: intersection found`, LogLevel.SUCCESS);
+        }
+
+        log(`Found ${intersectionResults.length} intersections, grouping by attributes...`, LogLevel.INFO);
+
+        // Group intersection geometries by their attribute values
+        const groupedByAttributes = new Map();
+
+        for (const result of intersectionResults) {
+          // Use the feature name as the grouping key
+          const key = result.name;
+
+          if (!groupedByAttributes.has(key)) {
+            groupedByAttributes.set(key, {
+              geometries: [],
+              name: result.name,
+              attributes: result.attributes,
+            });
+            log(`  New group: "${key}"`, LogLevel.INFO);
+          } else {
+            log(`  Adding to existing group: "${key}"`, LogLevel.INFO);
+          }
+
+          groupedByAttributes.get(key).geometries.push(result.geometry);
+        }
+
+        log(`Grouped into ${groupedByAttributes.size} unique features`, LogLevel.SUCCESS);
+        log(`Groups: ${Array.from(groupedByAttributes.keys()).join(', ')}`, LogLevel.INFO);
+
+        // For each group, union the geometries and calculate total area
+        const results = [];
+
+        for (const [name, group] of groupedByAttributes) {
+          log(`Processing grouped feature: ${name}...`, LogLevel.INFO);
+
+          let finalGeometry;
+
+          if (group.geometries.length === 1) {
+            // Single geometry, no need to union
+            finalGeometry = group.geometries[0];
+            log(`  Single geometry, no union needed`, LogLevel.INFO);
+          } else {
+            // Multiple geometries with same attributes - union them
+            log(`  Unioning ${group.geometries.length} geometries...`, LogLevel.INFO);
+
+            // Filter out any invalid geometries (check for both rings and paths)
+            const validGeometries = group.geometries.filter((g) => g && (g.rings || g.paths));
+
+            if (validGeometries.length === 0) {
+              log(`  No valid geometries to union`, LogLevel.ERROR);
+              continue;
+            }
+
+            if (validGeometries.length === 1) {
+              finalGeometry = validGeometries[0];
+            } else {
+              // Union geometries one by one
+              finalGeometry = validGeometries[0];
+              for (let i = 1; i < validGeometries.length; i++) {
+                finalGeometry = unionOperator.execute(finalGeometry, validGeometries[i]);
+                if (!finalGeometry) {
+                  log(`  Union operation failed at geometry ${i}`, LogLevel.ERROR);
+                  break;
+                }
+              }
+            }
+
+            if (!finalGeometry) {
+              log(`  Union operation failed`, LogLevel.ERROR);
+              continue;
+            }
+          }
+
+          // Calculate size of the final (possibly unioned) geometry
+          const isLengthMeasurement = currentConfig.measurementType === 'length';
+          log(`  Calculating ${isLengthMeasurement ? 'length' : 'area'}...`, LogLevel.INFO);
+
+          let formattedSize;
+          let measurementValue;
+
+          if (isLengthMeasurement) {
+            // Length calculation for polylines (streams)
+            const lengthMeters = lengthOperator.execute(finalGeometry, {
+              unit: 'meters',
+            });
+            measurementValue = Math.abs(lengthMeters) * CONFIG.CONVERSION.METERS_TO_MILES;
+            formattedSize = formatMiles(Math.abs(lengthMeters));
+          } else {
+            // Area calculation for polygons
+            const areaSquareMeters = areaOperator.execute(finalGeometry, {
+              unit: 'square-meters',
+            });
+            measurementValue = Math.abs(areaSquareMeters) * CONFIG.CONVERSION.SQ_METERS_TO_ACRES;
+            formattedSize = formatAcres(Math.abs(areaSquareMeters));
+          }
+
+          log(`  ${name}: ${formattedSize}`, LogLevel.SUCCESS);
+
+          // Calculate variance from baseline
+          const variance = calculateVariance(name, measurementValue);
+
+          results.push({
+            name,
+            size: formattedSize,
+            measurementValue,
+            variance,
+          });
+        }
+
+        // Display results
+        const inputAcres = Math.abs(inputAreaSquareMeters) * CONFIG.CONVERSION.SQ_METERS_TO_ACRES;
+        renderResults(results, inputAcres);
+        log('Validation complete', LogLevel.SUCCESS);
+      } catch (error) {
+        log(`Error: ${error.message}`, LogLevel.ERROR);
+        console.error('Validation error:', error);
+      } finally {
+        runButton.disabled = false;
+        runButton.innerHTML = 'Run Validation';
+      }
+    };
+
+    /**
+     * Render validation results to the UI
+     * @param {Array} results - Array of feature results
+     * @param {number} inputAcres - Input geometry area in acres
+     */
+    function renderResults(results, inputAcres) {
+      const container = document.getElementById('resultsContainer');
+
+      if (!results.length) {
+        container.innerHTML = '<div class="text-center py-10 text-gray-500"><p>No results found</p></div>';
+        return;
+      }
+
+      // Calculate totals
+      const webTotal = results.reduce((sum, r) => sum + r.measurementValue, 0);
+      const proTotal = results.reduce((sum, r) => sum + (currentConfig.baselineValues[r.name]?.pro || 0), 0);
+      const webDiff = webTotal - inputAcres;
+      const proDiff = proTotal - inputAcres;
+
+      // Create copy-friendly text
+      const copyText =
+        results
+          .map((result) => {
+            let text = `${result.name} intersection area`;
+            if (result.variance) {
+              text += `\nArcGIS Pro: ${currentConfig.baselineValues[result.name].pro.toFixed(2)} ac`;
+              text += `\n@arcgis/core: ${result.size} (${result.variance.webDiff > 0 ? '+' : ''}${result.variance.webDiff} ac)`;
+            }
+            return text;
+          })
+          .join('\n\n') +
+        `\n\nInput Geometry: ${formatAcres(inputAcres * CONFIG.CONVERSION.ACRES_TO_SQ_METERS)}` +
+        `\nArcGIS Pro Total: ${proTotal.toFixed(2)} ac (${proDiff > 0 ? '+' : ''}${proDiff.toFixed(2)} ac)` +
+        `\n@arcgis/core Total: ${webTotal.toFixed(2)} ac (${webDiff > 0 ? '+' : ''}${webDiff.toFixed(2)} ac)`;
+
+      const html = `
+        <div class="space-y-6">
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-lg font-semibold text-gray-900">${currentConfig.name} Intersections</h3>
+              <button
+                onclick="navigator.clipboard.writeText(\`${copyText.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy Results', 1500); })"
+                class="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                Copy Results
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              ${results
+          .map(
+            (result) => `
+                <div class="pb-4 border-b border-gray-200 last:border-0">
+                  <div class="font-mono text-base font-semibold text-gray-900 mb-2">
+                    ${result.name}
+                  </div>
+                  <div class="font-mono text-sm space-y-1 text-gray-700">
+                    ${result.variance
+                ? `
+                      <div>
+                        Baseline (ArcGIS Pro): <span class="font-semibold">${currentConfig.baselineValues[result.name].pro.toFixed(2)} ac</span>
+                      </div>
+                      <div>
+                        @arcgis/core: <span class="font-semibold">${result.size}</span>
+                        <span class="text-blue-600">(${result.variance.webDiff > 0 ? '+' : ''}${result.variance.webDiff} ac)</span>
+                      </div>
+                    `
+                : `
+                      <div>
+                        @arcgis/core: <span class="font-semibold">${result.size}</span>
+                      </div>
+                    `
+              }
+                  </div>
+                </div>
+              `,
+          )
+          .join('')}
+            </div>
+
+            <div class="pt-6 mt-6 border-t-2 border-gray-300">
+              <div class="font-mono text-base font-semibold text-gray-900 mb-4">
+                Summary
+              </div>
+              <div class="font-mono text-sm space-y-2 text-gray-700">
+                <div>
+                  Input Geometry: <span class="font-semibold">${formatAcres(inputAcres * CONFIG.CONVERSION.ACRES_TO_SQ_METERS)}</span>
+                </div>
+                <div>
+                  ArcGIS Pro Total: <span class="font-semibold">${proTotal.toFixed(2)} ac</span>
+                  <span class="text-blue-600">(${proDiff > 0 ? '+' : ''}${proDiff.toFixed(2)} ac)</span>
+                </div>
+                <div>
+                  @arcgis/core Total: <span class="font-semibold">${webTotal.toFixed(2)} ac</span>
+                  <span class="text-blue-600">(${webDiff > 0 ? '+' : ''}${webDiff.toFixed(2)} ac)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * Handle layer selection change
+     */
+    window.handleLayerChange = function () {
+      const layerSelect = document.getElementById('layerSelect');
+      const selectedLayer = layerSelect.value;
+      currentConfig = LAYER_CONFIGS[selectedLayer];
+
+      const baselineList = document.getElementById('baselineList');
+
+      if (Object.keys(currentConfig.baselineValues).length === 0) {
+        baselineList.innerHTML =
+          '<li class="text-yellow-700"><em>Baseline values not yet available for this layer</em></li>';
+      } else {
+        const items = Object.entries(currentConfig.baselineValues)
+          .map(([name, values]) => {
+            const unit = currentConfig.measurementType === 'length' ? 'mi' : 'acres';
+            return `<li><strong>${name}:</strong> ${values.pro.toFixed(2)} ${unit}</li>`;
+          })
+          .join('');
+        baselineList.innerHTML = items;
+      }
+
+      // Clear results when switching layers
+      clearResults();
+    };
+
+    /**
+     * Clear all results
+     */
+    window.clearResults = function () {
+      document.getElementById('resultsContainer').innerHTML =
+        '<div class="py-8 text-center text-gray-500"><p>Click "Run Validation" to see results</p></div>';
+    };
+  </script>
+</body>
+
+</html>

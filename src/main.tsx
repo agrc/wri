@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { MapProvider, ProjectProvider } from './components/contexts';
 import './index.css';
+import './map-page.css';
 
 initializeTheme();
 let firebaseConfig = {

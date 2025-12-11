@@ -12,7 +12,7 @@ vi.mock('ky', () => {
   };
 });
 
-import type { GeometryJSON } from './extractions.js';
+import type Polygon from '@arcgis/core/geometry/Polygon.js';
 import { formatAcres, queryFeatureService } from './extractions.js';
 
 // Mock the ArcGIS modules before importing
@@ -45,7 +45,7 @@ vi.mock('@arcgis/core/geometry/operators/unionOperator.js', () => ({
  * - SUMMIT: 1,271.42 acres
  * - MORGAN: 582.50 acres
  */
-const testPolygon: GeometryJSON = {
+const testPolygon: Polygon = {
   type: 'polygon',
   rings: [
     [
@@ -103,6 +103,7 @@ describe('extractions', () => {
         ],
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockGet = (ky.default as any).__client.get;
 
       vi.mocked(mockGet).mockReturnValue({
@@ -113,6 +114,7 @@ describe('extractions', () => {
       const serviceUrl = 'https://example.com/FeatureServer/0';
       const result = await queryFeatureService(serviceUrl, testPolygon, ['NAME']);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((ky.default as any).__client.get).toHaveBeenCalledWith(
         expect.stringContaining(serviceUrl),
         expect.any(Object),
@@ -124,6 +126,7 @@ describe('extractions', () => {
     it('should handle service errors', async () => {
       const ky = await import('ky');
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockGet = (ky.default as any).__client.get;
 
       // Simulate a network/request error from the adapter so the helper will reject
@@ -199,6 +202,7 @@ describe('extractions', () => {
         exceededTransferLimit: false,
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockGet = (ky.default as any).__client.get;
 
       vi.mocked(mockGet)
@@ -215,9 +219,11 @@ describe('extractions', () => {
       const result = await queryFeatureService(serviceUrl, testPolygon, ['NAME']);
 
       // Should have called get twice - once for each page
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((ky.default as any).__client.get).toHaveBeenCalledTimes(2);
 
       // First call should have resultOffset=0 encoded in the adapter searchParams
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((ky.default as any).__client.get).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining(serviceUrl),
@@ -225,6 +231,7 @@ describe('extractions', () => {
       );
 
       // Second call should have resultOffset=2 (number of features from first page)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((ky.default as any).__client.get).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining(serviceUrl),

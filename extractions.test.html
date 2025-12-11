@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geometry Extraction Validation | TypeScript Module</title>
+  <!-- Small embedded SVG favicon showing two intersecting polygons and a third intersection color -->
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='6'%20fill='%23FFFFFF'/%3E%3Cpolygon%20points='4,8%2028,8%2016,24'%20fill='%23FF5A5F'%20opacity='0.95'/%3E%3Cpolygon%20points='8,4%2028,24%204,24'%20fill='%2300A699'%20opacity='0.95'/%3E%3Cpolygon%20points='10,12%2022,12%2022,20%2010,20'%20fill='%23FFD166'/%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.34/@arcgis/core/assets/esri/themes/light/main.css" />
+  <style>
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-gray-50">
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <header class="mb-8">
+      <h1 class="mb-2 text-3xl font-bold text-gray-900">Geometry Extraction Validation</h1>
+      <p class="text-gray-600">
+        Validate TypeScript extraction module against ArcGIS Pro baseline results
+      </p>
+    </header>
+
+    <div class="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="mb-6">
+        <label class="mb-2 block text-sm font-medium text-gray-700">Feature Layer</label>
+        <select id="layerSelect"
+          class="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="county">Utah County Boundaries</option>
+          <option value="landowner">Land Ownership</option>
+          <option value="sgma">SGMA (Sage Grouse Management Areas)</option>
+          <option value="stream">Utah Streams (NHD)</option>
+        </select>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="runTest"
+          class="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+          Run Validation
+        </button>
+        <button id="clearResults"
+          class="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+          Clear Results
+        </button>
+      </div>
+
+      <div id="infoBox" class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <h3 class="mb-2 text-sm font-semibold text-blue-900">Baseline Reference Values</h3>
+        <p class="mb-3 text-xs text-blue-800">
+          Baseline results calculated in ArcGIS Pro using planar measurements (UTM Zone 12N):
+        </p>
+        <ul id="baselineList" class="space-y-1 text-xs text-blue-900">
+          <li><strong>SALT LAKE:</strong> 5,825.92 acres</li>
+          <li><strong>DAVIS:</strong> 3,108.29 acres</li>
+          <li><strong>SUMMIT:</strong> 1,271.42 acres</li>
+          <li><strong>MORGAN:</strong> 582.50 acres</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 class="mb-4 text-xl font-semibold text-gray-900">Validation Results</h2>
+      <div id="resultsContainer" class="py-8 text-gray-500">
+        <p>Click "Run Validation" to see results</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      extractIntersections,
+      FEATURE_SERVICE_CONFIG,
+      SPATIAL_REFERENCES,
+    } from './functions/src/handlers/extractions.ts';
+
+    const TEST_POLYGON = {
+      type: 'polygon',
+      rings: [
+        [
+          [-12445996.2817, 4996103.8417999968],
+          [-12423283.255800001, 4983110.6354999989],
+          [-12424733.0726, 4980576.2551999986],
+          [-12447446.0985, 4993569.4614999965],
+          [-12445996.2817, 4996103.8417999968],
+        ],
+      ],
+      spatialReference: SPATIAL_REFERENCES.WEB_MERCATOR,
+    };
+
+    const BASELINES = {
+      county: {
+        'SALT LAKE': 5825.92,
+        DAVIS: 3108.29,
+        SUMMIT: 1271.42,
+        MORGAN: 582.5,
+      },
+      landowner: {
+        'Federal - USFS': 4058.2,
+        'Private - Private': 6729.92,
+      },
+      sgma: {},
+      stream: {
+        'Artificial Path': 0.302837,
+        'Stream/River - Ephemeral': 28.502173,
+        'Stream/River - Perennial': 4.115252,
+        'Stream/River - Intermittent': 4.692356,
+      },
+    };
+
+    let currentLayer = 'county';
+
+    document.getElementById('layerSelect').addEventListener('change', (e) => {
+      currentLayer = e.target.value;
+      updateBaselines();
+    });
+
+    document.getElementById('runTest').addEventListener('click', runTest);
+    document.getElementById('clearResults').addEventListener('click', clearResults);
+
+    function updateBaselines() {
+      const baselines = BASELINES[currentLayer] || {};
+      const baselineList = document.getElementById('baselineList');
+      baselineList.innerHTML = Object.entries(baselines)
+        .map(
+          ([name, value]) =>
+            `<li><strong>${name}:</strong> ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currentLayer === 'stream' ? 'miles' : 'acres'}</li>`,
+        )
+        .join('');
+    }
+
+    async function runTest() {
+      const button = document.getElementById('runTest');
+      const resultsContainer = document.getElementById('resultsContainer');
+
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner"></span>Running validation...';
+      resultsContainer.innerHTML = '<div class="text-center"><span class="spinner"></span> Processing...</div>';
+
+      try {
+        const config = FEATURE_SERVICE_CONFIG[currentLayer];
+        const criteria = {
+          [currentLayer]: {
+            attributes: config.attributes,
+          },
+        };
+
+        const results = await extractIntersections(TEST_POLYGON, criteria);
+        displayResults(results);
+      } catch (error) {
+        resultsContainer.innerHTML = `
+            <div class="rounded-lg border border-red-200 bg-red-50 p-4">
+              <h3 class="text-sm font-semibold text-red-900">Error</h3>
+              <p class="text-xs text-red-800">${error.message}</p>
+            </div>
+          `;
+      } finally {
+        button.disabled = false;
+        button.innerHTML = 'Run Validation';
+      }
+    }
+
+    function displayResults(results) {
+      const resultsContainer = document.getElementById('resultsContainer');
+      const layerResults = results[currentLayer] || [];
+
+      if (layerResults.length === 0) {
+        resultsContainer.innerHTML = '<p class="text-gray-500">No intersections found</p>';
+        return;
+      }
+
+      const baselines = BASELINES[currentLayer] || {};
+      const isLength = currentLayer === 'stream';
+
+      const html = `
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Feature
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Calculated
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Baseline
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Difference
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 bg-white">
+                ${layerResults
+          .map((result) => {
+            // Build feature name from string attributes (excluding size/displaySize)
+            const featureName = Object.entries(result)
+              .filter(([key, value]) => typeof value === 'string' && key !== 'displaySize')
+              .map(([, value]) => value)
+              .join(' - ');
+            const baseline = baselines[featureName];
+            const diff = baseline ? (result.size - baseline).toFixed(2) : 'N/A';
+            const withinTolerance = baseline ? Math.abs(result.size - baseline) < 1 : false;
+
+            return `
+                      <tr>
+                        <td class="px-4 py-3 text-sm text-gray-900">${featureName}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${result.displaySize}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                          ${baseline ? baseline.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (isLength ? ' mi' : ' ac') : 'N/A'}
+                        </td>
+                        <td class="px-4 py-3 text-sm ${parseFloat(diff) > 0 ? 'text-green-600' : parseFloat(diff) < 0 ? 'text-red-600' : 'text-gray-500'}">
+                          ${diff !== 'N/A' ? (parseFloat(diff) > 0 ? '+' : '') + diff : 'N/A'}
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                          ${baseline
+                ? withinTolerance
+                  ? '<span class="inline-flex rounded-full bg-green-100 px-2 text-xs font-semibold leading-5 text-green-800">✓ Pass</span>'
+                  : '<span class="inline-flex rounded-full bg-yellow-100 px-2 text-xs font-semibold leading-5 text-yellow-800">⚠ Check</span>'
+                : '<span class="inline-flex rounded-full bg-gray-100 px-2 text-xs font-semibold leading-5 text-gray-800">- N/A</span>'
+              }
+                        </td>
+                      </tr>
+                    `;
+          })
+          .join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+      resultsContainer.innerHTML = html;
+    }
+
+    function clearResults() {
+      document.getElementById('resultsContainer').innerHTML = '<p class="text-gray-500">Click "Run Validation" to see results</p>';
+    }
+
+    // Initialize baselines
+    updateBaselines();
+  </script>
+</body>
+
+</html>

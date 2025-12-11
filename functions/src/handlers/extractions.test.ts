@@ -1,4 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// Mock ky with a singleton mock client exposed on the mocked module
+vi.mock('ky', () => {
+  const mockClient = { get: vi.fn() };
+
+  return {
+    default: {
+      create: vi.fn(() => mockClient),
+      // expose the client so tests can inspect & stub it
+      __client: mockClient,
+    },
+  };
+});
+
 import type { GeometryJSON } from './extractions.js';
 import { formatAcres, queryFeatureService } from './extractions.js';
 
@@ -70,6 +83,7 @@ describe('extractions', () => {
 
   describe('queryFeatureService', () => {
     it('should query feature service with correct parameters', async () => {
+      const ky = await import('ky');
       const mockResponse = {
         features: [
           {
@@ -89,28 +103,139 @@ describe('extractions', () => {
         ],
       };
 
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
+      const mockGet = (ky.default as any).__client.get;
+
+      vi.mocked(mockGet).mockReturnValue({
         json: async () => mockResponse,
-      });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       const serviceUrl = 'https://example.com/FeatureServer/0';
       const result = await queryFeatureService(serviceUrl, testPolygon, ['NAME']);
 
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining(serviceUrl));
+      expect((ky.default as any).__client.get).toHaveBeenCalledWith(
+        expect.stringContaining(serviceUrl),
+        expect.any(Object),
+      );
       expect(result.features).toHaveLength(1);
       expect(result.features[0]?.attributes.NAME).toBe('SALT LAKE');
     });
 
     it('should handle service errors', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ error: { message: 'Service error' } }),
-      });
+      const ky = await import('ky');
+
+      const mockGet = (ky.default as any).__client.get;
+
+      // Simulate a network/request error from the adapter so the helper will reject
+      vi.mocked(mockGet).mockRejectedValue(new Error('Service error'));
 
       const serviceUrl = 'https://example.com/FeatureServer/0';
 
       await expect(queryFeatureService(serviceUrl, testPolygon, ['NAME'])).rejects.toThrow('Service error');
+    });
+
+    it('should handle pagination when exceededTransferLimit is true', async () => {
+      const ky = await import('ky');
+
+      // First response with exceededTransferLimit = true
+      const firstResponse = {
+        features: [
+          {
+            attributes: { NAME: 'COUNTY1' },
+            geometry: {
+              type: 'polygon' as const,
+              rings: [
+                [
+                  [-1, -1],
+                  [-1, 1],
+                  [1, 1],
+                  [1, -1],
+                  [-1, -1],
+                ],
+              ],
+              spatialReference: { wkid: 3857 },
+            },
+          },
+          {
+            attributes: { NAME: 'COUNTY2' },
+            geometry: {
+              type: 'polygon' as const,
+              rings: [
+                [
+                  [-2, -2],
+                  [-2, 2],
+                  [2, 2],
+                  [2, -2],
+                  [-2, -2],
+                ],
+              ],
+              spatialReference: { wkid: 3857 },
+            },
+          },
+        ],
+        exceededTransferLimit: true,
+      };
+
+      // Second response with exceededTransferLimit = false
+      const secondResponse = {
+        features: [
+          {
+            attributes: { NAME: 'COUNTY3' },
+            geometry: {
+              type: 'polygon' as const,
+              rings: [
+                [
+                  [-3, -3],
+                  [-3, 3],
+                  [3, 3],
+                  [3, -3],
+                  [-3, -3],
+                ],
+              ],
+              spatialReference: { wkid: 3857 },
+            },
+          },
+        ],
+        exceededTransferLimit: false,
+      };
+
+      const mockGet = (ky.default as any).__client.get;
+
+      vi.mocked(mockGet)
+        .mockReturnValueOnce({
+          json: async () => firstResponse,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        .mockReturnValueOnce({
+          json: async () => secondResponse,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+
+      const serviceUrl = 'https://example.com/FeatureServer/0';
+      const result = await queryFeatureService(serviceUrl, testPolygon, ['NAME']);
+
+      // Should have called get twice - once for each page
+      expect((ky.default as any).__client.get).toHaveBeenCalledTimes(2);
+
+      // First call should have resultOffset=0 encoded in the adapter searchParams
+      expect((ky.default as any).__client.get).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(serviceUrl),
+        expect.objectContaining({ searchParams: expect.objectContaining({ resultOffset: 0 }) }),
+      );
+
+      // Second call should have resultOffset=2 (number of features from first page)
+      expect((ky.default as any).__client.get).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining(serviceUrl),
+        expect.objectContaining({ searchParams: expect.objectContaining({ resultOffset: 2 }) }),
+      );
+
+      // Should return all 3 features
+      expect(result.features).toHaveLength(3);
+      expect(result.features[0]?.attributes.NAME).toBe('COUNTY1');
+      expect(result.features[1]?.attributes.NAME).toBe('COUNTY2');
+      expect(result.features[2]?.attributes.NAME).toBe('COUNTY3');
     });
   });
 });

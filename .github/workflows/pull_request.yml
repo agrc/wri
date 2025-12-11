@@ -29,7 +29,7 @@ jobs:
           cache: npm
 
       - name: 📥 Download dependencies
-        run: npm ci
+        run: npm ci && cd functions && npm ci
 
       - name: 🧶 Lint
         run: npm run lint
@@ -54,7 +54,7 @@ jobs:
           cache: npm
 
       - name: 📥 Download dependencies
-        run: npm ci
+        run: npm ci && cd functions && npm ci
 
       - name: 🧪 Run tests
         run: npm test

@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => {
     base: mode === 'production' ? '/wri/' : '',
     resolve: {
       dedupe: ['@arcgis/core'],
+      alias: {
+        'firebase-functions/logger': resolve(__dirname, 'src/utils/browser-logger.ts'),
+      },
     },
     build: {
       assetsDir: 'js/ugrc',
@@ -18,6 +21,7 @@ export default defineConfig(({ mode }) => {
           main: resolve(__dirname, 'map.html'),
           dev: resolve(__dirname, 'index.html'),
           search: resolve(__dirname, 'search.html'),
+          extractionsTest: resolve(__dirname, 'extractions.test.html'),
         },
       },
     },

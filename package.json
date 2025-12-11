@@ -10,6 +10,7 @@
     "copy:arcgis": "cpy \"./node_modules/@arcgis/core/assets/**\" ./public/js/ugrc/assets",
     "dev:firebase-emulators": "firebase emulators:start --only functions",
     "dev:vite": "vite",
+    "dev:extractions-test": "vite --open /extractions.test.html",
     "format": "prettier . --write",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

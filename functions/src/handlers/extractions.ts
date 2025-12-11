@@ -1,21 +1,68 @@
-import * as areaOperator from '@arcgis/core/geometry/operators/areaOperator.js';
-import * as intersectionOperator from '@arcgis/core/geometry/operators/intersectionOperator.js';
-import * as lengthOperator from '@arcgis/core/geometry/operators/lengthOperator.js';
-import * as projectOperator from '@arcgis/core/geometry/operators/projectOperator.js';
-import * as unionOperator from '@arcgis/core/geometry/operators/unionOperator.js';
+import { execute as area } from '@arcgis/core/geometry/operators/areaOperator.js';
+import { accelerateGeometry, execute as intersect } from '@arcgis/core/geometry/operators/intersectionOperator.js';
+import { execute as length } from '@arcgis/core/geometry/operators/lengthOperator.js';
+import {
+  isLoaded as projectIsLoaded,
+  load as projectLoad,
+  executeMany as projectMany,
+} from '@arcgis/core/geometry/operators/projectOperator.js';
+import { execute as union } from '@arcgis/core/geometry/operators/unionOperator.js';
 import Point from '@arcgis/core/geometry/Point.js';
 import Polygon from '@arcgis/core/geometry/Polygon.js';
 import Polyline from '@arcgis/core/geometry/Polyline.js';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference.js';
+import { fromJSON as geometryFromJSON, getJsonType } from '@arcgis/core/geometry/support/jsonUtils.js';
+import Graphic from '@arcgis/core/Graphic.js';
+import type { GeometryUnion } from '@arcgis/core/unionTypes.js';
+import type { IQueryFeaturesOptions, IQueryFeaturesResponse } from '@esri/arcgis-rest-feature-service';
+import { queryFeatures } from '@esri/arcgis-rest-feature-service';
+import type { IFeature, IGeometry } from '@esri/arcgis-rest-request';
 import * as logger from 'firebase-functions/logger';
+import ky from 'ky';
 
-export type GeometryJSON =
-  | (__esri.PolygonProperties & { type: 'polygon' })
-  | (__esri.PolylineProperties & { type: 'polyline' })
-  | (__esri.PointProperties & { type: 'point' });
-export type FeatureJSON = Pick<__esri.GraphicProperties, 'attributes' | 'geometry'> & {
-  geometry: GeometryJSON;
-};
+// Use a params shape that matches the query options except `url` (we add the URL later)
+type QueryParams = Omit<IQueryFeaturesOptions, 'url'>;
+
+const httpClient = ky.create({
+  timeout: 30000,
+  retry: {
+    limit: 3,
+    jitter: true,
+    methods: ['get'],
+  },
+});
+
+async function kyRequestAdapter(url: string, requestOptions?: Record<string, unknown>) {
+  const opts = requestOptions || {};
+
+  const params = (opts as unknown as { params?: Record<string, string | number | boolean> }).params;
+
+  if (params) {
+    if ('geometry' in params) {
+      const g = params.geometry as unknown;
+      if (g && typeof (g as { toJSON?: unknown }).toJSON === 'function') {
+        params.geometry = JSON.stringify((g as { toJSON: () => unknown }).toJSON());
+      } else {
+        params.geometry = JSON.stringify(g as object);
+      }
+    }
+
+    if ('outSR' in params) {
+      params.outSR = (params.outSR as SpatialReference).wkid.toString();
+    }
+  }
+
+  const response = await httpClient.get(url, {
+    searchParams: params as Record<string, string | number | boolean> | undefined,
+  });
+
+  if ((opts as unknown as { rawResponse?: boolean }).rawResponse) {
+    return response;
+  }
+
+  return response.json();
+}
+
 export const FEATURE_SERVICE_CONFIG = {
   county: {
     url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahCountyBoundaries/FeatureServer/0',
@@ -41,8 +88,8 @@ export const FEATURE_SERVICE_CONFIG = {
 } as const;
 export type LayerName = keyof typeof FEATURE_SERVICE_CONFIG;
 export const SPATIAL_REFERENCES = {
-  WEB_MERCATOR: 3857,
-  UTM_ZONE_12N: 26912,
+  WEB_MERCATOR: SpatialReference.WebMercator,
+  UTM_ZONE_12N: new SpatialReference({ wkid: 26912 }),
 } as const;
 export interface LayerCriteria {
   attributes: string[];
@@ -54,9 +101,7 @@ export interface IntersectionResult {
   displaySize: string;
 }
 export type IntersectionResponse = Partial<Record<LayerName, IntersectionResult[]>>;
-export type QueryResponse = Pick<__esri.FeatureSetProperties, 'features' | 'geometryType' | 'spatialReference'> & {
-  features: FeatureJSON[];
-};
+export type QueryResponse = IQueryFeaturesResponse;
 export interface AreasAndLengthsResponse {
   areas?: number[];
   lengths?: number[];
@@ -69,135 +114,80 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
 
 /**
  * Queries an ArcGIS feature service for features intersecting a geometry
+ * Handles pagination to retrieve all results if exceeding maxRecordCount
  * @param serviceUrl - URL of the feature service layer
- * @param geometry - Input geometry to query against
+ * @param intersectionGeometry - Input geometry to filter with, one of the WRI feature types, multipoint, line, and polygon
  * @param outFields - Array of field names to return
  * @returns Query response with features
  */
 export async function queryFeatureService(
   serviceUrl: string,
-  geometry: GeometryJSON,
+  intersectionGeometry: Polygon | Polyline | Point,
   outFields: string[],
-): Promise<QueryResponse> {
-  const params = new URLSearchParams({
+): Promise<IQueryFeaturesResponse> {
+  const baseParams = {
     f: 'json',
-    geometry: JSON.stringify(geometry),
-    geometryType: getGeometryType(geometry),
+    geometry: intersectionGeometry,
+    geometryType: getJsonType(intersectionGeometry),
     spatialRel: 'esriSpatialRelIntersects',
-    outFields: outFields.join(','),
-    returnGeometry: 'true',
-    outSR: String(SPATIAL_REFERENCES.UTM_ZONE_12N),
+    outFields: outFields,
+    returnGeometry: true,
+    outSR: SPATIAL_REFERENCES.UTM_ZONE_12N,
+  } satisfies QueryParams;
+
+  let allFeatures: IFeature[] = [];
+  let resultOffset = 0;
+  let exceededTransferLimit = true;
+
+  while (exceededTransferLimit) {
+    const featureSet = (await queryFeatures({
+      url: serviceUrl,
+      ...baseParams,
+      resultOffset,
+      request: kyRequestAdapter,
+    } as IQueryFeaturesOptions)) as IQueryFeaturesResponse;
+
+    allFeatures = allFeatures.concat(featureSet.features || []);
+    exceededTransferLimit = featureSet.exceededTransferLimit || false;
+
+    if (exceededTransferLimit) {
+      logger.debug(`Fetching more features from offset ${resultOffset}`);
+
+      resultOffset += (featureSet.features && featureSet.features.length) || 0;
+    }
+  }
+
+  logger.debug(`Retrieved ${allFeatures.length} total features from ${serviceUrl}`);
+
+  const converted = allFeatures.map((feature) => {
+    const geometry = geometryFromJSON(feature.geometry as IFeature['geometry'] | IGeometry);
+    geometry.spatialReference = SPATIAL_REFERENCES.UTM_ZONE_12N;
+
+    return new Graphic({ ...feature, geometry });
   });
 
-  const url = `${serviceUrl}/query?${params.toString()}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Feature service query failed: ${response.status} ${response.statusText}`);
-  }
-
-  const data = (await response.json()) as __esri.FeatureSetProperties | { error: { message?: string } };
-
-  if ('error' in data) {
-    throw new Error(`Feature service error: ${data.error.message || JSON.stringify(data.error)}`);
-  }
-
-  return data as QueryResponse;
-}
-
-/**
- * Determines the Esri geometry type from a geometry object
- */
-function getGeometryType(geometry: GeometryJSON): string {
-  switch (geometry.type.toLowerCase()) {
-    case 'polygon':
-      return 'esriGeometryPolygon';
-    case 'polyline':
-      return 'esriGeometryPolyline';
-    case 'point':
-      return 'esriGeometryPoint';
-    default:
-      throw new Error(`Unsupported geometry type: ${geometry.type}`);
-  }
-}
-
-/**
- * Converts Esri JSON geometry to ArcGIS SDK geometry
- */
-function esriJsonToGeometry(esriJson: GeometryJSON, spatialReference: SpatialReference): Polygon | Polyline | Point {
-  if ('rings' in esriJson && esriJson.rings) {
-    return new Polygon({
-      rings: esriJson.rings,
-      spatialReference,
-    });
-  }
-
-  if ('paths' in esriJson && esriJson.paths) {
-    return new Polyline({
-      paths: esriJson.paths,
-      spatialReference,
-    });
-  }
-
-  if ('x' in esriJson && 'y' in esriJson && esriJson.x !== undefined && esriJson.y !== undefined) {
-    return new Point({
-      x: esriJson.x,
-      y: esriJson.y,
-      spatialReference,
-    });
-  }
-
-  throw new Error('Unsupported geometry type for conversion');
-}
-
-/**
- * Converts ArcGIS SDK geometry to Esri JSON
- */
-function geometryToEsriJson(geometry: Polygon | Polyline | Point): GeometryJSON {
-  const json = geometry.toJSON();
-  const type = geometry.type === 'polygon' ? 'polygon' : geometry.type === 'polyline' ? 'polyline' : 'point';
-
-  return {
-    ...json,
-    type,
-    spatialReference: {
-      wkid: geometry.spatialReference.wkid,
-    },
-  } as GeometryJSON;
+  return { features: converted } as IQueryFeaturesResponse;
 }
 
 /**
  * Projects geometries to a different spatial reference using client-side projection
  * @param geometries - Array of geometries to project
- * @param fromSR - Source spatial reference
  * @param toSR - Target spatial reference
  * @returns Projected geometries
  */
 export async function projectGeometries(
-  geometries: GeometryJSON[],
-  fromSR: number,
-  toSR: number,
-): Promise<GeometryJSON[]> {
-  logger.debug('Projecting geometries', { fromSR, toSR });
+  geometries: Array<GeometryUnion>,
+  toSR: SpatialReference,
+): Promise<Array<GeometryUnion>> {
+  logger.debug('Projecting geometries', { toSR });
 
-  // Load projection engine
-  if (!projectOperator.isLoaded()) {
-    await projectOperator.load();
+  if (!projectIsLoaded()) {
+    await projectLoad();
   }
 
-  const fromSpatialRef = new SpatialReference({ wkid: fromSR });
-  const toSpatialRef = new SpatialReference({ wkid: toSR });
+  const result = (await projectMany(geometries, toSR)) as Array<GeometryUnion | null | undefined>;
 
-  return geometries.map((geom) => {
-    const sdkGeom = esriJsonToGeometry(geom, fromSpatialRef);
-    const projected = projectOperator.execute(sdkGeom, toSpatialRef);
-
-    if (!projected) {
-      throw new Error('Projection failed');
-    }
-
-    return geometryToEsriJson(projected as Polygon | Polyline | Point);
-  });
+  return result;
 }
 
 /**
@@ -205,7 +195,7 @@ export async function projectGeometries(
  * @param geometries - Array of geometries to union
  * @returns Unioned geometry
  */
-export async function unionGeometries(geometries: GeometryJSON[]): Promise<GeometryJSON | null> {
+export async function unionGeometries(geometries: Array<GeometryUnion>): Promise<GeometryUnion | null> {
   if (geometries.length === 0) {
     return null;
   }
@@ -214,76 +204,52 @@ export async function unionGeometries(geometries: GeometryJSON[]): Promise<Geome
     return geometries[0] || null;
   }
 
-  logger.debug('Unioning geometries', { count: geometries.length });
-
-  const spatialRef = new SpatialReference({ wkid: SPATIAL_REFERENCES.UTM_ZONE_12N });
-  const sdkGeometries = geometries.map((g) => esriJsonToGeometry(g, spatialRef));
+  logger.debug('Performing a union on geometries', { count: geometries.length });
 
   // Union geometries pairwise
-  let unioned = sdkGeometries[0];
-  for (let i = 1; i < sdkGeometries.length; i++) {
-    const nextGeom = sdkGeometries[i];
+  let unioned = geometries[0];
+  for (let i = 1; i < geometries.length; i++) {
+    const nextGeom = geometries[i];
 
     if (!unioned || !nextGeom) {
       return null;
     }
 
-    const result = unionOperator.execute(unioned, nextGeom);
+    const result = union(unioned, nextGeom);
 
     if (!result) {
       return null;
     }
-    unioned = result as Polygon | Polyline | Point;
+
+    unioned = result;
   }
 
-  return geometryToEsriJson(unioned as Polygon | Polyline | Point);
+  return unioned;
 }
 
 /**
  * Calculates the intersection of two geometries using client-side intersection operator
- * @param geometry1 - First geometry
- * @param geometry2 - Second geometry
- * @param spatialReference - Spatial reference for the operation
+ * @param clipGeometry - First geometry (accelerated)
+ * @param inputGeometry - Second geometry
  * @returns Array of intersection geometries
  */
 export async function calculateIntersection(
-  geometry1: GeometryJSON,
-  geometry2: GeometryJSON,
-  spatialReference: number = SPATIAL_REFERENCES.WEB_MERCATOR,
-): Promise<GeometryJSON[]> {
-  // If target SR is different from input, project first
-  const inputSR = geometry1.spatialReference?.wkid || SPATIAL_REFERENCES.WEB_MERCATOR;
-
-  let projectedGeometry1 = geometry1;
-  let projectedGeometry2 = geometry2;
-
-  if (inputSR !== spatialReference) {
-    logger.debug('Projecting geometries before intersection', { from: inputSR, to: spatialReference });
-
-    const projected1Results = await projectGeometries([geometry1], inputSR, spatialReference);
-    const projected2Results = await projectGeometries([geometry2], inputSR, spatialReference);
-
-    if (!projected1Results[0] || !projected2Results[0]) {
-      throw new Error('Projection failed to return geometries');
-    }
-
-    projectedGeometry1 = projected1Results[0];
-    projectedGeometry2 = projected2Results[0];
+  clipGeometry: GeometryUnion,
+  inputGeometry: GeometryUnion,
+): Promise<Array<GeometryUnion>> {
+  if (!clipGeometry || !inputGeometry) {
+    throw new Error('Missing input geometry for intersection');
   }
 
   logger.debug('Calculating intersection');
 
-  const spatialRef = new SpatialReference({ wkid: spatialReference });
-  const sdkGeom1 = esriJsonToGeometry(projectedGeometry1, spatialRef);
-  const sdkGeom2 = esriJsonToGeometry(projectedGeometry2, spatialRef);
-
-  const intersection = intersectionOperator.execute(sdkGeom1, sdkGeom2);
+  const intersection = intersect(inputGeometry, clipGeometry);
 
   if (!intersection) {
     return [];
   }
 
-  return [geometryToEsriJson(intersection as Polygon | Polyline | Point)];
+  return [intersection];
 }
 
 /**
@@ -293,29 +259,19 @@ export async function calculateIntersection(
  * @returns Areas (for polygons) and lengths (for polylines) in UTM meters
  */
 export async function calculateAreasAndLengths(
-  geometries: GeometryJSON[],
+  geometries: Array<IFeature['geometry'] | IGeometry>,
   geometryType: string,
 ): Promise<AreasAndLengthsResponse> {
   logger.debug('Calculating areas and lengths');
 
-  const spatialRef = new SpatialReference({ wkid: SPATIAL_REFERENCES.UTM_ZONE_12N });
-
   if (geometryType === 'esriGeometryPolygon') {
-    const areas = geometries.map((geom) => {
-      const polygon = esriJsonToGeometry(geom, spatialRef) as Polygon;
-
-      return areaOperator.execute(polygon, { unit: 'square-meters' });
-    });
+    const areas = geometries.map((geom) => area(geom, { unit: 'square-meters' }));
 
     return { areas };
   }
 
   if (geometryType === 'esriGeometryPolyline') {
-    const lengths = geometries.map((geom) => {
-      const polyline = esriJsonToGeometry(geom, spatialRef) as Polyline;
-
-      return lengthOperator.execute(polyline, { unit: 'meters' });
-    });
+    const lengths = geometries.map((geom) => length(geom, { unit: 'meters' }));
 
     return { lengths };
   }
@@ -355,23 +311,37 @@ export function formatMiles(meters: number): string {
 
 /**
  * Extracts intersection information for a user-provided geometry against reference layers
- * @param geometry - User input geometry (polygon or polyline) in Esri JSON format
+ * @param inputClipGeometry - User input geometry (polygon, polyline, or point) in Esri JSON format
  * @param criteria - Criteria specifying which layers to query and what attributes to return
  * @returns Intersection results grouped by layer
  */
 export async function extractIntersections(
-  geometry: GeometryJSON,
+  inputClipGeometry: Polygon | Polyline | Point,
   criteria: ExtractionCriteria,
 ): Promise<IntersectionResponse> {
   logger.info('Starting intersection extraction', { criteria });
 
   const results: IntersectionResponse = {};
-  const geometryType = getGeometryType(geometry);
+
+  if (!inputClipGeometry) {
+    throw new Error('No input geometry provided');
+  }
+
+  inputClipGeometry = new Polygon({ ...inputClipGeometry });
 
   // Ensure geometry has spatial reference
-  if (!geometry.spatialReference) {
-    geometry.spatialReference = { wkid: SPATIAL_REFERENCES.WEB_MERCATOR };
+  if (!inputClipGeometry.spatialReference) {
+    inputClipGeometry.spatialReference = SPATIAL_REFERENCES.WEB_MERCATOR;
   }
+
+  // Project clip geometry to UTM Zone 12N (26912)
+  const clipGeometry = await projectGeometries([inputClipGeometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
+
+  if (!clipGeometry) {
+    throw new Error('Failed to project input geometry to UTM');
+  }
+
+  await accelerateGeometry(clipGeometry[0]);
 
   // Process each layer in the criteria
   for (const [layerName, layerCriteria] of Object.entries(criteria)) {
@@ -387,34 +357,25 @@ export async function extractIntersections(
     logger.debug(`Processing layer: ${layer}`);
 
     try {
-      // Query the feature service with input geometry in Web Mercator (3857)
       // Response features are returned in UTM Zone 12N (26912) as specified by outSR parameter
-      const queryResponse = await queryFeatureService(config.url, geometry, layerCriteria.attributes);
+      const featureSet = await queryFeatureService(config.url, inputClipGeometry, layerCriteria.attributes);
+      const graphics = (featureSet && (featureSet.features as Graphic[])) || [];
 
-      if (!queryResponse.features || queryResponse.features.length === 0) {
+      if (graphics.length === 0) {
         logger.debug(`No intersections found for layer: ${layer}`);
+
         continue;
       }
 
-      logger.debug(`Found ${queryResponse.features.length} intersecting features for layer: ${layer}`);
-
-      // Project input geometry from Web Mercator (3857) to UTM Zone 12N (26912)
-      const [projectedInputGeometry] = await projectGeometries(
-        [geometry],
-        SPATIAL_REFERENCES.WEB_MERCATOR,
-        SPATIAL_REFERENCES.UTM_ZONE_12N,
-      );
-
-      if (!projectedInputGeometry) {
-        throw new Error('Failed to project input geometry to UTM');
-      }
-
-      logger.debug('Input geometry projected to UTM');
+      logger.debug(`Found ${graphics.length} intersecting features for layer: ${layer}`);
 
       // Process each feature - calculate intersections in UTM Zone 12N
-      const layerResults: Array<{ geometry: GeometryJSON; attributes: Record<string, string | number> }> = [];
+      const layerResults: Array<{
+        geometry: GeometryUnion;
+        attributes: Record<string, string | number>;
+      }> = [];
 
-      for (const feature of queryResponse.features) {
+      for (const feature of graphics) {
         if (!feature || !feature.geometry) {
           logger.warn('Skipping feature with missing data');
 
@@ -422,11 +383,7 @@ export async function extractIntersections(
         }
 
         // Calculate intersection geometry (both geometries are in UTM 26912)
-        const intersections = await calculateIntersection(
-          projectedInputGeometry,
-          feature.geometry,
-          SPATIAL_REFERENCES.UTM_ZONE_12N,
-        );
+        const intersections = await calculateIntersection(clipGeometry[0], feature.geometry);
 
         if (intersections.length === 0 || !intersections[0]) {
           logger.debug(`No intersection geometry returned for feature`, {
@@ -462,7 +419,7 @@ export async function extractIntersections(
       // Group intersection geometries by their attribute values
       const groupedByAttributes = new Map<
         string,
-        { geometries: GeometryJSON[]; attributes: Record<string, string | number> }
+        { geometries: Array<GeometryUnion>; attributes: Record<string, string | number> }
       >();
 
       for (const result of layerResults) {
@@ -484,19 +441,22 @@ export async function extractIntersections(
       // For each group, union the geometries and calculate total area/length
       const finalResults: IntersectionResult[] = [];
 
-      // Determine dimension for measurement based on input geometry type
-      const isPolygonInput = geometryType === 'esriGeometryPolygon';
-      const measureGeometryType = isPolygonInput ? 'esriGeometryPolygon' : 'esriGeometryPolyline';
+      // Determine dimension for measurement based on the layer's geometry type
+      // Streams are polylines, everything else is polygons
+      const isPolylineLayer = layer === 'stream';
+      const measureGeometryType = isPolylineLayer ? 'esriGeometryPolyline' : 'esriGeometryPolygon';
 
       for (const [, group] of groupedByAttributes) {
-        let finalGeometry: GeometryJSON | null = null;
+        let finalGeometry: GeometryUnion | null = null;
 
         if (group.geometries.length === 1 && group.geometries[0]) {
           // Single geometry, no need to union
           finalGeometry = group.geometries[0];
         } else if (group.geometries.length > 0) {
           // Multiple geometries with same attributes - union them
-          logger.debug(`Unioning ${group.geometries.length} geometries for feature`, { attributes: group.attributes });
+          logger.debug(`Performing a union on ${group.geometries.length} geometries for feature`, {
+            attributes: group.attributes,
+          });
 
           // Union operation - start with first geometry and union with rest
           finalGeometry = await unionGeometries(group.geometries);
@@ -517,7 +477,7 @@ export async function extractIntersections(
 
         let size: number;
         let displaySize: string;
-        if (isPolygonInput && measurements.areas && measurements.areas[0]) {
+        if (!isPolylineLayer && measurements.areas && measurements.areas[0]) {
           const areaSquareMeters = Math.abs(measurements.areas[0]);
 
           size = areaSquareMeters * 0.000247105; // Convert to acres

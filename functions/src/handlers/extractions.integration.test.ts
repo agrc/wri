@@ -1,8 +1,9 @@
+import Polygon from '@arcgis/core/geometry/Polygon.js';
 import { describe, expect, it } from 'vitest';
-import { extractIntersections, type ExtractionCriteria, type GeometryJSON } from './extractions.js';
+import { extractIntersections, type ExtractionCriteria } from './extractions.js';
 
 // Test polygon from ArcGIS Pro - polygon crossing Salt Lake, Davis, Summit, and Morgan counties
-const testPolygon: GeometryJSON = {
+const testPolygon: Polygon = {
   type: 'polygon',
   rings: [
     [

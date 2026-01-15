@@ -143,3 +143,7 @@ dist
 /maps/.backups
 /maps/GpMessages
 *.lock
+
+/gptasks/download/data/*.sde
+*.pyc
+/gptasks/download/output

@@ -49,7 +49,7 @@ export function DownloadProjectData({ projectId, downloadFn }: DownloadProjectDa
             <span className="ml-2">Preparing download...</span>
           </>
         ) : (
-          <span className="ml-2">Request file geodatabase</span>
+          <span>Request file geodatabase</span>
         )}
       </Button>
       {data && (

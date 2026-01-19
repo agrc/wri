@@ -14,7 +14,7 @@ current_directory = Path(__file__).resolve().parent
 arcpy.ImportToolbox(str(current_directory / "Download.pyt"), "wridownload")
 
 with arcpy.da.SearchCursor(
-    str(Path(configs.local["workspace"]) / "PROJECT"), ["Project_ID"]
+    str(Path(configs.local[0]) / "PROJECT"), ["Project_ID"]
 ) as cursor:
     project_ids = [str(project_id) for (project_id,) in cursor]
 

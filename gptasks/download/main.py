@@ -246,7 +246,7 @@ def _get_rows_for_tables(project_ids):
                 ",".join([str(id) for id in project_ids])
             )
 
-            field_names = table.fields
+            field_names = list(table.fields)
             field_names.remove("Composite_Key")
 
             with arcpy.da.SearchCursor(

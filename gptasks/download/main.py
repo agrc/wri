@@ -36,7 +36,8 @@ class Table:
         arcpy.management.CreateTable(location, table.table_name)
 
     def create_schema(self):
-        [self._add_field(self.table_name, field) for field in self._fields]
+        for field in self._fields:
+            self._add_field(self.table_name, field)
 
     def get_sql(self, project_ids):
         with open(

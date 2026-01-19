@@ -10,7 +10,7 @@ configuration = 'local'
 
 with `local`, `dev`, `at`, `prod` and execute the tool.
 
-Comment out all other sources in `download/config.py` so that the publish tool doesn't try and validate them.
+Comment out all other sources in `download/configs.py` so that the publish tool doesn't try and validate them.
 
 ```yaml
 Service name: WRI/ToolboxAsync

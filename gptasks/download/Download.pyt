@@ -43,7 +43,10 @@ class Tool:
         :param parameters: the parameters sent to the gp service
         :param message:
         """
-        project_ids = [id.strip() for id in parameters[0].valueAsText.split(",")]
+        project_ids = [pid.strip() for pid in parameters[0].valueAsText.split(",") if pid.strip()]
+        for pid in project_ids:
+            if not pid.isdigit():
+                raise ValueError(f"Invalid project ID '{pid}'. Project IDs must be numeric.")
 
         zip_location = main.execute(project_ids)
 

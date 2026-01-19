@@ -204,6 +204,7 @@ def execute(project_ids: list[str]) -> str:
     _create_scratch_folder(output_location)
 
     gdb = _create_fgdb(output_location)
+    _copy_project_centroids(gdb, project_ids)
     records = _get_rows_for_tables(project_ids)
     _export_to_fgdb(gdb, records)
     _create_relationship_classes(gdb)
@@ -215,6 +216,20 @@ def execute(project_ids: list[str]) -> str:
     _zip_output_directory(folder_to_zip, zip_location)
 
     return zip_location
+
+
+def _copy_project_centroids(gdb, project_ids):
+    arcpy.AddMessage("--_copy_project_centroids::")
+    arcpy.env.workspace = gdb
+    where = "Project_ID in ({})".format(",".join([str(id) for id in project_ids]))
+    sql = f"Select * from PROJECT WHERE {where}"
+    layer = "PROJECT_layer"
+    if workspace.endswith(".gpkg"):
+        arcpy.management.CreateDatabaseView(workspace, layer, sql)
+    else:
+        arcpy.management.MakeQueryLayer(workspace, layer, sql, shape_type="POINT")
+    arcpy.management.CopyFeatures(layer, "PROJECT")
+    arcpy.management.Delete(layer)
 
 
 def _get_rows_for_tables(project_ids):
@@ -430,6 +445,24 @@ def _create_relationship_classes(gdb):
                     "NONE",
                     "Composite_Key",
                     "Composite_Key",
+                )
+
+    # Create relationship classes for project centroids
+    if arcpy.Exists("PROJECT"):
+        for destination in ["POINT", "LINE", "POLY"]:
+            if arcpy.Exists(destination):
+                arcpy.management.CreateRelationshipClass(
+                    "PROJECT",
+                    destination,
+                    "PROJECT__HAS__{}".format(destination),
+                    "SIMPLE",
+                    destination,
+                    "PROJECT",
+                    "BOTH",
+                    "ONE_TO_MANY",
+                    "NONE",
+                    "Project_ID",
+                    "Project_ID",
                 )
 
 

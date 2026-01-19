@@ -39,6 +39,12 @@ const renderWithQueryClient = (ui: React.ReactElement) => {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 };
 
+/**
+ * Helper function that creates a promise which never resolves.
+ * Used in tests to simulate an ongoing loading state where the download is still in progress.
+ */
+const createNeverResolvingPromise = () => new Promise<string>(() => {});
+
 describe('DownloadProjectData', () => {
   describe('rendering', () => {
     it('should render the request button in idle state', () => {
@@ -84,7 +90,7 @@ describe('DownloadProjectData', () => {
   describe('loading state', () => {
     it('should show loading state while download is in progress', async () => {
       const user = userEvent.setup();
-      const mockDownloadFn = vi.fn().mockImplementation(() => new Promise(() => {})); // Never resolves
+      const mockDownloadFn = vi.fn().mockImplementation(createNeverResolvingPromise);
 
       renderWithQueryClient(<DownloadProjectData projectId={123} downloadFn={mockDownloadFn} />);
 
@@ -95,7 +101,7 @@ describe('DownloadProjectData', () => {
 
     it('should disable button while loading', async () => {
       const user = userEvent.setup();
-      const mockDownloadFn = vi.fn().mockImplementation(() => new Promise(() => {}));
+      const mockDownloadFn = vi.fn().mockImplementation(createNeverResolvingPromise);
 
       renderWithQueryClient(<DownloadProjectData projectId={123} downloadFn={mockDownloadFn} />);
 
@@ -107,7 +113,7 @@ describe('DownloadProjectData', () => {
 
     it('should show spinner while loading', async () => {
       const user = userEvent.setup();
-      const mockDownloadFn = vi.fn().mockImplementation(() => new Promise(() => {}));
+      const mockDownloadFn = vi.fn().mockImplementation(createNeverResolvingPromise);
 
       renderWithQueryClient(<DownloadProjectData projectId={123} downloadFn={mockDownloadFn} />);
 

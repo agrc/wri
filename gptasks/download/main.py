@@ -334,7 +334,7 @@ def _delete_scratch_data(directory):
 
 
 def _create_fgdb(output_location):
-    """Creates and writes values to a file geodatabse
+    """Creates and writes values to a file geodatabase
     :param output_location: the parent folder to the *.gdb
     """
     arcpy.AddMessage("--create_fgdb::{}".format(output_location))

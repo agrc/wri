@@ -25,5 +25,20 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/setupTests.ts',
+      css: {
+        modules: {
+          classNameStrategy: 'non-scoped',
+        },
+      },
+      server: {
+        deps: {
+          inline: ['@ugrc/utah-design-system'],
+        },
+      },
+    },
   };
 });

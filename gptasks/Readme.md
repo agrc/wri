@@ -2,10 +2,10 @@
 
 ## Installation
 
-Update this line near the top of `download/download.py`
+Update this line near the top of `download/main.py`
 
 ```py
-self.configuration = 'local'
+configuration = 'local'
 ```
 
 with `local`, `dev`, `at`, `prod` and execute the tool.

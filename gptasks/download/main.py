@@ -220,7 +220,6 @@ def execute(project_ids: list[str]) -> str:
 
 def _copy_project_centroids(gdb, project_ids):
     arcpy.AddMessage("--_copy_project_centroids::")
-    arcpy.env.workspace = gdb
     where = "Project_ID in ({})".format(",".join([str(id) for id in project_ids]))
     sql = f"Select * from PROJECT WHERE {where}"
     layer = "PROJECT_layer"
@@ -228,7 +227,11 @@ def _copy_project_centroids(gdb, project_ids):
         arcpy.management.CreateDatabaseView(workspace, layer, sql)
     else:
         arcpy.management.MakeQueryLayer(workspace, layer, sql, shape_type="POINT")
-    arcpy.management.CopyFeatures(layer, "PROJECT")
+
+    #: this has to be done in a specific way or else Pro analyze throws broken data source errors while publishing
+    gdb_path = Path(gdb)
+    project = str(gdb_path / "PROJECT")
+    arcpy.management.CopyFeatures(layer, project)
     arcpy.management.Delete(layer)
 
 
@@ -375,10 +378,12 @@ def _create_relationship_classes(gdb):
     """Creates all of the relationship classes in the gdb
     :param gdb: the path to the gdb
     """
+    #: this has to be done in a specific way or else Pro analyze throws broken data source errors while publishing
     gdb_path = Path(gdb)
     treatment = str(gdb_path / "AREATREATMENT")
     action = str(gdb_path / "AREAACTION")
     herbicide = str(gdb_path / "AREAHERBICIDE")
+    project = str(gdb_path / "PROJECT")
 
     #: create action -> treatment relationship
     treatment_exists = arcpy.Exists(treatment)
@@ -448,11 +453,11 @@ def _create_relationship_classes(gdb):
                 )
 
     # Create relationship classes for project centroids
-    if arcpy.Exists("PROJECT"):
+    if arcpy.Exists(project):
         for destination in ["POINT", "LINE", "POLY"]:
             if arcpy.Exists(destination):
                 arcpy.management.CreateRelationshipClass(
-                    "PROJECT",
+                    project,
                     destination,
                     "PROJECT__HAS__{}".format(destination),
                     "SIMPLE",

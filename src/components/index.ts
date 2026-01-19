@@ -1,5 +1,6 @@
 export * from './AdjacentProjects.tsx';
 export * from './CentroidToggle.tsx';
+export * from './DownloadProjectData.tsx';
 export * from './DrawerView.tsx';
 export * from './ErrorFallBack.tsx';
 export * from './FeatureData.tsx';

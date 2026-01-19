@@ -9,6 +9,7 @@ import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
 import {
   AdjacentProjects,
+  DownloadProjectData,
   OpacityManager,
   ProjectStatusTag,
   ReferenceData,
@@ -112,7 +113,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   });
 
   return (
-    <div className="mx-2 mb-2 grid grid-cols-1 gap-2 dark:text-zinc-100">
+    <div className="mx-2 mb-2 grid grid-cols-1 gap-1 dark:text-zinc-100">
       <h2 className="text-xl font-bold">Project {projectId}</h2>
       <div className="flex flex-col gap-0 rounded border border-zinc-200 px-2 py-3 dark:border-zinc-700" ref={tabRef}>
         <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -165,7 +166,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                     </Tab>
                   </TabList>
                 </div>
-                <TabPanel id="project">
+                <TabPanel className="px-2 pt-0" id="project">
                   <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
                     <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                       <p>Description</p>
@@ -249,6 +250,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                         </ul>
                       </div>
                     )}
+                    <DownloadProjectData projectId={projectId} />
                   </Group>
                 </TabPanel>
                 <TabPanel shouldForceMount id="features" className="px-0 data-[inert]:hidden">

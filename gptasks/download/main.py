@@ -321,7 +321,7 @@ def _delete_scratch_data(directory):
     if not dir_path.exists():
         return
     for item in dir_path.glob("*"):
-        if item.suffix == ".gdb" or item.name.endswith(".gdb"):
+        if item.name.endswith(".gdb"):
             #: clear any lock files
             arcpy.management.ClearWorkspaceCache(str(item))
         if item.is_dir():

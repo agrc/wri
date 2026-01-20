@@ -36,7 +36,10 @@ const createTestQueryClient = () =>
 
 const renderWithQueryClient = (ui: React.ReactElement) => {
   const queryClient = createTestQueryClient();
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return {
+    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    queryClient,
+  };
 };
 
 /**
@@ -256,16 +259,16 @@ describe('DownloadProjectData', () => {
       const user = userEvent.setup();
       const mockDownloadFn = vi.fn().mockResolvedValue('https://example.com/download.zip');
 
-      const { rerender } = renderWithQueryClient(
+      const { rerender, queryClient } = renderWithQueryClient(
         <DownloadProjectData projectId={100} downloadFn={mockDownloadFn} />,
       );
 
       await user.click(screen.getByRole('button'));
       expect(mockDownloadFn).toHaveBeenCalledWith(100);
 
-      // Rerender with different projectId
+      // Rerender with different projectId using the same queryClient instance
       rerender(
-        <QueryClientProvider client={createTestQueryClient()}>
+        <QueryClientProvider client={queryClient}>
           <DownloadProjectData projectId={200} downloadFn={mockDownloadFn} />
         </QueryClientProvider>,
       );

@@ -3,9 +3,6 @@ The main logic for the download tool. Extracted to a separate file to make debug
 Naming this download.py caused issues when publishing to arcgis server.
 """
 
-from glob import glob
-from os import makedirs, remove, sep, walk
-from os.path import exists, isdir, join, splitext
 from pathlib import Path
 from shutil import rmtree
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -41,7 +38,7 @@ class Table:
 
     def get_sql(self, project_ids):
         with open(
-            join(current_directory, "sql", "{}.sql".format(self.table_name))
+            current_directory / "sql" / f"{self.table_name}.sql"
         ) as sql_file:
             return sql_file.read().format(",".join([str(id) for id in project_ids]))
 
@@ -210,7 +207,7 @@ def execute(project_ids: list[str]) -> str:
     _export_to_fgdb(gdb, records)
     _create_relationship_classes(gdb)
 
-    zip_location = join(folder_to_zip, "SpatialData" + ".zip")
+    zip_location = str(Path(folder_to_zip) / "SpatialData.zip")
     arcpy.AddMessage("-Zipping the result in " + folder_to_zip)
     arcpy.AddMessage("-Zipping the result to " + zip_location)
 
@@ -312,23 +309,25 @@ def _get_table_from_name(name):
 def _create_scratch_folder(directory):
     arcpy.AddMessage("--_create_scratch_folder::{}".format(directory))
 
-    if not exists(directory):
-        makedirs(directory)
+    dir_path = Path(directory)
+    if not dir_path.exists():
+        dir_path.mkdir(parents=True, exist_ok=True)
 
 
 def _delete_scratch_data(directory):
     arcpy.AddMessage("--_delete_scratch_data::{}".format(directory))
 
-    if not exists(directory):
+    dir_path = Path(directory)
+    if not dir_path.exists():
         return
-    for item in glob(join(directory, "*")):
-        if item.endswith(".gdb"):
+    for item in dir_path.glob("*"):
+        if item.suffix == ".gdb" or item.name.endswith(".gdb"):
             #: clear any lock files
-            arcpy.management.ClearWorkspaceCache(item)
-        if isdir(item):
+            arcpy.management.ClearWorkspaceCache(str(item))
+        if item.is_dir():
             rmtree(item)
         else:
-            remove(item)
+            item.unlink()
 
     return True
 
@@ -340,7 +339,7 @@ def _create_fgdb(output_location):
     arcpy.AddMessage("--create_fgdb::{}".format(output_location))
 
     arcpy.management.CreateFileGDB(output_location, fgdb)
-    output_location = join(output_location, fgdb)
+    output_location = str(Path(output_location) / fgdb)
 
     return output_location
 
@@ -352,27 +351,18 @@ def _zip_output_directory(source_location, destination_location):
     """
     arcpy.AddMessage("--_zip_output_directory::{}".format(destination_location))
 
+    source_path = Path(source_location)
     with ZipFile(destination_location, "w", ZIP_DEFLATED) as zip_writer:
-        for root, _, files in walk(source_location):
-            if "scratch.gdb" in root:
+        for item in source_path.rglob("*"):
+            if "scratch.gdb" in str(item):
                 continue
-            for file_name in files:
-                extension = _get_extension(file_name)
+            if item.is_file():
+                extension = item.suffix.lower()
                 if extension in [".zip", ".lock"]:
                     continue
 
-                full_name = join(root, file_name)
-                name = full_name[len(source_location) + len(sep) :]
-                zip_writer.write(full_name, name)
-
-
-def _get_extension(f):
-    """Returns the file type extension
-    :param f: the file to get the extension of
-    """
-    _, file_extension = splitext(f)
-
-    return file_extension.lower()
+                relative_path = item.relative_to(source_path)
+                zip_writer.write(str(item), str(relative_path))
 
 
 def _create_relationship_classes(gdb):

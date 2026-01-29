@@ -21,7 +21,6 @@ export default defineConfig(({ mode }) => {
           main: resolve(__dirname, 'map.html'),
           dev: resolve(__dirname, 'index.html'),
           search: resolve(__dirname, 'search.html'),
-          extractionsTest: resolve(__dirname, 'extractions.test.html'),
         },
       },
     },

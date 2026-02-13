@@ -35,3 +35,7 @@ After the service has been published, you can update the layout by exporting the
     "instance": ""
   }
   ```
+
+## Attribution
+
+This project was developed with the assistance of [GitHub Copilot](https://github.com/features/copilot).

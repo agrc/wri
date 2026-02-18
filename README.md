@@ -2,6 +2,10 @@
 
 The spatial mapping component to the Watershed Restoration Initiative
 
+Production: [wri.utah.gov](https://wri.utah.gov)
+
+Staging: [wri-stage.at.utah.gov](https://wri-stage.at.utah.gov)
+
 ## Development
 
 ### Setup

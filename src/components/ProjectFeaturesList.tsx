@@ -279,6 +279,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
           onClear?.();
         }
       }}
+      aria-label="Project features list"
     >
       {sections.map(({ kind, items }) => (
         <GridListSection key={kind} aria-label={sectionHeadingByKind[kind]} className="flex flex-col gap-y-2">

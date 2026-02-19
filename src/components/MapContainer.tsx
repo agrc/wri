@@ -186,6 +186,7 @@ export const MapContainer = () => {
               }),
           ),
           renderer,
+          spatialReference: layer.spatialReference,
         });
 
         mapView.current?.map!.add(featureLayer);

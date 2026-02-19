@@ -40,6 +40,9 @@ After the service has been published, you can update the layout by exporting the
   }
   ```
 
+> [!WARNING]
+> This project is currently using NPM. If it is switched to PNPM, then we will need to coordinate with DTS to update the deployment pipeline in Jenkins.
+
 ## Attribution
 
 This project was developed with the assistance of [GitHub Copilot](https://github.com/features/copilot).

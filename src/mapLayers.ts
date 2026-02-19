@@ -1379,7 +1379,6 @@ export const polygons = new FeatureLayer({
           weight: 'normal',
         },
       },
-      labelPlacement: 'center-along',
       labelExpressionInfo: {
         expression: '"Project id: " + $feature.Project_ID',
       },

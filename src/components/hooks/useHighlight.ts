@@ -38,7 +38,7 @@ const muteAllFeatures = (map: __esri.Map | nullish) => {
 };
 
 const queryAndPrepareZoomGeometry = async (
-  view: __esri.FeatureLayerView,
+  layer: __esri.FeatureLayer,
   featureId: number,
   extentScale?: number,
 ): Promise<__esri.Geometry | null> => {
@@ -46,7 +46,7 @@ const queryAndPrepareZoomGeometry = async (
     throw new Error(`Invalid feature id: ${featureId}`);
   }
 
-  const result = await view.queryFeatures({ where: `FeatureID=${featureId}`, returnGeometry: true });
+  const result = await layer.queryFeatures({ where: `FeatureID=${featureId}`, returnGeometry: true });
   const features = Array.isArray(result.features) ? result.features : [];
 
   if (features.length > 0 && features[0]?.geometry) {
@@ -112,43 +112,32 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
           initialViewpointRef.current = mapView.viewpoint.clone();
         }
 
-        mapView
-          .whenLayerView(layer)
-          .then(async (view) => {
-            if (zoomRequestIdRef.current !== requestId) {
+        (async () => {
+          if (zoomRequestIdRef.current !== requestId) {
+            return;
+          }
+
+          try {
+            const targetGeometry = await queryAndPrepareZoomGeometry(layer, details.id, zoom?.extentScale);
+
+            if (zoomRequestIdRef.current !== requestId || !targetGeometry) {
               return;
             }
 
-            try {
-              const targetGeometry = await queryAndPrepareZoomGeometry(
-                view as __esri.FeatureLayerView,
-                details.id,
-                zoom?.extentScale,
-              );
-
-              if (zoomRequestIdRef.current !== requestId || !targetGeometry) {
-                return;
-              }
-
-              const isExpandedExtent = zoom?.extentScale && targetGeometry.extent;
-              mapView.goTo(
-                new Viewpoint({
-                  targetGeometry,
-                  scale: zoom?.scale ?? (isExpandedExtent ? undefined : 4500),
-                }),
-                { duration: 1000 },
-              );
-            } catch (err) {
-              if (zoomRequestIdRef.current === requestId) {
-                console.error('Error querying features for highlight:', err);
-              }
-            }
-          })
-          .catch((err) => {
+            const isExpandedExtent = zoom?.extentScale && targetGeometry.extent;
+            mapView.goTo(
+              new Viewpoint({
+                targetGeometry,
+                scale: zoom?.scale ?? (isExpandedExtent ? undefined : 4500),
+              }),
+              { duration: 1000 },
+            );
+          } catch (err) {
             if (zoomRequestIdRef.current === requestId) {
-              console.error('Error getting layer view for highlight:', err);
+              console.error('Error querying features for highlight:', err);
             }
-          });
+          }
+        })();
       }
 
       return true;

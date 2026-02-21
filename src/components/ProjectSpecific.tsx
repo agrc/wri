@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
+import { getUserCredentials } from '../utils/userCredentials';
 import {
   AdjacentProjects,
   DownloadProjectData,
@@ -44,6 +45,7 @@ export type ProjectFeatures = {
   points: Feature[];
 };
 export type ProjectResponse = {
+  allowEdits: boolean;
   county: FeatureIntersection[];
   owner: LandOwnerIntersection[];
   sgma: FeatureIntersection[];
@@ -95,7 +97,8 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const { data, status } = useQuery<ProjectResponse>({
     queryKey: ['project', projectId],
     queryFn: async () => {
-      const result = await getProjectInfo({ id: projectId });
+      const credentials = getUserCredentials();
+      const result = await getProjectInfo({ id: projectId, ...credentials });
 
       return result.data as ProjectResponse;
     },

@@ -47,6 +47,20 @@ export async function seed(knex: Knex): Promise<void> {
       StatusDescription: 'Completed',
       StatusCode: 5,
     },
+    {
+      FeatureID: 2445,
+      TypeDescription: 'Water development point feature',
+      TypeCode: 13,
+      FeatureSubTypeID: 24,
+      FeatureSubTypeDescription: 'Trough',
+      ActionID: 8,
+      ActionDescription: 'Construction',
+      Description: "3 tire troughs, 2 storage tanks, and 11-20' ring tanks",
+      Project_FK: null,
+      Project_ID: 6028,
+      StatusDescription: 'Current',
+      StatusCode: 3,
+    },
   ]);
 
   table = 'LINE';
@@ -108,6 +122,34 @@ export async function seed(knex: Knex): Promise<void> {
       StatusCode: 6,
       LengthLnMeters: 467.75,
     },
+    {
+      FeatureID: 1019,
+      TypeDescription: 'Fence',
+      TypeCode: 10,
+      FeatureSubTypeID: 1,
+      FeatureSubTypeDescription: 'Barbed wire',
+      ActionID: 8,
+      ActionDescription: 'Construction',
+      Description: null,
+      Project_ID: 6028,
+      StatusDescription: 'Current',
+      StatusCode: 3,
+      LengthLnMeters: 1995.18,
+    },
+    {
+      FeatureID: 1036,
+      TypeDescription: 'Pipeline',
+      TypeCode: 11,
+      FeatureSubTypeID: 8,
+      FeatureSubTypeDescription: 'Above surface',
+      ActionID: 8,
+      ActionDescription: 'Construction',
+      Description: null,
+      Project_ID: 6028,
+      StatusDescription: 'Current',
+      StatusCode: 3,
+      LengthLnMeters: 20589.27,
+    },
   ]);
 
   table = 'POLY';
@@ -140,6 +182,26 @@ export async function seed(knex: Knex): Promise<void> {
       StatusCode: 5,
       AreaSqMeters: 562344.13737306,
       Retreatment: 'Y',
+    },
+    {
+      FeatureID: 11119,
+      TypeDescription: 'Terrestrial Treatment Area',
+      TypeCode: 1,
+      Project_ID: 6028,
+      StatusDescription: 'Current',
+      StatusCode: 3,
+      AreaSqMeters: 1508673.02607258,
+      Retreatment: 'N',
+    },
+    {
+      FeatureID: 11397,
+      TypeDescription: 'Aquatic/Riparian Treatment Area',
+      TypeCode: 2,
+      Project_ID: 6028,
+      StatusDescription: 'Current',
+      StatusCode: 3,
+      AreaSqMeters: 43272.5498148,
+      Retreatment: 'N',
     },
   ]);
 
@@ -245,7 +307,7 @@ export async function seed(knex: Knex): Promise<void> {
     {
       FeatureID: 3690,
       FeatureClass: 'POLY',
-      LandownerID: 2919,
+      LandownerID: 2921,
       Owner: 'Private',
       Admin: 'Private',
       Intersection: 443479.03,

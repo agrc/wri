@@ -63,6 +63,29 @@ The functions use Knex.js for database operations. Configuration can be found in
 - `USE_PROD_DB`: Set to `'true'` to connect to production database locally
 - `DATABASE_INFORMATION`: Firebase secret containing database credentials
 
+## Local Development — Auth & `allowEdits`
+
+In production the Java app injects `UserKey` and `Token` into a hidden `#user-data` form before the Vite bundle loads. Locally that form is empty, so credentials fall back to two Vite env vars.
+
+Create `.env.local` in the **repo root** (already gitignored) and set one of these pairs to
+simulate a specific role:
+
+| `user_group`      | `VITE_DEV_USER_KEY` | `VITE_DEV_USER_TOKEN` | `allowEdits` behaviour                                                               |
+| ----------------- | ------------------- | --------------------- | ------------------------------------------------------------------------------------ |
+| `GROUP_ADMIN`     | `dev-admin-key`     | `dev-admin-token`     | `true` on all active **and** completed/cancelled projects                            |
+| `GROUP_PM`        | `dev-pm-key`        | `dev-pm-token`        | `true` on project 5772 (contributor); `false` on project 1922 (completed, non-admin) |
+| `GROUP_PUBLIC`    | `dev-public-key`    | `dev-public-token`    | always `false`                                                                       |
+| `GROUP_ANONYMOUS` | `dev-anon-key`      | `dev-anon-token`      | always `false`                                                                       |
+
+Example `.env.local`:
+
+```
+VITE_DEV_USER_KEY=dev-admin-key
+VITE_DEV_USER_TOKEN=dev-admin-token
+```
+
+Run `npm run seed` inside `functions/` after running migrations to populate the test users.
+
 ## Project Structure
 
 ```bash

@@ -18,6 +18,9 @@ export const projectHandler = async ({ data }: CallableRequest) => {
       throw new HttpsError('invalid-argument', 'Invalid project ID');
     }
 
+    const key = data?.key?.toString() ?? null;
+    const token = data?.token?.toString() ?? null;
+
     const db = await getDb();
     const client = db.client;
     const clientName = (client.config?.client ?? client.dialect ?? '').toString();
@@ -32,7 +35,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
           id: 'Project_ID',
           manager: 'ProjectManagerName',
           agency: 'LeadAgencyOrg',
-          title: 'title',
+          title: 'Title',
           status: 'Status',
           description: 'Description',
           region: 'ProjRegion',
@@ -41,6 +44,8 @@ export const projectHandler = async ({ data }: CallableRequest) => {
           aquatic: 'AqRipSqMeters',
           easement: 'EasementAcquisitionSqMeters',
           stream: 'StreamLnMeters',
+          projectManagerFk: 'ProjectManager_ID',
+          features: 'Features',
         })
         .from('PROJECT')
         .where('Project_ID', id)
@@ -185,10 +190,61 @@ export const projectHandler = async ({ data }: CallableRequest) => {
       throw new HttpsError('not-found', `Project ${id} not found`);
     }
 
+    // Compute allowEdits — matches the logic from the old .NET ProjectController.
+    // key/token are optional; if absent the project data is still returned with allowEdits: false.
+    let allowEdits = false;
+
+    if (key && token) {
+      const user = await db
+        .select({ userId: 'User_ID', userGroup: 'user_group' })
+        .from('USERS')
+        .where('UserKey', key)
+        .andWhere('Token', token)
+        .andWhere('Active', 'YES')
+        .first();
+
+      if (user) {
+        const isAdmin = user.userGroup === 'GROUP_ADMIN';
+
+        // Condition 1: user found (already satisfied by reaching this block)
+        // Condition 2: not an anonymous or public user
+        const passesRoleCheck = !['GROUP_ANONYMOUS', 'GROUP_PUBLIC'].includes(user.userGroup);
+
+        // Condition 3: project has features enabled, or user is admin
+        const passesFeaturesCheck = project.features !== 'No' || isAdmin;
+
+        // Condition 4: project is not cancelled/completed, or user is admin
+        const passesStatusCheck = !['Cancelled', 'Completed'].includes(project.status) || isAdmin;
+
+        if (passesRoleCheck && passesFeaturesCheck && passesStatusCheck) {
+          // Condition 5: user is the project manager, a contributor, or an admin
+          const isProjectManager = user.userId === project.projectManagerFk;
+
+          if (isAdmin || isProjectManager) {
+            allowEdits = true;
+          } else {
+            const contributor = await db
+              .select('Contributor_ID')
+              .from('CONTRIBUTOR')
+              .where('User_FK', user.userId)
+              .andWhere('Project_FK', id)
+              .first();
+
+            allowEdits = contributor != null;
+          }
+        }
+      }
+    }
+
     const processed = processRollup(rollup);
 
+    // Strip internal-only fields before returning
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { projectManagerFk: _pmFk, features: _features, ...publicProject } = project;
+
     return {
-      ...project,
+      allowEdits,
+      ...publicProject,
       ...processed,
       polygons: groupedPolygons,
       lines: features

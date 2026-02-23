@@ -190,32 +190,32 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                     </div>
                     {data.affected && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Affected acres</p>
+                        <p>Affected</p>
                         <p>{data.affected}</p>
                       </div>
                     )}
                     {data.terrestrial && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Terrestrial acres</p>
+                        <p>Terrestrial</p>
                         <p>{data.terrestrial}</p>
                       </div>
                     )}
                     {data.aquatic && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Aquatic and riparian acres</p>
+                        <p>Aquatic and riparian</p>
                         <p>{data.aquatic}</p>
                       </div>
                     )}
                     {data.easement && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Easement and acquisition acres</p>
+                        <p>Easement and acquisition</p>
                         <p>{data.easement}</p>
                       </div>
                     )}
                     {data.stream && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
-                        <p>Stream miles</p>
-                        <p>{data.stream} mi</p>
+                        <p>Stream</p>
+                        <p>{data.stream}</p>
                       </div>
                     )}
                     {(data.county?.length ?? 0) > 0 && (

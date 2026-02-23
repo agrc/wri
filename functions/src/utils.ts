@@ -30,6 +30,21 @@ export const convertMetersToAcres = (squareMeters: number) => {
 };
 
 /**
+ * Converts meters to miles and formats with US locale thousand separators
+ * @param meters - The length in meters
+ * @returns Formatted string with miles and "mi" suffix (e.g., "12.34 mi")
+ */
+export const convertMetersToMiles = (meters: number) => {
+  const miles = (meters * 0.000621371).toFixed(2);
+
+  if (Number(miles) === 0) {
+    return '< 0.01 mi';
+  }
+
+  return `${Number(miles).toLocaleString('en-US')} mi`;
+};
+
+/**
  * Processes rollup data by origin type, sorts by space descending, and converts to acres
  * @param rollup - Array of rollup records from database
  * @param includeStreamArray - If true, includes stream array in result; if false, stream property is omitted

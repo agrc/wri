@@ -34,18 +34,37 @@ export async function up(knex: Knex): Promise<void> {
     table.integer('User_FK').notNullable();
   });
 
-  await knex.schema.alterTable('PROJECT', (table: Knex.AlterTableBuilder) => {
-    table.renameColumn('ProjectManager_FK', 'ProjectManager_ID');
-    table.string('Features').nullable();
-  });
+  const hasProjectManagerFk = await knex.schema.hasColumn('PROJECT', 'ProjectManager_FK');
+  const hasProjectManagerId = await knex.schema.hasColumn('PROJECT', 'ProjectManager_ID');
+
+  if (hasProjectManagerFk) {
+    await knex.schema.alterTable('PROJECT', (table: Knex.AlterTableBuilder) => {
+      table.renameColumn('ProjectManager_FK', 'ProjectManager_ID');
+      table.string('Features').nullable();
+    });
+  } else {
+    await knex.schema.alterTable('PROJECT', (table: Knex.AlterTableBuilder) => {
+      if (!hasProjectManagerId) {
+        table.integer('ProjectManager_ID').nullable();
+      }
+      table.string('Features').nullable();
+    });
+  }
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.schema.alterTable('PROJECT', (table: Knex.AlterTableBuilder) => {
-    table.renameColumn('ProjectManager_ID', 'ProjectManager_FK');
-    table.dropColumn('Features');
-  });
+  const hasProjectManagerId = await knex.schema.hasColumn('PROJECT', 'ProjectManager_ID');
 
+  if (hasProjectManagerId) {
+    await knex.schema.alterTable('PROJECT', (table: Knex.AlterTableBuilder) => {
+      table.renameColumn('ProjectManager_ID', 'ProjectManager_FK');
+      table.dropColumn('Features');
+    });
+  } else {
+    await knex.schema.alterTable('PROJECT', (table: Knex.AlterTableBuilder) => {
+      table.dropColumn('Features');
+    });
+  }
   await knex.schema.dropTable('CONTRIBUTOR');
   await knex.schema.dropTable('USERS');
 }

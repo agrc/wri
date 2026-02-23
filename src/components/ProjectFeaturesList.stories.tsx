@@ -79,6 +79,7 @@ const samplePoints: Feature[] = [
 export const Default: Story = {
   args: {
     projectId: 1,
+    allowEdits: false,
     polygons: samplePolygons,
     lines: sampleLines,
     points: samplePoints,
@@ -87,6 +88,7 @@ export const Default: Story = {
   render: (args) => {
     type WrapperArgs = {
       projectId: number;
+      allowEdits: boolean;
       polygons: PolygonFeatures;
       lines: Feature[];
       points: Feature[];
@@ -110,6 +112,7 @@ export const Default: Story = {
         <div className="w-96 dark:bg-zinc-800">
           <ProjectFeaturesList
             projectId={wrapperArgs.projectId}
+            allowEdits={wrapperArgs.allowEdits}
             polygons={wrapperArgs.polygons}
             lines={wrapperArgs.lines}
             points={wrapperArgs.points}

@@ -238,13 +238,20 @@ export const projectHandler = async ({ data }: CallableRequest) => {
 
     const processed = processRollup(rollup);
 
-    // Strip internal-only fields before returning
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { projectManagerFk: _pmFk, features: _features, ...publicProject } = project;
-
     return {
       allowEdits,
-      ...publicProject,
+      id: project.id,
+      manager: project.manager,
+      agency: project.agency,
+      title: project.title,
+      status: project.status,
+      description: project.description,
+      region: project.region,
+      affected: project.affected > 0 ? convertMetersToAcres(project.affected) : null,
+      terrestrial: project.terrestrial > 0 ? convertMetersToAcres(project.terrestrial) : null,
+      aquatic: project.aquatic > 0 ? convertMetersToAcres(project.aquatic) : null,
+      easement: project.easement > 0 ? convertMetersToAcres(project.easement) : null,
+      stream: project.stream > 0 ? convertMetersToAcres(project.stream) : null,
       ...processed,
       polygons: groupedPolygons,
       lines: features

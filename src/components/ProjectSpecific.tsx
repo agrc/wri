@@ -187,31 +187,31 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                       <p>Region</p>
                       <p>{data.region}</p>
                     </div>
-                    {data.affected > 0 && (
+                    {data.affected && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Affected acres</p>
-                        <p>{data.affected.toFixed(2)} ac</p>
+                        <p>{data.affected}</p>
                       </div>
                     )}
-                    {data.terrestrial > 0 && (
+                    {data.terrestrial && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Terrestrial acres</p>
-                        <p>{data.terrestrial.toFixed(2)} ac</p>
+                        <p>{data.terrestrial}</p>
                       </div>
                     )}
-                    {data.aquatic > 0 && (
+                    {data.aquatic && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Aquatic and riparian acres</p>
-                        <p>{data.aquatic.toFixed(2)} ac</p>
+                        <p>{data.aquatic}</p>
                       </div>
                     )}
-                    {data.easement > 0 && (
+                    {data.easement && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Easement and acquisition acres</p>
-                        <p>{data.easement} ac</p>
+                        <p>{data.easement}</p>
                       </div>
                     )}
-                    {data.stream > 0 && (
+                    {data.stream && (
                       <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                         <p>Stream miles</p>
                         <p>{data.stream} mi</p>

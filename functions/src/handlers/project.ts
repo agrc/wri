@@ -208,13 +208,13 @@ export const projectHandler = async ({ data }: CallableRequest) => {
 
         // Condition 1: user found (already satisfied by reaching this block)
         // Condition 2: not an anonymous or public user
-        const passesRoleCheck = !['GROUP_ANONYMOUS', 'GROUP_PUBLIC'].includes(user.userGroup);
+        const passesRoleCheck = !['GROUP_ANONYMOUS', 'GROUP_PUBLIC'].includes(user.userGroup.toUpperCase());
 
         // Condition 3: project has features enabled, or user is admin
-        const passesFeaturesCheck = project.features !== 'No' || isAdmin;
+        const passesFeaturesCheck = project.features.toUpperCase() !== 'NO' || isAdmin;
 
         // Condition 4: project is not cancelled/completed, or user is admin
-        const passesStatusCheck = !['Cancelled', 'Completed'].includes(project.status) || isAdmin;
+        const passesStatusCheck = !['CANCELLED', 'COMPLETED'].includes(project.status.toUpperCase()) || isAdmin;
 
         if (passesRoleCheck && passesFeaturesCheck && passesStatusCheck) {
           // Condition 5: user is the project manager, a contributor, or an admin

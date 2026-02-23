@@ -1,6 +1,6 @@
 import Collection from '@arcgis/core/core/Collection';
 import { useQuery } from '@tanstack/react-query';
-import { Switch, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
+import { Button, Switch, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
 import { httpsCallable } from 'firebase/functions';
 import { DiamondIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -152,6 +152,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                     0,
                   );
                 }}
+                className="gap-0"
               >
                 <div className="overflow-x-auto overflow-y-hidden pb-4 pt-1">
                   <TabList aria-label="Project details">
@@ -169,7 +170,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                     </Tab>
                   </TabList>
                 </div>
-                <TabPanel className="px-2 pt-0" id="project">
+                <TabPanel className="p-0" id="project">
                   <Group className="flex flex-col gap-y-1 dark:text-zinc-100">
                     <div className="[&>p:first-child]:font-bold [&>p:last-child]:pl-3">
                       <p>Description</p>
@@ -256,13 +257,23 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                     <DownloadProjectData projectId={projectId} />
                   </Group>
                 </TabPanel>
-                <TabPanel shouldForceMount id="features" className="px-0 data-[inert]:hidden">
-                  <div className="grid grid-cols-1 items-center gap-1">
+                <TabPanel shouldForceMount id="features" className="p-0 data-[inert]:hidden">
+                  <div className="grid grid-cols-1 items-center gap-2">
+                    {data.allowEdits && (
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        onPress={() => alert('Feature adding not yet implemented')}
+                      >
+                        Add Feature
+                      </Button>
+                    )}
                     <Switch aria-label="Zoom to selection" isSelected={selected} onChange={setSelected}>
                       Zoom to selection
                     </Switch>
                     <ProjectFeaturesList
                       projectId={projectId}
+                      allowEdits={data.allowEdits}
                       polygons={data.polygons ?? {}}
                       lines={data.lines ?? []}
                       points={data.points ?? []}
@@ -290,18 +301,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                     />
                   </div>
                 </TabPanel>
-                <TabPanel shouldForceMount id="reference" className="flex flex-col gap-2 data-[inert]:hidden">
-                  <AdjacentProjects mapView={mapView} />
-                  {referenceLayers.length > 0 ? (
-                    <div>
-                      <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />
-                      <ReferenceLabelSwitch layers={referenceLayers}>Labels</ReferenceLabelSwitch>
-                    </div>
-                  ) : (
-                    <TagGroupLoader />
-                  )}
-                </TabPanel>
-                <TabPanel shouldForceMount id="featureDetails" className="px-0 data-[inert]:hidden">
+                <TabPanel shouldForceMount id="featureDetails" className="p-0 data-[inert]:hidden">
                   {!selectedFeature && <>Select a feature to view details</>}
                   {selectedFeature && (
                     <>
@@ -386,6 +386,17 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                         </Group>
                       )}
                     </>
+                  )}
+                </TabPanel>
+                <TabPanel shouldForceMount id="reference" className="flex flex-col gap-2 p-0 data-[inert]:hidden">
+                  <AdjacentProjects mapView={mapView} />
+                  {referenceLayers.length > 0 ? (
+                    <div>
+                      <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />
+                      <ReferenceLabelSwitch layers={referenceLayers}>Labels</ReferenceLabelSwitch>
+                    </div>
+                  ) : (
+                    <TagGroupLoader />
                   )}
                 </TabPanel>
               </Tabs>

@@ -17,7 +17,8 @@
     "seed:create": "node --import tsx/esm ./node_modules/.bin/knex seed:make -x ts",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
-    "start": "npm run serve"
+    "start": "npm run serve",
+    "start:admin": "node --import tsx/esm scripts/start-with-db-admin.ts"
   },
   "dependencies": {
     "@arcgis/core": "^4.34.8",

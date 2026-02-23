@@ -10,11 +10,8 @@ Staging: [wri-stage.at.utah.gov](https://wri-stage.at.utah.gov)
 
 ### Setup
 
-1. Create `.env` file in the root directory with the following content:
-
-```txt
-VITE_DISCOVER=YOUR_DISCOVER_API_KEY
-```
+1. Duplicate `.env.example` as `.env.local` in the root directory and fill in the required values
+1. See `functions/README.md` for instructions on setting up the Firebase Functions
 
 ### Publishing Services to ArcGIS Server
 

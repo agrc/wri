@@ -86,6 +86,18 @@ VITE_DEV_USER_TOKEN=dev-admin-token
 
 Run `npm run seed` inside `functions/` after running migrations to populate the test users.
 
+### Local Development — Auto-load Real User Credentials (`start:with-db`)
+
+When using the root script `npm run start:with-db`, the app loads your `UserKey`/`Token` from the database automatically instead of relying on a hard-coded pair in `.env.local`.
+
+Set this in root `.env.local`:
+
+```text
+DEV_USER_EMAIL=your.email@example.com
+```
+
+The startup script reads `UserKey`/`Token` for `DEV_USER_EMAIL` from the database and injects them at runtime (along with `USE_PROD_DB=true`), so you do not need to keep manual key/token values in `.env.local`.
+
 ## Project Structure
 
 ```bash

@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "start": "concurrently 'cd functions && npm run build:watch' 'npm run dev:vite' 'npm run dev:firebase-emulators'",
     "start:ci": "vite --host",
-    "start:with-db": "cross-env USE_PROD_DB=true npm run start",
+    "start:with-db": "npm run --prefix functions start:admin",
     "storybook": "storybook dev -p 6006",
     "test": "vitest"
   },

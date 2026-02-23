@@ -4,7 +4,7 @@ import { tv } from 'tailwind-variants';
 import { composeTailwindRenderProps } from './utils';
 
 const classes = tv({
-  base: 'relative flex transform-gpu flex-col gap-y-2 rounded-md px-2 py-1 transition',
+  base: 'relative m-1 flex transform-gpu flex-col gap-y-2 rounded-md px-2 py-2 transition',
   variants: {
     isSelected: {
       true: 'selected:scale-105 selected:ring-2 selected:ring-inset selected:ring-secondary-600 selected:focus:ring-2 selected:focus:ring-accent-300 dark:selected:ring-primary-600 dark:selected:focus:ring-accent-300',

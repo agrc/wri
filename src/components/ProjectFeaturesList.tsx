@@ -1,5 +1,5 @@
 import { Button, Tooltip } from '@ugrc/utah-design-system';
-import { BookOpenText } from 'lucide-react';
+import { BookOpenText, Pencil, Trash2 } from 'lucide-react';
 import React, { type JSX } from 'react';
 import { GridList, GridListSection, Toolbar, TooltipTrigger, type Key, type Selection } from 'react-aria-components';
 import { enrichFeature, useFeatureSelection } from './contexts';
@@ -76,6 +76,7 @@ const getFirstKey = (selection: Selection | Key | null | undefined): Key | undef
 
 type Props = {
   projectId: number;
+  allowEdits: boolean;
   polygons: PolygonFeatures;
   lines: Feature[];
   points: Feature[];
@@ -87,6 +88,7 @@ type Props = {
 
 export const ProjectFeaturesList: React.FC<Props> = ({
   projectId,
+  allowEdits,
   polygons,
   lines,
   points,
@@ -110,6 +112,40 @@ export const ProjectFeaturesList: React.FC<Props> = ({
     return (
       <Toolbar aria-label="Feature options" className="flex gap-x-1">
         {opacityControl}
+        {allowEdits && isSelected && (
+          <>
+            <TooltipTrigger>
+              <div>
+                <Button
+                  variant="icon"
+                  className="h-8 min-w-8 rounded border border-zinc-400"
+                  onPress={() => {
+                    alert('Feature editing not yet implemented');
+                  }}
+                  aria-label="Edit feature"
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </div>
+              <Tooltip>Edit Feature</Tooltip>
+            </TooltipTrigger>
+            <TooltipTrigger>
+              <div>
+                <Button
+                  variant="icon"
+                  className="h-8 min-w-8 rounded border border-zinc-400"
+                  onPress={() => {
+                    alert('Feature deleting not yet implemented');
+                  }}
+                  aria-label="Delete feature"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+              <Tooltip>Delete Feature</Tooltip>
+            </TooltipTrigger>
+          </>
+        )}
         {onViewDetails && isSelected && (
           <TooltipTrigger>
             <div>

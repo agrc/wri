@@ -24,5 +24,8 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    test: {
+      include: ['**/*.{test,spec}.{ts,tsx}'],
+    },
   };
 });

@@ -2,7 +2,7 @@ import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
-import { convertMetersToAcres, convertMetersToMiles, processRollup, throwIfNoFormData } from '../utils.js';
+import { convertMetersToAcres, convertMetersToMiles, processRollup, throwIfNoFormData, canEditProject } from '../utils.js';
 
 /**
  * Handler for project data requests
@@ -190,51 +190,9 @@ export const projectHandler = async ({ data }: CallableRequest) => {
       throw new HttpsError('not-found', `Project ${id} not found`);
     }
 
-    // Compute allowEdits — matches the logic from the old .NET ProjectController.
-    // key/token are optional; if absent the project data is still returned with allowEdits: false.
-    let allowEdits = false;
-
-    if (key && token) {
-      const user = await db
-        .select({ userId: 'User_ID', userGroup: 'user_group' })
-        .from('USERS')
-        .where('UserKey', key)
-        .andWhere('Token', token)
-        .andWhere('Active', 'YES')
-        .first();
-
-      if (user) {
-        const isAdmin = user.userGroup === 'GROUP_ADMIN';
-
-        // Condition 1: user found (already satisfied by reaching this block)
-        // Condition 2: not an anonymous or public user
-        const passesRoleCheck = !['GROUP_ANONYMOUS', 'GROUP_PUBLIC'].includes(user.userGroup.toUpperCase());
-
-        // Condition 3: project has features enabled, or user is admin
-        const passesFeaturesCheck = project.features.toUpperCase() !== 'NO' || isAdmin;
-
-        // Condition 4: project is not cancelled/completed, or user is admin
-        const passesStatusCheck = !['CANCELLED', 'COMPLETED'].includes(project.status.toUpperCase()) || isAdmin;
-
-        if (passesRoleCheck && passesFeaturesCheck && passesStatusCheck) {
-          // Condition 5: user is the project manager, a contributor, or an admin
-          const isProjectManager = user.userId === project.projectManagerFk;
-
-          if (isAdmin || isProjectManager) {
-            allowEdits = true;
-          } else {
-            const contributor = await db
-              .select('Contributor_ID')
-              .from('CONTRIBUTOR')
-              .where('User_FK', user.userId)
-              .andWhere('Project_FK', id)
-              .first();
-
-            allowEdits = contributor != null;
-          }
-        }
-      }
-    }
+    // compute allowEdits using shared helper; the helper already returns false
+    // when key/token are missing or the user/project fails any of the checks.
+    const allowEdits = await canEditProject(db, id, key, token);
 
     const processed = processRollup(rollup);
 

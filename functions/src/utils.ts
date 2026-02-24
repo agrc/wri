@@ -94,3 +94,69 @@ export const tableLookup: Record<string, string> = {
   pipeline: 'LINE',
   dam: 'LINE',
 };
+
+/**
+ * Determine whether a user may edit the specified project.
+ *
+ * Implementation mirrors the old .NET `ProjectController` logic
+ */
+export const canEditProject = async (
+  db: import('knex').Knex,
+  projectId: number,
+  key: string | null,
+  token: string | null,
+): Promise<boolean> => {
+  if (!key || !token) {
+    return false;
+  }
+
+  const project = await db
+    .select({
+      projectManagerFk: 'ProjectManager_ID',
+      status: 'Status',
+      features: 'Features',
+    })
+    .from('PROJECT')
+    .where('Project_ID', projectId)
+    .first();
+
+  if (!project) {
+    return false;
+  }
+
+  const user = await db
+    .select({ userId: 'User_ID', userGroup: 'user_group' })
+    .from('USERS')
+    .where('UserKey', key)
+    .andWhere('Token', token)
+    .andWhere('Active', 'YES')
+    .first();
+
+  if (!user) {
+    return false;
+  }
+
+  const isAdmin = user.userGroup === 'GROUP_ADMIN';
+
+  const passesRoleCheck = !['GROUP_ANONYMOUS', 'GROUP_PUBLIC'].includes(user.userGroup.toUpperCase());
+
+  const passesFeaturesCheck = project.features.toUpperCase() !== 'NO' || isAdmin;
+  const passesStatusCheck = !['CANCELLED', 'COMPLETED'].includes(project.status.toUpperCase()) || isAdmin;
+
+  if (!(passesRoleCheck && passesFeaturesCheck && passesStatusCheck)) {
+    return false;
+  }
+
+  if (isAdmin || user.userId === project.projectManagerFk) {
+    return true;
+  }
+
+  const contributor = await db
+    .select('Contributor_ID')
+    .from('CONTRIBUTOR')
+    .where('User_FK', user.userId)
+    .andWhere('Project_FK', projectId)
+    .first();
+
+  return contributor != null;
+};

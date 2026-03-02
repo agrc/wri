@@ -9,7 +9,9 @@
     "arcgisserver",
     "arcgissystem",
     "arcpy",
+    "AREAACTION",
     "AREAHERBICIDE",
+    "AREATREATMENT",
     "autodocs",
     "basemap",
     "betterknown",
@@ -17,6 +19,7 @@
     "cadastre",
     "EPSG",
     "escaperegexp",
+    "esmf",
     "esrijs",
     "firebaserc",
     "geocode",
@@ -27,6 +30,7 @@
     "Geospatial",
     "gnis",
     "hostingchannels",
+    "Imazapic",
     "Immer",
     "lods",
     "lucide",
@@ -65,6 +69,7 @@
     "USNG",
     "UWRI",
     "vite",
+    "webapi",
     "wkid"
   ],
   "editor.codeActionsOnSave": {

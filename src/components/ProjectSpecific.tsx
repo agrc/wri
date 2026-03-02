@@ -1,5 +1,5 @@
 import Collection from '@arcgis/core/core/Collection';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Switch, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
 import { httpsCallable } from 'firebase/functions';
 import { DiamondIcon } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
+import type { FeatureKind } from '../types';
 import { getUserCredentials } from '../utils/userCredentials';
 import {
   AdjacentProjects,
@@ -82,6 +83,8 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const [selected, setSelected] = useState<boolean>(true);
   const [selectedTab, setSelectedTab] = useState<string>('project');
   const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
+  const [featureError, setFeatureError] = useState<string | null>(null);
+  const [updateStatsError, setUpdateStatsError] = useState<string | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
   const { selectedFeature } = useFeatureSelection();
@@ -90,6 +93,37 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
 
   const getProjectInfo = httpsCallable(functions, 'project');
   const getFeatureInfo = httpsCallable(functions, 'feature');
+  const deleteFeatureFn = httpsCallable(functions, 'deleteFeature');
+
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({
+      featureId,
+      featureType,
+    }: {
+      featureId: number;
+      featureType: string;
+      featureKind: FeatureKind;
+    }) => {
+      const credentials = getUserCredentials();
+      await deleteFeatureFn({ projectId, featureId, featureType, ...credentials });
+    },
+    onSuccess: (_data, variables) => {
+      setFeatureError(null);
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+
+      const layerId = `project-${projectId}-feature-${variables.featureKind}`;
+      const layer = mapView?.map?.findLayerById(layerId) as __esri.FeatureLayer | undefined | null;
+      if (!layer) return;
+
+      layer
+        .queryFeatures({ where: `FeatureID=${variables.featureId}`, returnGeometry: false })
+        .then((results) => layer.applyEdits({ deleteFeatures: results.features }))
+        .catch((error) => console.error('Failed to remove feature from map layer:', error));
+    },
+    onError: (error) => setFeatureError(error.message ?? 'Failed to delete feature'),
+  });
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
@@ -259,51 +293,68 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                 </TabPanel>
                 <TabPanel shouldForceMount id="features" className="p-0 data-[inert]:hidden">
                   <div className="grid grid-cols-1 items-center gap-2">
-                    {data.allowEdits && (
-                      <Button
-                        variant="secondary"
-                        className="w-full"
-                        onPress={() => alert('Feature adding not yet implemented')}
-                      >
-                        Add Feature
-                      </Button>
+                    {deleteMutation.isPending ? (
+                      <List className="w-96" />
+                    ) : (
+                      <>
+                        {data.allowEdits && (
+                          <Button
+                            variant="secondary"
+                            className="w-full"
+                            onPress={() => alert('Feature adding not yet implemented')}
+                          >
+                            Add Feature
+                          </Button>
+                        )}
+                        <Switch aria-label="Zoom to selection" isSelected={selected} onChange={setSelected}>
+                          Zoom to selection
+                        </Switch>
+                        <ProjectFeaturesList
+                          projectId={projectId}
+                          allowEdits={data.allowEdits}
+                          polygons={data.polygons ?? {}}
+                          lines={data.lines ?? []}
+                          points={data.points ?? []}
+                          featureError={featureError}
+                          onDismissFeatureError={() => setFeatureError(null)}
+                          onDelete={(featureId, featureType, featureKind) =>
+                            deleteMutation.mutate({ featureId, featureType, featureKind })
+                          }
+                          onSelect={(details) => {
+                            setFeatureDetails(details);
+
+                            const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
+                            if (isActive === false) {
+                              clear();
+                            }
+
+                            return isActive;
+                          }}
+                          onClear={() => {
+                            clear();
+                            setFeatureDetails(null);
+                          }}
+                          onViewDetails={() => setSelectedTab('featureDetails')}
+                          renderOpacity={(layerId, oid) => {
+                            const layer = mapView?.map?.findLayerById(layerId) as
+                              | __esri.FeatureLayer
+                              | undefined
+                              | null;
+                            if (!mapView?.ready || !layer) return null;
+
+                            return <OpacityManager layer={layer as __esri.FeatureLayer} oid={oid} />;
+                          }}
+                        />
+                      </>
                     )}
-                    <Switch aria-label="Zoom to selection" isSelected={selected} onChange={setSelected}>
-                      Zoom to selection
-                    </Switch>
-                    <ProjectFeaturesList
-                      projectId={projectId}
-                      allowEdits={data.allowEdits}
-                      polygons={data.polygons ?? {}}
-                      lines={data.lines ?? []}
-                      points={data.points ?? []}
-                      onSelect={(details) => {
-                        setFeatureDetails(details);
-
-                        const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
-                        if (isActive === false) {
-                          clear();
-                        }
-
-                        return isActive;
-                      }}
-                      onClear={() => {
-                        clear();
-                        setFeatureDetails(null);
-                      }}
-                      onViewDetails={() => setSelectedTab('featureDetails')}
-                      renderOpacity={(layerId, oid) => {
-                        const layer = mapView?.map?.findLayerById(layerId) as __esri.FeatureLayer | undefined | null;
-                        if (!mapView?.ready || !layer) return null;
-
-                        return <OpacityManager layer={layer as __esri.FeatureLayer} oid={oid} />;
-                      }}
-                    />
                   </div>
                 </TabPanel>
                 <TabPanel shouldForceMount id="featureDetails" className="p-0 data-[inert]:hidden">
-                  {!selectedFeature && <>Select a feature to view details</>}
-                  {selectedFeature && (
+                  {deleteMutation.isPending ? (
+                    <List className="w-96" />
+                  ) : !selectedFeature ? (
+                    <>Select a feature to view details</>
+                  ) : (
                     <>
                       <div className="flex justify-between">
                         <p className="font-bold">{selectedFeature.type}</p>

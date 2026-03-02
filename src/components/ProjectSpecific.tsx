@@ -25,6 +25,7 @@ import { ErrorFallback } from './ErrorFallBack';
 import { useMap } from './hooks';
 import { useHighlight } from './hooks/useHighlight';
 import ProjectFeaturesList from './ProjectFeaturesList';
+import { UpdateProjectStatistics } from './UpdateProjectStatistics';
 
 export type Project = {
   id: number;
@@ -84,7 +85,6 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const [selectedTab, setSelectedTab] = useState<string>('project');
   const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
   const [featureError, setFeatureError] = useState<string | null>(null);
-  const [updateStatsError, setUpdateStatsError] = useState<string | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
   const { selectedFeature } = useFeatureSelection();
@@ -289,6 +289,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                       </div>
                     )}
                     <DownloadProjectData projectId={projectId} />
+                    <UpdateProjectStatistics projectId={projectId} allowEdits={data.allowEdits} />
                   </Group>
                 </TabPanel>
                 <TabPanel shouldForceMount id="features" className="p-0 data-[inert]:hidden">

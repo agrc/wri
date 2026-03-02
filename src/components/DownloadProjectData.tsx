@@ -1,8 +1,9 @@
 import { submitJob } from '@arcgis/core/rest/geoprocessor.js';
 import DataFile from '@arcgis/core/rest/support/DataFile';
 import { useMutation } from '@tanstack/react-query';
-import { Button, Spinner } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system';
 import { Download } from 'lucide-react';
+import { ErrorBanner } from './ErrorBanner';
 
 const GP_URL = `${import.meta.env.VITE_GIS_BASE_URL}/arcgis/rest/services/WRI/ToolboxAsync/GPServer/Download`;
 
@@ -34,23 +35,14 @@ async function executeDownload(projectId: number): Promise<string> {
 }
 
 export function DownloadProjectData({ projectId, downloadFn }: DownloadProjectDataProps) {
-  const { data, error, mutate, isPending } = useMutation({
+  const { data, error, mutate, isPending, reset } = useMutation({
     mutationFn: () => (downloadFn ?? executeDownload)(projectId),
   });
 
   return (
     <div className="mt-2 flex flex-col gap-2">
-      <Button variant="secondary" className="w-full" onPress={() => mutate()} isDisabled={isPending}>
-        {isPending ? (
-          <>
-            <div className="size-5">
-              <Spinner />
-            </div>
-            <span className="ml-2">Preparing download...</span>
-          </>
-        ) : (
-          <span>Request file geodatabase</span>
-        )}
+      <Button variant="secondary" className="w-full" onPress={() => mutate()} isPending={isPending}>
+        {isPending ? <span className="ml-2">Preparing download...</span> : <span>Request file geodatabase</span>}
       </Button>
       {data && (
         <a className="flex items-center justify-center gap-2" href={data} target="_blank" rel="noopener noreferrer">
@@ -58,11 +50,10 @@ export function DownloadProjectData({ projectId, downloadFn }: DownloadProjectDa
           Download ZIP
         </a>
       )}
-      {error && (
-        <div className="text-sm text-red-500">
-          {error instanceof Error ? error.message : 'Failed to generate download'}
-        </div>
-      )}
+      <ErrorBanner
+        message={error ? (error instanceof Error ? error.message : 'Failed to generate download') : null}
+        onDismiss={reset}
+      />
     </div>
   );
 }

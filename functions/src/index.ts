@@ -50,6 +50,16 @@ export const deleteFeature = onCall({ ...options, secrets: [databaseInformation]
 });
 
 /**
+ * Callable function for recalculating project-level spatial statistics
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const updateProjectStats = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+  const { updateProjectStatsHandler } = await import('./handlers/updateProjectStats.js');
+
+  return updateProjectStatsHandler(request);
+});
+
+/**
  * Health check endpoint for monitoring
  */
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {

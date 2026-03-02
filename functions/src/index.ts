@@ -40,6 +40,16 @@ export const feature = onCall({ ...options, secrets: [databaseInformation] }, as
 });
 
 /**
+ * Callable function for deleting a feature
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const deleteFeature = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+  const { deleteFeatureHandler } = await import('./handlers/deleteFeature.js');
+
+  return deleteFeatureHandler(request);
+});
+
+/**
  * Health check endpoint for monitoring
  */
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {

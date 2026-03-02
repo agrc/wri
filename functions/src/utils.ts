@@ -78,10 +78,12 @@ export const processRollup = (
   return result;
 };
 
+export type FeatureTable = 'POLY' | 'LINE' | 'POINT';
+
 /**
  * Lookup table for mapping feature types to database table names
  */
-export const tableLookup: Record<string, string> = {
+export const tableLookup: Record<string, FeatureTable> = {
   'terrestrial treatment area': 'POLY',
   'aquatic/riparian treatment area': 'POLY',
   'affected area': 'POLY',
@@ -93,6 +95,35 @@ export const tableLookup: Record<string, string> = {
   fence: 'LINE',
   pipeline: 'LINE',
   dam: 'LINE',
+};
+
+// Tag for SQL syntax highlighting (zero runtime cost — alias for String.raw)
+const sql = String.raw;
+
+/**
+ * Recalculates all project-level spatial statistics, including the centroid.
+ * Must be called inside a transaction after any feature create, update, or delete.
+ * Uses SQL Server spatial aggregate functions.
+ */
+export const updateProjectStats = async (trx: import('knex').Knex.Transaction, projectId: number) => {
+  await trx.raw(
+    sql`UPDATE PROJECT SET
+      TerrestrialSqMeters = (SELECT SUM(AreaSqMeters) FROM POLY WHERE Project_ID = :projectId AND LOWER(TypeDescription) = 'terrestrial treatment area'),
+      AqRipSqMeters = (SELECT SUM(AreaSqMeters) FROM POLY WHERE Project_ID = :projectId AND LOWER(TypeDescription) = 'aquatic/riparian treatment area'),
+      StreamLnMeters = (SELECT SUM(Intersection) FROM STREAM WHERE ProjectID = :projectId),
+      AffectedAreaSqMeters = (SELECT SUM(AreaSqMeters) FROM POLY WHERE Project_ID = :projectId AND LOWER(TypeDescription) = 'affected area'),
+      EasementAcquisitionSqMeters = (SELECT SUM(AreaSqMeters) FROM POLY WHERE Project_ID = :projectId AND LOWER(TypeDescription) = 'easement/acquisition'),
+      Centroid = (
+        SELECT geometry::ConvexHullAggregate(polygons.shape).STCentroid()
+        FROM (
+          SELECT geometry::ConvexHullAggregate(poly.Shape) AS shape FROM POLY poly WHERE poly.Project_ID = :projectId
+          UNION ALL SELECT geometry::EnvelopeAggregate(line.Shape) FROM LINE line WHERE line.Project_ID = :projectId
+          UNION ALL SELECT geometry::EnvelopeAggregate(point.Shape) FROM POINT point WHERE point.Project_ID = :projectId
+        ) polygons
+      )
+    WHERE Project_ID = :projectId`,
+    { projectId },
+  );
 };
 
 /**

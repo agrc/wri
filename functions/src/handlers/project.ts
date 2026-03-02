@@ -2,7 +2,13 @@ import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
-import { convertMetersToAcres, convertMetersToMiles, processRollup, throwIfNoFormData, canEditProject } from '../utils.js';
+import {
+  canEditProject,
+  convertMetersToAcres,
+  convertMetersToMiles,
+  processRollup,
+  throwIfNoFormData,
+} from '../utils.js';
 
 /**
  * Handler for project data requests
@@ -198,6 +204,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
 
     return {
       allowEdits,
+      ...processed,
       id: project.id,
       manager: project.manager,
       agency: project.agency,
@@ -210,7 +217,6 @@ export const projectHandler = async ({ data }: CallableRequest) => {
       aquatic: project.aquatic > 0 ? convertMetersToAcres(project.aquatic) : null,
       easement: project.easement > 0 ? convertMetersToAcres(project.easement) : null,
       stream: project.stream > 0 ? convertMetersToMiles(project.stream) : null,
-      ...processed,
       polygons: groupedPolygons,
       lines: features
         .filter((f) => f.origin === 'line')

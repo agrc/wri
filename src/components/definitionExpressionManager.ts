@@ -1,4 +1,5 @@
 import { type Selection } from 'react-stately';
+import type { FeatureKind } from '../types';
 import { featureTypes, projectStatus } from './data/filters';
 
 const allRecords = '';
@@ -7,8 +8,7 @@ const all = 'all' as const;
 const or = 'or' as const;
 const wriFunded = `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1)`;
 
-type GeometryKey = 'point' | 'line' | 'poly';
-const TABLES: Record<GeometryKey, string> = {
+const TABLES: Record<FeatureKind, string> = {
   point: 'POINT',
   line: 'LINE',
   poly: 'POLY',
@@ -16,7 +16,7 @@ const TABLES: Record<GeometryKey, string> = {
 
 type FeatureItem = { code: number; type: string };
 // Normalized: always return all keys, with either a list of items, '' for all, or '1=0' for none
-type NormalizedFeaturePredicates = Record<GeometryKey, FeatureItem[] | '' | typeof noRecords>;
+type NormalizedFeaturePredicates = Record<FeatureKind, FeatureItem[] | '' | typeof noRecords>;
 
 const addPossibleConjunction = (phrase: string) => {
   if (!phrase || [allRecords, noRecords].includes(phrase)) {
@@ -27,14 +27,14 @@ const addPossibleConjunction = (phrase: string) => {
 };
 
 const full = featureTypes.reduce(
-  (acc, { type }) => {
-    if (type === 'point') {
+  (acc, { kind }) => {
+    if (kind === 'point') {
       acc.point += 1;
     }
-    if (type === 'line') {
+    if (kind === 'line') {
       acc.line += 1;
     }
-    if (type === 'poly') {
+    if (kind === 'poly') {
       acc.poly += 1;
     }
     return acc;
@@ -51,7 +51,7 @@ const getFeatureTablePredicates = (keys: Selection): NormalizedFeaturePredicates
     };
   }
 
-  const buckets: Record<GeometryKey, FeatureItem[]> = {
+  const buckets: Record<FeatureKind, FeatureItem[]> = {
     point: [],
     line: [],
     poly: [],
@@ -62,7 +62,7 @@ const getFeatureTablePredicates = (keys: Selection): NormalizedFeaturePredicates
     if (!feature) {
       continue;
     }
-    buckets[feature.type as GeometryKey].push({ code: feature.code, type: `'${feature.featureType}'` });
+    buckets[feature.kind as FeatureKind].push({ code: feature.code, type: `'${feature.featureType}'` });
   }
 
   return {
@@ -95,15 +95,15 @@ const getProjectPredicate = (keys: Selection) => {
 // Small helpers to keep formatting identical across branches
 const featureStatusExpression = (predicateCsv: string) => `StatusDescription in(${predicateCsv})`;
 const centroidStatusExpression = (predicateCsv: string) => `Status in(${predicateCsv})`;
-const unionProjectIdSubqueries = (g: GeometryKey, items: FeatureItem[]) =>
+const unionProjectIdSubqueries = (g: FeatureKind, items: FeatureItem[]) =>
   `select Project_ID from ${TABLES[g]} where TypeDescription in(${items.map(({ type }) => type).join(',')})`;
-const intersectProjectIdSubqueries = (g: GeometryKey, items: FeatureItem[]) =>
+const intersectProjectIdSubqueries = (g: FeatureKind, items: FeatureItem[]) =>
   items
     .map(({ type }) => `Project_ID in(select Project_ID from ${TABLES[g]} where TypeDescription=${type})`)
     .join(' and ');
 
 const allTypesSelectedForAllGeometries = (predicates: NormalizedFeaturePredicates) =>
-  (['point', 'line', 'poly'] as GeometryKey[]).every((k) => predicates[k] === allRecords);
+  (['point', 'line', 'poly'] as FeatureKind[]).every((k) => predicates[k] === allRecords);
 
 const generateExpressions = (
   projectPredicate: string,
@@ -224,7 +224,7 @@ const generateExpressions = (
       featurePredicates.point === allRecords &&
       (featurePredicates.line !== allRecords || featurePredicates.poly !== allRecords)
     ) {
-      const values = featureTypes.filter((x) => x.type === 'point');
+      const values = featureTypes.filter((x) => x.kind === 'point');
       expressions.push(
         ...values.map(
           ({ featureType }) =>
@@ -244,7 +244,7 @@ const generateExpressions = (
       featurePredicates.line === allRecords &&
       (featurePredicates.point !== allRecords || featurePredicates.poly !== allRecords)
     ) {
-      const values = featureTypes.filter((x) => x.type === 'line');
+      const values = featureTypes.filter((x) => x.kind === 'line');
       expressions.push(
         ...values.map(
           ({ featureType }) =>
@@ -264,7 +264,7 @@ const generateExpressions = (
       featurePredicates.poly === allRecords &&
       (featurePredicates.point !== allRecords || featurePredicates.line !== allRecords)
     ) {
-      const values = featureTypes.filter((x) => x.type === 'poly');
+      const values = featureTypes.filter((x) => x.kind === 'poly');
       expressions.push(
         ...values.map(
           ({ featureType }) =>

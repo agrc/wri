@@ -1,7 +1,16 @@
-import { Button, Tooltip } from '@ugrc/utah-design-system';
+import { AlertDialog, Banner, Button, Modal, Tooltip } from '@ugrc/utah-design-system';
 import { BookOpenText, Pencil, Trash2 } from 'lucide-react';
 import React, { type JSX } from 'react';
-import { GridList, GridListSection, Toolbar, TooltipTrigger, type Key, type Selection } from 'react-aria-components';
+import {
+  DialogTrigger,
+  GridList,
+  GridListSection,
+  Toolbar,
+  TooltipTrigger,
+  type Key,
+  type Selection,
+} from 'react-aria-components';
+import type { FeatureKind } from '../types';
 import { enrichFeature, useFeatureSelection } from './contexts';
 import { FeatureCard } from './FeatureCard';
 import type { Feature, PolygonFeature, PolygonFeatures } from './ProjectSpecific';
@@ -20,8 +29,6 @@ type FeatureType =
   | 'fence'
   | 'pipeline'
   | 'dam';
-
-type FeatureKind = 'poly' | 'line' | 'point';
 
 const FEATURE_KEY_SEPARATOR = '|';
 const baseLayerIdByKind: Record<FeatureKind, string> = {
@@ -82,8 +89,11 @@ type Props = {
   points: Feature[];
   onSelect: (details: FeatureDetails) => boolean;
   onClear?: () => void;
+  onDelete?: (featureId: number, featureType: string, featureKind: FeatureKind) => void | Promise<void>;
   onViewDetails?: () => void;
   renderOpacity?: (layerId: string, oid?: number) => JSX.Element | null;
+  featureError?: string | null;
+  onDismissFeatureError?: () => void;
 };
 
 export const ProjectFeaturesList: React.FC<Props> = ({
@@ -94,13 +104,16 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   points,
   onSelect,
   onClear,
+  onDelete,
   onViewDetails,
   renderOpacity,
+  featureError,
+  onDismissFeatureError,
 }) => {
   const { setSelectedFeature } = useFeatureSelection();
   const [selectedKeys, setSelectedKeys] = React.useState<Selection>(new Set());
 
-  const renderControls = (kind: FeatureKind, featureId?: number | nullish) => {
+  const renderControls = (kind: FeatureKind, featureId?: number | nullish, featureType?: string) => {
     if (typeof featureId !== 'number') {
       return null;
     }
@@ -131,16 +144,25 @@ export const ProjectFeaturesList: React.FC<Props> = ({
             </TooltipTrigger>
             <TooltipTrigger>
               <div>
-                <Button
-                  variant="icon"
-                  className="h-8 min-w-8 rounded border border-zinc-400"
-                  onPress={() => {
-                    alert('Feature deleting not yet implemented');
-                  }}
-                  aria-label="Delete feature"
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                <DialogTrigger>
+                  <Button
+                    variant="icon"
+                    className="h-8 min-w-8 rounded border border-zinc-400"
+                    aria-label="Delete feature"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                  <Modal>
+                    <AlertDialog
+                      title="Delete Feature"
+                      variant="destructive"
+                      actionLabel="Delete"
+                      onAction={() => onDelete?.(featureId, featureType ?? '', kind)}
+                    >
+                      Are you sure you want to delete this feature? This action cannot be undone.
+                    </AlertDialog>
+                  </Modal>
+                </DialogTrigger>
               </div>
               <Tooltip>Delete Feature</Tooltip>
             </TooltipTrigger>
@@ -185,7 +207,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
           itemId={serializeFeatureKey('poly', feature.id)}
           title={feature.type}
           size={feature.size}
-          controls={renderControls('poly', feature.id)}
+          controls={renderControls('poly', feature.id, feature.type)}
         >
           {isRetreatment && <p className="pl-2">Retreatment</p>}
           {polyDetails.length > 0 && (
@@ -215,7 +237,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
           itemId={serializeFeatureKey('line', feature.id)}
           title={feature.type}
           size={feature.size}
-          controls={renderControls('line', feature.id)}
+          controls={renderControls('line', feature.id, feature.type)}
         >
           {featureDetails && <p className="pl-2">{featureDetails}</p>}
           {feature.description && <p className="pl-2">{feature.description}</p>}
@@ -238,7 +260,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
           itemId={serializeFeatureKey('point', feature.id)}
           title={feature.type}
           size={feature.size}
-          controls={renderControls('point', feature.id)}
+          controls={renderControls('point', feature.id, feature.type)}
         >
           <div className="pl-2">
             {featureDetails && <p>{featureDetails}</p>}
@@ -258,71 +280,85 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   ).filter((section) => section.items.length > 0);
 
   return (
-    <GridList
-      selectionMode="single"
-      className="flex flex-col gap-y-2 dark:text-zinc-100"
-      renderEmptyState={() => <p>This project has no features</p>}
-      onSelectionChange={(selection: Selection) => {
-        setSelectedKeys(selection);
+    <>
+      {featureError && (
+        <Banner className="m-0 mx-0 mt-2 max-w-full">
+          <div className="flex items-start justify-between gap-2">
+            <span>{featureError}</span>
+            {onDismissFeatureError && (
+              <Button variant="icon" aria-label="Dismiss error" className="shrink-0" onPress={onDismissFeatureError}>
+                ✕
+              </Button>
+            )}
+          </div>
+        </Banner>
+      )}
+      <GridList
+        selectionMode="single"
+        className="flex flex-col gap-y-2 dark:text-zinc-100"
+        renderEmptyState={() => <p>This project has no features</p>}
+        onSelectionChange={(selection: Selection) => {
+          setSelectedKeys(selection);
 
-        const parsed = parseFeatureKey(getFirstKey(selection));
-        if (!parsed) {
-          setSelectedFeature(null);
-          onClear?.();
+          const parsed = parseFeatureKey(getFirstKey(selection));
+          if (!parsed) {
+            setSelectedFeature(null);
+            onClear?.();
 
-          return;
-        }
+            return;
+          }
 
-        // Look up the full feature data based on the kind and id
-        let foundFeature: Feature | PolygonFeature | undefined;
-        let polyGroup: PolygonFeature[] | undefined;
+          // Look up the full feature data based on the kind and id
+          let foundFeature: Feature | PolygonFeature | undefined;
+          let polyGroup: PolygonFeature[] | undefined;
 
-        if (parsed.kind === 'poly') {
-          polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
-          foundFeature = polyGroup?.[0];
-        } else if (parsed.kind === 'line') {
-          foundFeature = lines.find((f) => f.id === parsed.id);
-        } else if (parsed.kind === 'point') {
-          foundFeature = points.find((f) => f.id === parsed.id);
-        }
+          if (parsed.kind === 'poly') {
+            polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
+            foundFeature = polyGroup?.[0];
+          } else if (parsed.kind === 'line') {
+            foundFeature = lines.find((f) => f.id === parsed.id);
+          } else if (parsed.kind === 'point') {
+            foundFeature = points.find((f) => f.id === parsed.id);
+          }
 
-        if (!foundFeature) {
-          setSelectedFeature(null);
-          onClear?.();
+          if (!foundFeature) {
+            setSelectedFeature(null);
+            onClear?.();
 
-          return;
-        }
+            return;
+          }
 
-        // Enrich feature using context helper
-        const enrichedFeature =
-          parsed.kind === 'poly'
-            ? enrichFeature({ kind: 'poly', feature: foundFeature as PolygonFeature, polyGroup: polyGroup! })
-            : parsed.kind === 'line'
-              ? enrichFeature({ kind: 'line', feature: foundFeature })
-              : enrichFeature({ kind: 'point', feature: foundFeature });
+          // Enrich feature using context helper
+          const enrichedFeature =
+            parsed.kind === 'poly'
+              ? enrichFeature({ kind: 'poly', feature: foundFeature as PolygonFeature, polyGroup: polyGroup! })
+              : parsed.kind === 'line'
+                ? enrichFeature({ kind: 'line', feature: foundFeature })
+                : enrichFeature({ kind: 'point', feature: foundFeature });
 
-        // Store enriched feature in context
-        setSelectedFeature(enrichedFeature);
+          // Store enriched feature in context
+          setSelectedFeature(enrichedFeature);
 
-        const details: FeatureDetails = {
-          layer: getLayerId(projectId, parsed.kind),
-          id: parsed.id,
-          type: foundFeature.type.toLowerCase() as FeatureType,
-        };
+          const details: FeatureDetails = {
+            layer: getLayerId(projectId, parsed.kind),
+            id: parsed.id,
+            type: foundFeature.type.toLowerCase() as FeatureType,
+          };
 
-        const isActive = onSelect(details);
-        if (isActive === false) {
-          onClear?.();
-        }
-      }}
-      aria-label="Project features list"
-    >
-      {sections.map(({ kind, items }) => (
-        <GridListSection key={kind} aria-label={sectionHeadingByKind[kind]} className="flex flex-col gap-y-2">
-          {items}
-        </GridListSection>
-      ))}
-    </GridList>
+          const isActive = onSelect(details);
+          if (isActive === false) {
+            onClear?.();
+          }
+        }}
+        aria-label="Project features list"
+      >
+        {sections.map(({ kind, items }) => (
+          <GridListSection key={kind} aria-label={sectionHeadingByKind[kind]} className="flex flex-col gap-y-2">
+            {items}
+          </GridListSection>
+        ))}
+      </GridList>
+    </>
   );
 };
 

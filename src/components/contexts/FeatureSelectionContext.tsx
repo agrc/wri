@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import type { FeatureKind } from '../../types';
 import type { Feature, PolygonFeature } from '../ProjectSpecific';
 
 type SelectedFeature = (Feature | PolygonFeature) & {
-  kind: 'poly' | 'line' | 'point';
+  kind: FeatureKind;
   // Computed display properties
   details?: string[]; // For poly: action/subtype/herbicide combinations
   isRetreatment?: boolean; // For poly retreatment status

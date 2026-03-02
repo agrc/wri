@@ -1,4 +1,4 @@
-import { AlertDialog, Banner, Button, Modal, Tooltip } from '@ugrc/utah-design-system';
+import { AlertDialog, Button, Modal, Tooltip } from '@ugrc/utah-design-system';
 import { BookOpenText, Pencil, Trash2 } from 'lucide-react';
 import React, { type JSX } from 'react';
 import {
@@ -12,6 +12,7 @@ import {
 } from 'react-aria-components';
 import type { FeatureKind } from '../types';
 import { enrichFeature, useFeatureSelection } from './contexts';
+import { ErrorBanner } from './ErrorBanner';
 import { FeatureCard } from './FeatureCard';
 import type { Feature, PolygonFeature, PolygonFeatures } from './ProjectSpecific';
 
@@ -281,18 +282,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
 
   return (
     <>
-      {featureError && (
-        <Banner className="m-0 mx-0 mt-2 max-w-full">
-          <div className="flex items-start justify-between gap-2">
-            <span>{featureError}</span>
-            {onDismissFeatureError && (
-              <Button variant="icon" aria-label="Dismiss error" className="shrink-0" onPress={onDismissFeatureError}>
-                ✕
-              </Button>
-            )}
-          </div>
-        </Banner>
-      )}
+      <ErrorBanner message={featureError} onDismiss={onDismissFeatureError} />
       <GridList
         selectionMode="single"
         className="flex flex-col gap-y-2 dark:text-zinc-100"

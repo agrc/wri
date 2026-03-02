@@ -9,13 +9,14 @@ vi.mock('../utils.js', async (importOriginal) => {
   return {
     ...actual,
     canEditProject: vi.fn(),
+    updateProjectStats: vi.fn(),
   };
 });
 
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
-import { canEditProject } from '../utils.js';
+import { canEditProject, updateProjectStats } from '../utils.js';
 import { deleteFeatureHandler, deleteFeatureTransaction } from './deleteFeature.js';
 
 // ---------------------------------------------------------------------------
@@ -360,38 +361,14 @@ describe('deleteFeatureTransaction', () => {
   });
 
   describe('project stats update', () => {
-    it('executes a raw SQL update against the PROJECT table', async () => {
-      const { trx, rawCalls } = createMockTrx();
+    it('calls updateProjectStats with the correct trx and projectId', async () => {
+      vi.clearAllMocks();
+      const { trx } = createMockTrx();
 
       await deleteFeatureTransaction(trx, projectId, featureId, 'fence', 'LINE');
 
-      expect(rawCalls.length).toBe(1);
-      expect(rawCalls[0]).toContain('UPDATE PROJECT SET');
-    });
-
-    it('includes all expected stat columns in the raw SQL', async () => {
-      const { trx, rawCalls } = createMockTrx();
-
-      await deleteFeatureTransaction(trx, projectId, featureId, 'fence', 'LINE');
-
-      const sql = rawCalls[0];
-
-      expect(sql).toContain('TerrestrialSqMeters');
-      expect(sql).toContain('AqRipSqMeters');
-      expect(sql).toContain('StreamLnMeters');
-      expect(sql).toContain('AffectedAreaSqMeters');
-      expect(sql).toContain('EasementAcquisitionSqMeters');
-      expect(sql).toContain('Centroid');
-    });
-
-    it('runs the stats update after all deletes', async () => {
-      const { trx, deleteCalls, rawCalls } = createMockTrx();
-
-      await deleteFeatureTransaction(trx, projectId, featureId, 'fence', 'LINE');
-
-      // raw() should be called once, and only after deletes have run
-      expect(deleteCalls.length).toBeGreaterThan(0);
-      expect(rawCalls.length).toBe(1);
+      expect(updateProjectStats).toHaveBeenCalledOnce();
+      expect(updateProjectStats).toHaveBeenCalledWith(trx, projectId);
     });
   });
 });

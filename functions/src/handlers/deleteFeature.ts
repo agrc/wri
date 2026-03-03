@@ -51,14 +51,25 @@ export const deleteFeatureTransaction = async (
   featureType: string,
   table: FeatureTable,
 ) => {
+  // Note: deletePolyActions and deleteExtractedGis run before the ownership-checked delete below.
+  // This is safe because everything runs inside a transaction — if the ownership check fails and
+  // throws, the entire transaction rolls back, so none of the cascaded deletions are committed.
   if (table === 'POLY') {
     await deletePolyActions(trx, featureId);
   }
 
   await deleteExtractedGis(trx, featureId, table);
 
-  // delete the feature itself
-  await trx(table).where('FeatureID', featureId).whereRaw('LOWER(TypeDescription) = ?', [featureType]).delete();
+  // delete the feature itself — also filter by Project_ID to prevent cross-project deletes
+  const deleted = await trx(table)
+    .where('FeatureID', featureId)
+    .where('Project_ID', projectId)
+    .whereRaw('LOWER(TypeDescription) = ?', [featureType])
+    .delete();
+
+  if (!deleted) {
+    throw new HttpsError('not-found', `Feature ${featureId} not found in project ${projectId}`);
+  }
 
   // Recalculate project-level spatial stats including centroid.
   // must run after deletions.

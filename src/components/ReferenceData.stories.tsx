@@ -61,7 +61,7 @@ layers.addMany([
     }),
   }),
   new FeatureLayer({
-    title: 'Watershed Areas',
+    title: 'HUC 10 Watersheds',
     url: '',
     fields: ['area'],
     id: 'reference-watershed-areas',

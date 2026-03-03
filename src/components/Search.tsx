@@ -30,7 +30,7 @@ const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearch
     searchFields: ['FO_NAME'],
     displayField: 'FO_NAME',
     exactMatch: false,
-    name: blmDistricts.title ?? 'BLM Districts',
+    name: blmDistricts.title ?? 'BLM Field Offices',
     placeholder: 'example: Fillmore',
     suggestionsEnabled: true,
     resultGraphicEnabled: true,

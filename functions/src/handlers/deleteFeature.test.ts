@@ -33,16 +33,23 @@ type DeleteCall = {
 /**
  * Creates a minimal Knex.Transaction mock that records delete operations and
  * raw SQL calls so tests can assert on what was executed.
+ *
+ * `featureDeleteReturn` controls the row count returned by `delete()` on the
+ * primary feature tables (POLY, LINE, POINT). Set it to `0` to simulate a
+ * feature that does not exist in the given project (cross-project ownership
+ * check).
  */
 const createMockTrx = ({
   areaActions = [] as { AreaActionId: number }[],
   areaTreatments = [] as { AreaTreatmentID: number }[],
+  featureDeleteReturn = 1,
 } = {}) => {
   const deleteCalls: DeleteCall[] = [];
   const rawCalls: string[] = [];
 
   const makeTableBuilder = (tableName: string) => {
     const currentCall: DeleteCall = { table: tableName };
+    const isFeatureTable = ['POLY', 'LINE', 'POINT'].includes(tableName);
 
     const builder = {
       where(col: string, val: unknown) {
@@ -63,6 +70,7 @@ const createMockTrx = ({
       },
       delete: vi.fn(async () => {
         deleteCalls.push({ ...currentCall });
+        return isFeatureTable ? featureDeleteReturn : 1;
       }),
     };
 
@@ -286,14 +294,14 @@ describe('deleteFeatureTransaction', () => {
       expect(streamCall?.where).toMatchObject({ FeatureID: featureId });
     });
 
-    it('deletes the POLY spatial row using FeatureID and a raw TypeDescription check', async () => {
+    it('deletes the POLY spatial row using FeatureID, Project_ID, and a raw TypeDescription check', async () => {
       const { trx, deleteCalls } = createMockTrx();
 
       await deleteFeatureTransaction(trx, projectId, featureId, 'terrestrial treatment area', 'POLY');
 
       const polyCall = deleteCalls.find((c) => c.table === 'POLY');
 
-      expect(polyCall?.where).toMatchObject({ FeatureID: featureId });
+      expect(polyCall?.where).toMatchObject({ FeatureID: featureId, Project_ID: projectId });
       expect(polyCall?.hasWhereRaw).toBe(true);
     });
   });
@@ -324,14 +332,14 @@ describe('deleteFeatureTransaction', () => {
       }
     });
 
-    it('deletes the LINE spatial row', async () => {
+    it('deletes the LINE spatial row scoped to the project', async () => {
       const { trx, deleteCalls } = createMockTrx();
 
       await deleteFeatureTransaction(trx, projectId, featureId, 'fence', 'LINE');
 
       const lineCall = deleteCalls.find((c) => c.table === 'LINE');
 
-      expect(lineCall?.where).toMatchObject({ FeatureID: featureId });
+      expect(lineCall?.where).toMatchObject({ FeatureID: featureId, Project_ID: projectId });
     });
   });
 
@@ -369,6 +377,35 @@ describe('deleteFeatureTransaction', () => {
 
       expect(updateProjectStats).toHaveBeenCalledOnce();
       expect(updateProjectStats).toHaveBeenCalledWith(trx, projectId);
+    });
+  });
+
+  describe('cross-project ownership check', () => {
+    it('throws not-found when the feature does not belong to the project', async () => {
+      const { trx } = createMockTrx({ featureDeleteReturn: 0 });
+
+      await expect(deleteFeatureTransaction(trx, projectId, featureId, 'fence', 'LINE')).rejects.toMatchObject({
+        code: 'not-found',
+      });
+    });
+
+    it('does not call updateProjectStats when the feature does not belong to the project', async () => {
+      vi.clearAllMocks();
+      const { trx } = createMockTrx({ featureDeleteReturn: 0 });
+
+      await expect(deleteFeatureTransaction(trx, projectId, featureId, 'fence', 'LINE')).rejects.toMatchObject({
+        code: 'not-found',
+      });
+
+      expect(updateProjectStats).not.toHaveBeenCalled();
+    });
+
+    it('throws not-found for POLY features that do not belong to the project', async () => {
+      const { trx } = createMockTrx({ featureDeleteReturn: 0 });
+
+      await expect(
+        deleteFeatureTransaction(trx, projectId, featureId, 'terrestrial treatment area', 'POLY'),
+      ).rejects.toMatchObject({ code: 'not-found' });
     });
   });
 });

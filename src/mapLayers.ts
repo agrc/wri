@@ -81,7 +81,7 @@ export const streams = new FeatureLayer({
   ],
 });
 export const watershedAreas = new FeatureLayer({
-  title: 'Watershed Areas',
+  title: 'HUC 10 Watersheds',
   id: 'reference-watershed-areas',
   url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/UtahWatershedsArea/FeatureServer/0',
   outFields: ['HUC_10', 'HU_10_Name'],
@@ -311,7 +311,7 @@ export const regions = new FeatureLayer({
   maxScale: 0, // this is required to override the default value from the service
 });
 export const blmDistricts = new FeatureLayer({
-  title: 'BLM Districts',
+  title: 'BLM Field Offices',
   id: 'reference-blm-districts',
   url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/BLMDistricts/FeatureServer',
   outFields: ['FO_NAME'],

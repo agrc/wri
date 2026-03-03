@@ -21,7 +21,7 @@ export const WriFundingToggle = () => {
         Funded by WRI
       </Switch>
       <p className="pt-0.5 text-sm italic text-zinc-600 dark:text-zinc-400">
-        Displaying {wriFunding ? 'WRI funded projects' : 'all project'}.
+        Displaying {wriFunding ? 'WRI funded projects' : 'all projects'}.
       </p>
     </div>
   );

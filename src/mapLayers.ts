@@ -29,7 +29,7 @@ export const landOwnership = new VectorTileLayer({
   id: 'reference-land-ownership',
   url: 'https://gis.trustlands.utah.gov/hosting/rest/services/Hosted/Land_Ownership_WM_VectorTile/VectorTileServer',
   visible: false,
-  opacity: 0.3,
+  opacity: 0.6,
   legendDescription: 'Owner',
 } as LegendMetadata);
 export const plss = new VectorTileLayer({
@@ -144,6 +144,7 @@ export const fireThreats = new WebTileLayer({
   title: 'Fire Threat Index',
   id: 'reference-fire-threat-index',
   visible: false,
+  opacity: 0.6,
   urlTemplate: 'https://utwrapcache.timmons.com/mapproxy/wmts/firethreatindex/webmercator/{level}/{col}/{row}.png',
 });
 export const precipitation = new FeatureLayer({
@@ -285,7 +286,7 @@ export const regions = new FeatureLayer({
       outline: new SimpleLineSymbol({
         style: 'solid',
         color: [43, 80, 78, 255],
-        width: 2,
+        width: 4,
       }),
     }),
   }),
@@ -324,7 +325,7 @@ export const blmDistricts = new FeatureLayer({
       outline: new SimpleLineSymbol({
         style: 'solid',
         color: [254, 230, 121, 255],
-        width: 2,
+        width: 4,
       }),
     }),
   }),
@@ -334,7 +335,7 @@ export const blmDistricts = new FeatureLayer({
         type: 'text',
         color: 'black',
         haloColor: [254, 230, 121, 255],
-        haloSize: 0.7,
+        haloSize: 3,
         font: {
           family: 'Ubuntu Mono',
           size: 12,

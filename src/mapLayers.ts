@@ -385,9 +385,13 @@ export const forestService = new FeatureLayer({
 createRenderer({
   layer: forestService,
   field: 'label_federal',
-}).then(({ renderer }) => {
-  forestService.renderer = renderer;
-});
+})
+  .then(({ renderer }) => {
+    forestService.renderer = renderer;
+  })
+  .catch((error) => {
+    console.error('Failed to create renderer for forestService layer.', error);
+  });
 
 export const sageGrouse = new FeatureLayer({
   title: 'Sage Grouse Areas',

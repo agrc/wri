@@ -92,7 +92,7 @@ export const MapContainer = () => {
     const selectorOptions: LayerSelectorProps['options'] = {
       view: mapView.current,
       quadWord: import.meta.env.VITE_DISCOVER,
-      baseLayers: ['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR'],
+      basemaps: ['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR', 'High Contrast'],
       position: 'top-right',
     };
 

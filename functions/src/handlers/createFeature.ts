@@ -425,7 +425,6 @@ export const createFeatureHandler = async ({ data }: CallableRequest) => {
       throw error;
     }
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new HttpsError('internal', `Failed to create feature: ${errorMessage}`);
+    throw new HttpsError('internal', 'Failed to create feature.');
   }
 };

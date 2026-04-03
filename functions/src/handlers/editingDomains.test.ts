@@ -25,6 +25,13 @@ const mockHerbicideRows = [{ HerbicideDescription: 'Imazapic' }, { HerbicideDesc
 
 const mockActionRows = [{ action: 'Initial' }, { action: 'Maintenance' }];
 
+const mockFeatureTypeRows = [
+  { description: 'terrestrial treatment area', featureClass: 'POLY' },
+  { description: 'affected area', featureClass: 'POLY' },
+  { description: 'guzzler', featureClass: 'POINT' },
+  { description: 'fence', featureClass: 'LINE' },
+];
+
 const createMockDb = () => {
   const mockQueryChain = {
     select: vi.fn().mockReturnThis(),
@@ -37,7 +44,7 @@ const createMockDb = () => {
 
   let callCount = 0;
 
-  // Return different data for each of the 4 parallel queries
+  // Return different data for each of the 5 parallel queries
   const resolvingChain = {
     ...mockQueryChain,
     then: (resolve: (val: unknown) => unknown) => {
@@ -45,7 +52,8 @@ const createMockDb = () => {
       if (callCount === 1) return Promise.resolve(mockPolyRows).then(resolve);
       if (callCount === 2) return Promise.resolve(mockPointLineRows).then(resolve);
       if (callCount === 3) return Promise.resolve(mockHerbicideRows).then(resolve);
-      return Promise.resolve(mockActionRows).then(resolve);
+      if (callCount === 4) return Promise.resolve(mockActionRows).then(resolve);
+      return Promise.resolve(mockFeatureTypeRows).then(resolve);
     },
   };
 
@@ -103,6 +111,19 @@ describe('editingDomainsHandler', () => {
     const result = await editingDomainsHandler();
 
     expect(result.pointLineActions).toEqual(['Initial', 'Maintenance']);
+  });
+
+  it('returns featureTypes map with correct table associations', async () => {
+    vi.mocked(getDb).mockResolvedValue(createMockDb() as never);
+
+    const result = await editingDomainsHandler();
+
+    expect(result.featureTypes).toEqual({
+      'terrestrial treatment area': 'POLY',
+      'affected area': 'POLY',
+      guzzler: 'POINT',
+      fence: 'LINE',
+    });
   });
 
   it('wraps unexpected DB errors in an internal HttpsError', async () => {

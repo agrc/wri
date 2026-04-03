@@ -127,9 +127,9 @@ export const updateProjectStats = async (trx: import('knex').Knex.Transaction, p
 };
 
 /**
- * Determine whether a user may edit the specified project.
+ * Types and validation for feature action attributes.
  *
- * Implementation mirrors the old .NET `ProjectController` logic
+ * Mirrors the old .NET AttributeValidator.ValidAttributesFor() logic.
  */
 export type PolyTreatment = {
   treatment: string;
@@ -208,6 +208,11 @@ export const validateActions = (
   }
 };
 
+/**
+ * Determine whether a user may edit the specified project.
+ *
+ * Implementation mirrors the old .NET `ProjectController` logic
+ */
 export const canEditProject = async (
   db: import('knex').Knex,
   projectId: number,

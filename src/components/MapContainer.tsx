@@ -26,7 +26,8 @@ import {
   streams,
   watershedAreas,
 } from '../mapLayers.ts';
-import { ProjectContext } from './contexts';
+import { ProjectContext, useFeatureSelection } from './contexts';
+import { getFeatureKindFromLayerId } from './featureSelection';
 import { useMap, useProjectNavigation } from './hooks';
 import { NavigationHistory } from './NavigationHistory';
 import { PrintMap } from './PrintMap.tsx';
@@ -48,7 +49,9 @@ export const MapContainer = () => {
   const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
   const [layersReady, setLayersReady] = useState(false);
   const hasAddedLayers = useRef(false);
+  const projectFeatureClickHandler = useRef<__esri.Handle | null>(null);
   const projectContext = useContext(ProjectContext);
+  const { clearSelection, isMapSelectionEnabled, selectFeature } = useFeatureSelection();
   let currentProject = 0;
 
   if (projectContext) {
@@ -146,7 +149,14 @@ export const MapContainer = () => {
 
     const where = `Project_ID=${currentProject}`;
     const featureIdFieldName = 'FeatureID';
-    const outFields = [featureIdFieldName, 'Project_ID', 'TypeDescription', 'StatusDescription', 'Title'];
+    const outFieldDefs = [
+      { name: featureIdFieldName, type: 'integer' as const },
+      { name: 'Project_ID', type: 'integer' as const },
+      { name: 'TypeDescription', type: 'string' as const },
+      { name: 'StatusDescription', type: 'string' as const },
+      { name: 'Title', type: 'string' as const },
+    ];
+    const outFields = outFieldDefs.map((f) => f.name);
 
     const getFeatures = async () => {
       for (const layer of operationalLayers.current) {
@@ -168,12 +178,26 @@ export const MapContainer = () => {
           }),
         ];
 
+        // Use a synthetic OBJECTID (seeded from FeatureID) rather than making FeatureID the
+        // objectIdField. For client-side source layers, ArcGIS auto-generates OIDs during
+        // applyEdits starting from max(existing OIDs) + 1. If FeatureID were the objectIdField
+        // and the source was empty (no existing features of this type), the first added feature
+        // would get OID=1, overwriting the real database FeatureID. A separate OBJECTID field
+        // prevents that — FeatureID remains an ordinary integer attribute that applyEdits never
+        // touches.
+        const fields = [
+          new Field({ name: 'OBJECTID', type: 'oid' }),
+          ...outFieldDefs.map((f) => new Field(f)),
+          new Field({ name: virtualFieldName, type: 'double' }),
+        ];
+
         const featureLayer = new FeatureLayer({
           id: `project-${currentProject}-` + layer.id,
           title: layer.title,
           geometryType: layer.geometryType,
-          fields: featureSet.fields.concat([new Field({ name: virtualFieldName, type: 'double' })]),
-          objectIdField: featureIdFieldName,
+          fields,
+          outFields: ['*'],
+          objectIdField: 'OBJECTID',
           labelingInfo: layer.labelingInfo,
           source: featureSet.features.map(
             (feature) =>
@@ -181,6 +205,7 @@ export const MapContainer = () => {
                 geometry: feature.geometry,
                 attributes: {
                   ...feature.attributes,
+                  OBJECTID: feature.attributes[featureIdFieldName],
                   [virtualFieldName]: layer.opacity ?? 1,
                 },
               }),
@@ -253,6 +278,67 @@ export const MapContainer = () => {
       layer.visible = false;
     });
   }, [currentProject, isReady, layersReady]);
+
+  useEffect(() => {
+    if (!isReady || !layersReady || currentProject === 0 || !isMapSelectionEnabled || !mapView.current) {
+      if (projectFeatureClickHandler.current) {
+        projectFeatureClickHandler.current.remove();
+        projectFeatureClickHandler.current = null;
+      }
+
+      return;
+    }
+
+    if (!projectFeatureClickHandler.current) {
+      projectFeatureClickHandler.current = mapView.current.on('click', (event) => {
+        const include = mapComponent.current?.layers
+          .filter((layer) => layer.id.startsWith(`project-${currentProject}-feature-`))
+          .toArray() as __esri.FeatureLayer[] | undefined;
+
+        if (!include || include.length === 0) {
+          return;
+        }
+
+        mapView
+          .current!.hitTest(event, { include })
+          .then((response) => {
+            const match = response.results.find((result) => {
+              const layerId = (result as __esri.MapViewGraphicHit).graphic?.layer?.id;
+
+              return typeof layerId === 'string' && layerId.startsWith(`project-${currentProject}-feature-`);
+            }) as __esri.MapViewGraphicHit | undefined;
+
+            if (!match) {
+              clearSelection();
+
+              return;
+            }
+
+            const layerId = typeof match.graphic.layer?.id === 'string' ? match.graphic.layer.id : undefined;
+            const kind = getFeatureKindFromLayerId(layerId);
+            const featureId = Number(match.graphic.attributes?.FeatureID);
+
+            if (!kind || !Number.isFinite(featureId)) {
+              clearSelection();
+
+              return;
+            }
+
+            selectFeature({ projectId: currentProject, kind, id: featureId }, 'map');
+          })
+          .catch((error) => {
+            console.error('Error selecting project feature from map click:', error);
+          });
+      });
+    }
+
+    return () => {
+      if (projectFeatureClickHandler.current) {
+        projectFeatureClickHandler.current.remove();
+        projectFeatureClickHandler.current = null;
+      }
+    };
+  }, [clearSelection, currentProject, isMapSelectionEnabled, isReady, layersReady, selectFeature]);
 
   useProjectNavigation(mapView, operationalLayers, currentProject === 0 && layersReady);
 

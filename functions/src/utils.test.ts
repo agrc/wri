@@ -1,6 +1,87 @@
+import { HttpsError } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { describe, expect, it } from 'vitest';
-import { canEditProject } from './utils.js';
+import {
+  booleanToRetreatment,
+  canEditProject,
+  isRetreatmentEligibleFeatureType,
+  parseRetreatmentInput,
+  retreatmentToBoolean,
+  validateActions,
+  validateRetreatment,
+} from './utils.js';
+
+describe('retreatment helpers', () => {
+  it('only allows retreatment for terrestrial and aquatic treatment areas', () => {
+    expect(isRetreatmentEligibleFeatureType('Terrestrial Treatment Area')).toBe(true);
+    expect(isRetreatmentEligibleFeatureType('Aquatic/Riparian Treatment Area')).toBe(true);
+    expect(isRetreatmentEligibleFeatureType('Affected Area')).toBe(false);
+    expect(isRetreatmentEligibleFeatureType('Easement/Acquisition')).toBe(false);
+  });
+
+  it('rejects retreatment for unsupported feature types', () => {
+    expect(() => validateRetreatment('affected area', 'Y')).toThrow(HttpsError);
+    expect(() => validateRetreatment('easement/acquisition', 'Y')).toThrow(
+      'Retreatment is only supported for terrestrial and aquatic treatment areas',
+    );
+  });
+
+  it('allows non-retreatment values for unsupported feature types', () => {
+    expect(() => validateRetreatment('affected area', 'N')).not.toThrow();
+    expect(() => validateRetreatment('dam', 'N')).not.toThrow();
+  });
+
+  it('converts booleans and strings to persistence values', () => {
+    expect(booleanToRetreatment(true)).toBe('Y');
+    expect(booleanToRetreatment(false)).toBe('N');
+    expect(parseRetreatmentInput(true)).toBe('Y');
+    expect(parseRetreatmentInput(false)).toBe('N');
+    expect(parseRetreatmentInput('Y')).toBe('Y');
+    expect(parseRetreatmentInput('true')).toBe('Y');
+    expect(parseRetreatmentInput(undefined)).toBe('N');
+  });
+
+  it('converts persistence values to booleans', () => {
+    expect(retreatmentToBoolean('Y')).toBe(true);
+    expect(retreatmentToBoolean('N')).toBe(false);
+    expect(retreatmentToBoolean(null)).toBe(false);
+  });
+});
+
+describe('validateActions', () => {
+  it('allows a singular herbicide value for Herbicide Application polygon actions', () => {
+    expect(() =>
+      validateActions('POLY', 'terrestrial treatment area', [
+        {
+          action: 'Herbicide Application',
+          treatments: [{ treatment: 'Aerial (helicopter)', herbicide: 'Imazapic' }],
+        },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('allows null herbicide values for Herbicide Application polygon actions', () => {
+    expect(() =>
+      validateActions('POLY', 'terrestrial treatment area', [
+        {
+          action: 'Herbicide Application',
+          treatments: [{ treatment: 'Aerial (helicopter)', herbicide: null }],
+        },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('rejects herbicide values for non-herbicide polygon actions', () => {
+    expect(() =>
+      validateActions('POLY', 'terrestrial treatment area', [
+        {
+          action: 'Mechanical treatment',
+          treatments: [{ treatment: 'Roller/crusher', herbicide: 'Imazapic' }],
+        },
+      ]),
+    ).toThrow('Herbicide values are only allowed for Herbicide Application actions');
+  });
+});
 
 describe('canEditProject', () => {
   type TableName = 'PROJECT' | 'USERS' | 'CONTRIBUTOR';

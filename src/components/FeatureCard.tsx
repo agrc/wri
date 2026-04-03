@@ -42,7 +42,7 @@ export type FeatureCardProps = {
 
 export const FeatureCard = ({ itemId, title, size, controls, children }: FeatureCardProps) => {
   return (
-    <GridListItem id={itemId} className={gridItemClassName} textValue={title ?? undefined}>
+    <GridListItem id={itemId} className={gridItemClassName} textValue={title ?? undefined} data-feature-key={itemId}>
       <div>
         <div className="flex justify-between">
           <p className="font-bold">{title}</p>

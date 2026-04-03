@@ -1,4 +1,6 @@
 import Collection from '@arcgis/core/core/Collection';
+import { fromJSON } from '@arcgis/core/geometry/support/jsonUtils';
+import Graphic from '@arcgis/core/Graphic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Switch, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
 import { httpsCallable } from 'firebase/functions';
@@ -7,7 +9,9 @@ import { useRef, useState } from 'react';
 import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
-import type { FeatureKind } from '../types';
+import { useEditingDomains } from '../hooks/useEditingDomains';
+import { POLY_OPACITY } from '../mapLayers';
+import type { CreateFeatureData, FeatureKind } from '../types';
 import { getUserCredentials } from '../utils/userCredentials';
 import {
   AdjacentProjects,
@@ -20,6 +24,7 @@ import {
   titleCase,
   type ReferenceLayer,
 } from './';
+import AddFeatureForm from './AddFeatureForm';
 import { FeatureSelectionProvider, useFeatureSelection } from './contexts';
 import { ErrorFallback } from './ErrorFallBack';
 import { useMap } from './hooks';
@@ -85,6 +90,8 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const [selectedTab, setSelectedTab] = useState<string>('project');
   const [featureDetails, setFeatureDetails] = useState<FeatureDetailsContract | null>(null);
   const [featureError, setFeatureError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const { mapView, currentMapScale } = useMap();
   const { highlight, clear } = useHighlight(mapView);
   const { selectedFeature } = useFeatureSelection();
@@ -94,8 +101,28 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const getProjectInfo = httpsCallable(functions, 'project');
   const getFeatureInfo = httpsCallable(functions, 'feature');
   const deleteFeatureFn = httpsCallable(functions, 'deleteFeature');
+  const createFeatureFn = httpsCallable(functions, 'createFeature');
 
   const queryClient = useQueryClient();
+
+  const logDeleteFeatureResult = (results: __esri.EditsResult, featureId: number) => {
+    const deleteResult = results.deleteFeatureResults?.[0];
+
+    if (!deleteResult) {
+      console.error(
+        'Failed to remove feature from map layer:',
+        new Error('No deleteFeatureResults returned from applyEdits'),
+      );
+      return;
+    }
+
+    if ('error' in deleteResult && deleteResult.error) {
+      console.error('Failed to remove feature from map layer:', deleteResult.error);
+      return;
+    }
+
+    console.log(`Feature removed from map layer: ${featureId}`);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async ({
@@ -113,16 +140,84 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
       setFeatureError(null);
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
 
-      const layerId = `project-${projectId}-feature-${variables.featureKind}`;
-      const layer = mapView?.map?.findLayerById(layerId) as __esri.FeatureLayer | undefined | null;
+      const layer = getFeatureLayer(variables.featureKind);
       if (!layer) return;
 
       layer
         .queryFeatures({ where: `FeatureID=${variables.featureId}`, returnGeometry: false })
         .then((results) => layer.applyEdits({ deleteFeatures: results.features }))
+        .then((results) => logDeleteFeatureResult(results, variables.featureId))
         .catch((error) => console.error('Failed to remove feature from map layer:', error));
     },
     onError: (error) => setFeatureError(error.message ?? 'Failed to delete feature'),
+  });
+
+  const getFeatureLayer = (kind: FeatureKind) =>
+    mapView?.map?.findLayerById(`project-${projectId}-feature-${kind}`) as __esri.FeatureLayer | undefined | null;
+
+  const logAddFeatureResult = (results: __esri.EditsResult, featureId: number) => {
+    console.log('Add feature results from applyEdits:', results);
+    const addResult = results.addFeatureResults?.[0];
+
+    if (!addResult) {
+      console.error('Failed to add feature to map layer:', new Error('No addFeatureResults returned from applyEdits'));
+      return;
+    }
+
+    if ('error' in addResult && addResult.error) {
+      console.error('Failed to add feature to map layer:', addResult.error);
+      return;
+    }
+
+    console.log(`Feature added to map layer: ${featureId}`);
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async (formData: CreateFeatureData) => {
+      setCreateError(null);
+      const credentials = getUserCredentials();
+      const result = await createFeatureFn({ ...formData, ...credentials });
+      return result.data as { message: string; featureId: number; statusDescription: string | null };
+    },
+    onSuccess: (_data, variables) => {
+      setIsCreating(false);
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+
+      const featureTable = editingDomainsQuery.data?.featureTypes[variables.featureType];
+
+      if (!featureTable) {
+        const errorMessage = `Unable to determine map layer for feature type "${variables.featureType}".`;
+        console.error(errorMessage, {
+          featureType: variables.featureType,
+          featureId: _data.featureId,
+        });
+        setCreateError(errorMessage);
+        return;
+      }
+
+      const kind: FeatureKind = featureTable.toLowerCase() as FeatureKind;
+      const layer = getFeatureLayer(kind);
+
+      if (layer) {
+        const geom = fromJSON(variables.geometry);
+        const graphic = new Graphic({
+          geometry: geom,
+          attributes: {
+            FeatureID: _data.featureId,
+            Project_ID: variables.projectId,
+            TypeDescription: variables.featureType,
+            StatusDescription: _data.statusDescription,
+            Title: null,
+            _opacity: kind === 'poly' ? POLY_OPACITY : 1,
+          },
+        });
+        layer
+          .applyEdits({ addFeatures: [graphic] })
+          .then((results) => logAddFeatureResult(results, _data.featureId))
+          .catch((error) => console.error('Failed to add feature to map layer:', error));
+      }
+    },
+    onError: (error) => setCreateError(error.message ?? 'Failed to create feature'),
   });
 
   const allLayers = mapView?.map?.layers ?? new Collection();
@@ -138,6 +233,8 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     },
     enabled: projectId > 0,
   });
+
+  const editingDomainsQuery = useEditingDomains(data?.allowEdits ?? false);
 
   const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
     queryKey: ['featureDetails', projectId, featureDetails],
@@ -293,62 +390,69 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                   </Group>
                 </TabPanel>
                 <TabPanel shouldForceMount id="features" className="p-0 data-[inert]:hidden">
-                  <div className="grid grid-cols-1 items-center gap-2">
-                    {deleteMutation.isPending ? (
-                      <List className="w-96" />
-                    ) : (
-                      <>
-                        {data.allowEdits && (
-                          <Button
-                            variant="secondary"
-                            className="w-full"
-                            onPress={() => alert('Feature adding not yet implemented')}
-                          >
-                            Add Feature
-                          </Button>
-                        )}
-                        <Switch aria-label="Zoom to selection" isSelected={selected} onChange={setSelected}>
-                          Zoom to selection
-                        </Switch>
-                        <ProjectFeaturesList
-                          projectId={projectId}
-                          allowEdits={data.allowEdits}
-                          polygons={data.polygons ?? {}}
-                          lines={data.lines ?? []}
-                          points={data.points ?? []}
-                          featureError={featureError}
-                          onDismissFeatureError={() => setFeatureError(null)}
-                          onDelete={(featureId, featureType, featureKind) =>
-                            deleteMutation.mutate({ featureId, featureType, featureKind })
-                          }
-                          onSelect={(details) => {
-                            setFeatureDetails(details);
-
-                            const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
-                            if (isActive === false) {
-                              clear();
+                  {isCreating ? (
+                    <AddFeatureForm
+                      projectId={projectId}
+                      domains={editingDomainsQuery.data}
+                      isSaving={createMutation.isPending}
+                      saveError={createError}
+                      onCancel={() => setIsCreating(false)}
+                      onSave={(formData) => createMutation.mutate(formData)}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-1 items-center gap-2">
+                      {deleteMutation.isPending ? (
+                        <List className="w-96" />
+                      ) : (
+                        <>
+                          {data.allowEdits && (
+                            <Button variant="secondary" className="w-full" onPress={() => setIsCreating(true)}>
+                              Add Feature
+                            </Button>
+                          )}
+                          <Switch aria-label="Zoom to selection" isSelected={selected} onChange={setSelected}>
+                            Zoom to selection
+                          </Switch>
+                          <ProjectFeaturesList
+                            projectId={projectId}
+                            allowEdits={data.allowEdits}
+                            polygons={data.polygons ?? {}}
+                            lines={data.lines ?? []}
+                            points={data.points ?? []}
+                            featureError={featureError}
+                            onDismissFeatureError={() => setFeatureError(null)}
+                            onDelete={(featureId, featureType, featureKind) =>
+                              deleteMutation.mutate({ featureId, featureType, featureKind })
                             }
+                            onSelect={(details) => {
+                              setFeatureDetails(details);
 
-                            return isActive;
-                          }}
-                          onClear={() => {
-                            clear();
-                            setFeatureDetails(null);
-                          }}
-                          onViewDetails={() => setSelectedTab('featureDetails')}
-                          renderOpacity={(layerId, oid) => {
-                            const layer = mapView?.map?.findLayerById(layerId) as
-                              | __esri.FeatureLayer
-                              | undefined
-                              | null;
-                            if (!mapView?.ready || !layer) return null;
+                              const isActive = highlight(details, { enabled: selected, extentScale: 1.1 });
+                              if (isActive === false) {
+                                clear();
+                              }
 
-                            return <OpacityManager layer={layer as __esri.FeatureLayer} oid={oid} />;
-                          }}
-                        />
-                      </>
-                    )}
-                  </div>
+                              return isActive;
+                            }}
+                            onClear={() => {
+                              clear();
+                              setFeatureDetails(null);
+                            }}
+                            onViewDetails={() => setSelectedTab('featureDetails')}
+                            renderOpacity={(layerId, oid) => {
+                              const layer = mapView?.map?.findLayerById(layerId) as
+                                | __esri.FeatureLayer
+                                | undefined
+                                | null;
+                              if (!mapView?.ready || !layer) return null;
+
+                              return <OpacityManager layer={layer as __esri.FeatureLayer} oid={oid} />;
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
                 </TabPanel>
                 <TabPanel shouldForceMount id="featureDetails" className="p-0 data-[inert]:hidden">
                   {deleteMutation.isPending ? (

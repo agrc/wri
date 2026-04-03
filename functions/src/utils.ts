@@ -131,6 +131,83 @@ export const updateProjectStats = async (trx: import('knex').Knex.Transaction, p
  *
  * Implementation mirrors the old .NET `ProjectController` logic
  */
+export type PolyTreatment = {
+  treatment: string;
+  herbicides: string[];
+};
+
+export type PolyAction = {
+  action: string;
+  treatments: PolyTreatment[];
+};
+
+export type PointLineAction = {
+  type: string;
+  action: string;
+  description: string;
+};
+
+// Categories where no actions are required
+const NO_ACTION_CATEGORIES = new Set(['affected area', 'other point feature']);
+
+// POINT categories that require action+type instead of description
+const SUBTYPE_ACTION_CATEGORIES = new Set(['guzzler', 'fish passage structure']);
+
+/**
+ * Validates action data for a feature.
+ * Mirrors the old .NET AttributeValidator.ValidAttributesFor() logic.
+ */
+export const validateActions = (
+  table: FeatureTable,
+  featureType: string,
+  actions: PolyAction[] | PointLineAction[] | null | undefined,
+): void => {
+  const normalizedType = featureType.toLowerCase();
+
+  if (NO_ACTION_CATEGORIES.has(normalizedType)) {
+    return;
+  }
+
+  if (table === 'POLY') {
+    const polyActions = (actions ?? []) as PolyAction[];
+    if (polyActions.length === 0) {
+      throw new HttpsError('invalid-argument', 'Polygon features require at least one action');
+    }
+
+    for (const polyAction of polyActions) {
+      if (!polyAction.action?.trim()) {
+        throw new HttpsError('invalid-argument', 'Each action must have a non-empty action name');
+      }
+      for (const treatment of polyAction.treatments ?? []) {
+        if (!treatment.treatment?.trim()) {
+          throw new HttpsError('invalid-argument', 'Each treatment must have a non-empty treatment name');
+        }
+      }
+    }
+
+    return;
+  }
+
+  // POINT or LINE
+  const pointLineActions = (actions ?? []) as PointLineAction[];
+
+  if (pointLineActions.length !== 1) {
+    throw new HttpsError('invalid-argument', 'Point and line features require exactly one action');
+  }
+
+  const firstAction = pointLineActions[0]!;
+
+  if (table === 'LINE' || SUBTYPE_ACTION_CATEGORIES.has(normalizedType)) {
+    if (!firstAction.action?.trim() || !firstAction.type?.trim()) {
+      throw new HttpsError('invalid-argument', 'This feature type requires both an action and a type');
+    }
+  } else {
+    if (!firstAction.description?.trim()) {
+      throw new HttpsError('invalid-argument', 'This feature type requires a description');
+    }
+  }
+};
+
 export const canEditProject = async (
   db: import('knex').Knex,
   projectId: number,

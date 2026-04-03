@@ -8,11 +8,13 @@ const cors = [
   /utah\.gov$/, // remote dev, at, production
 ];
 
+const isDev = process.env.FUNCTIONS_EMULATOR === 'true';
+
 // Shared function options cached in global scope
 const options: HttpsOptions = {
   cors,
   region: 'us-west3',
-  timeoutSeconds: 10,
+  timeoutSeconds: isDev ? 3600 : 30, // use a large number in dev so that we have time to step through execution while debugging
   memory: '256MiB',
   maxInstances: 5,
   minInstances: 0,
@@ -67,4 +69,4 @@ const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, asyn
 });
 
 // Only export health check in emulator mode
-export const healthCheck = process.env.FUNCTIONS_EMULATOR === 'true' ? health : undefined;
+export const healthCheck = isDev ? health : undefined;

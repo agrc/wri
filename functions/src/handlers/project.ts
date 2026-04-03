@@ -7,6 +7,7 @@ import {
   convertMetersToAcres,
   convertMetersToMiles,
   processRollup,
+  retreatmentToBoolean,
   throwIfNoFormData,
 } from '../utils.js';
 
@@ -171,7 +172,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
             subtype: feature.subtype,
             action: feature.action,
             herbicide: feature.herbicide,
-            retreatment: feature.retreatment,
+            retreatment: retreatmentToBoolean(feature.retreatment),
             layer: 'feature-poly',
             size: convertMetersToAcres(feature.size),
           });

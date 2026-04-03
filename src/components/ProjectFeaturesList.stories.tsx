@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
-import ProjectFeaturesList, { type FeatureDetails } from './ProjectFeaturesList';
+import { useEffect } from 'react';
+import { FeatureSelectionProvider, useFeatureSelection } from './contexts';
+import { resolveSelectedFeature } from './featureSelection';
+import ProjectFeaturesList from './ProjectFeaturesList';
 
 import type { Feature, PolygonFeatures } from './ProjectSpecific';
 
@@ -24,7 +26,7 @@ const samplePolygons: PolygonFeatures = {
       subtype: 'Road decommissioning',
       action: 'Prescribed Fire',
       herbicide: '',
-      retreatment: 'N',
+      retreatment: false,
       layer: 'feature-poly',
       size: '12 ac',
       description: 'A sample polygon feature',
@@ -35,7 +37,7 @@ const samplePolygons: PolygonFeatures = {
       subtype: 'subtype 2',
       action: 'action 2',
       herbicide: 'Agrispread',
-      retreatment: 'Y',
+      retreatment: true,
       layer: 'feature-poly',
       size: '12 ac',
       description: 'A sample polygon feature',
@@ -83,7 +85,6 @@ export const Default: Story = {
     polygons: samplePolygons,
     lines: sampleLines,
     points: samplePoints,
-    onSelect: () => true,
   },
   render: (args) => {
     type WrapperArgs = {
@@ -92,21 +93,30 @@ export const Default: Story = {
       polygons: PolygonFeatures;
       lines: Feature[];
       points: Feature[];
-      onSelect?: (details: FeatureDetails) => boolean;
     };
 
-    function StoryWrapper(wrapperArgs: WrapperArgs) {
-      const [active, setActive] = useState<FeatureDetails | null>(null);
+    function SelectionHarness(wrapperArgs: WrapperArgs) {
+      const { registerResolver, selectedFeatureKey } = useFeatureSelection();
 
-      function handleSelect(details: FeatureDetails) {
-        const same = active && active.layer === details.layer && active.id === details.id;
-        if (same) {
-          setActive(null);
-          return false;
-        }
-        setActive(details);
-        return true;
-      }
+      useEffect(() => {
+        registerResolver((selection) => {
+          if (selection.projectId !== wrapperArgs.projectId) {
+            return null;
+          }
+
+          return resolveSelectedFeature({
+            kind: selection.kind,
+            id: selection.id,
+            polygons: wrapperArgs.polygons,
+            lines: wrapperArgs.lines,
+            points: wrapperArgs.points,
+          });
+        });
+
+        return () => {
+          registerResolver(null);
+        };
+      }, [registerResolver, wrapperArgs.lines, wrapperArgs.points, wrapperArgs.polygons, wrapperArgs.projectId]);
 
       return (
         <div className="w-96 dark:bg-zinc-800">
@@ -116,14 +126,16 @@ export const Default: Story = {
             polygons={wrapperArgs.polygons}
             lines={wrapperArgs.lines}
             points={wrapperArgs.points}
-            onSelect={handleSelect}
-            onClear={() => setActive(null)}
           />
-          <pre className="mt-4">Active: {active ? `${active.layer} ${active.id}` : 'none'}</pre>
+          <pre className="mt-4">Active: {selectedFeatureKey ?? 'none'}</pre>
         </div>
       );
     }
 
-    return <StoryWrapper {...(args as unknown as WrapperArgs)} />;
+    return (
+      <FeatureSelectionProvider>
+        <SelectionHarness {...(args as unknown as WrapperArgs)} />
+      </FeatureSelectionProvider>
+    );
   },
 };

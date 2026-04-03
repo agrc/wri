@@ -1,64 +1,19 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { FeatureKind } from '../../types';
-import type { Feature, PolygonFeature } from '../ProjectSpecific';
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { serializeFeatureKey, type FeatureSelectionIdentity, type SelectedFeature } from '../featureSelection';
 
-type SelectedFeature = (Feature | PolygonFeature) & {
-  kind: FeatureKind;
-  // Computed display properties
-  details?: string[]; // For poly: action/subtype/herbicide combinations
-  isRetreatment?: boolean; // For poly retreatment status
-};
-
-export type EnrichFeatureParams =
-  | { kind: 'poly'; feature: PolygonFeature; polyGroup: PolygonFeature[] }
-  | { kind: 'line'; feature: Feature }
-  | { kind: 'point'; feature: Feature };
-
-// Transform feature data into enriched format
-export const enrichFeature = (params: EnrichFeatureParams): SelectedFeature => {
-  const { kind } = params;
-
-  if (kind === 'poly') {
-    const { feature, polyGroup } = params;
-    const polyDetails =
-      polyGroup
-        ?.map((pt) => [pt?.action, pt?.subtype, pt?.herbicide].filter(Boolean).join(' - '))
-        .filter((line) => line.length > 0) ?? [];
-    const isRetreatment = feature.retreatment?.toUpperCase() === 'Y';
-
-    return {
-      ...feature,
-      kind,
-      details: polyDetails,
-      isRetreatment,
-    };
-  }
-
-  if (kind === 'line') {
-    const { feature } = params;
-    const lineDetails = [feature.action, feature.subtype].filter(Boolean).join(' - ');
-
-    return {
-      ...feature,
-      kind,
-      details: lineDetails ? [lineDetails] : [],
-    };
-  }
-
-  // kind === 'point'
-  const { feature } = params;
-  const pointDetails = [feature.action, feature.subtype].filter(Boolean).join(' - ');
-
-  return {
-    ...feature,
-    kind,
-    details: pointDetails ? [pointDetails] : [],
-  };
-};
+type FeatureSelectionResolver = (selection: FeatureSelectionIdentity) => SelectedFeature | null;
+export type FeatureSelectionOrigin = 'list' | 'map';
 
 type FeatureSelectionContextType = {
+  selectedFeatureIdentity: FeatureSelectionIdentity | null;
+  selectedFeatureKey: string | null;
   selectedFeature: SelectedFeature | null;
-  setSelectedFeature: (feature: SelectedFeature | null) => void;
+  selectionOrigin: FeatureSelectionOrigin | null;
+  selectFeature: (selection: FeatureSelectionIdentity, origin?: FeatureSelectionOrigin) => SelectedFeature | null;
+  clearSelection: () => void;
+  registerResolver: (resolver: FeatureSelectionResolver | null) => void;
+  isMapSelectionEnabled: boolean;
+  setMapSelectionEnabled: (enabled: boolean) => void;
 };
 
 const FeatureSelectionContext = createContext<FeatureSelectionContextType | null>(null);
@@ -76,10 +31,72 @@ type FeatureSelectionProviderProps = {
 };
 
 export const FeatureSelectionProvider = ({ children }: FeatureSelectionProviderProps) => {
+  const resolverRef = useRef<FeatureSelectionResolver | null>(null);
+  const selectedFeatureIdentityRef = useRef<FeatureSelectionIdentity | null>(null);
+  const [selectedFeatureIdentity, setSelectedFeatureIdentity] = useState<FeatureSelectionIdentity | null>(null);
   const [selectedFeature, setSelectedFeature] = useState<SelectedFeature | null>(null);
+  const [selectionOrigin, setSelectionOrigin] = useState<FeatureSelectionOrigin | null>(null);
+  const [isMapSelectionEnabled, setMapSelectionEnabled] = useState(true);
+
+  const clearSelection = useCallback(() => {
+    selectedFeatureIdentityRef.current = null;
+    setSelectedFeatureIdentity(null);
+    setSelectedFeature(null);
+    setSelectionOrigin(null);
+  }, []);
+
+  const registerResolver = useCallback((resolver: FeatureSelectionResolver | null) => {
+    resolverRef.current = resolver;
+  }, []);
+
+  const selectFeature = useCallback(
+    (selection: FeatureSelectionIdentity, origin: FeatureSelectionOrigin = 'list') => {
+      const currentSelection = selectedFeatureIdentityRef.current;
+
+      if (
+        currentSelection?.projectId === selection.projectId &&
+        currentSelection.kind === selection.kind &&
+        currentSelection.id === selection.id
+      ) {
+        clearSelection();
+
+        return null;
+      }
+
+      const resolved = resolverRef.current?.(selection) ?? null;
+
+      if (!resolved) {
+        clearSelection();
+
+        return null;
+      }
+
+      selectedFeatureIdentityRef.current = selection;
+      setSelectedFeatureIdentity(selection);
+      setSelectedFeature(resolved);
+      setSelectionOrigin(origin);
+
+      return resolved;
+    },
+    [clearSelection],
+  );
 
   return (
-    <FeatureSelectionContext.Provider value={{ selectedFeature, setSelectedFeature }}>
+    <FeatureSelectionContext.Provider
+      value={{
+        selectedFeatureIdentity,
+        selectedFeatureKey: selectedFeatureIdentity
+          ? serializeFeatureKey(selectedFeatureIdentity.kind, selectedFeatureIdentity.id)
+          : null,
+        selectedFeature,
+        selectionOrigin,
+        selectFeature,
+        clearSelection,
+        registerResolver,
+        isMapSelectionEnabled,
+        setMapSelectionEnabled,
+      }}
+    >
       {children}
     </FeatureSelectionContext.Provider>
   );

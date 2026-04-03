@@ -62,6 +62,26 @@ export const updateProjectStats = onCall({ ...options, secrets: [databaseInforma
 });
 
 /**
+ * Callable function for fetching editing domain data (valid feature attributes)
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const editingDomains = onCall({ ...options, secrets: [databaseInformation] }, async () => {
+  const { editingDomainsHandler } = await import('./handlers/editingDomains.js');
+
+  return editingDomainsHandler();
+});
+
+/**
+ * Callable function for creating a new feature
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const createFeature = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+  const { createFeatureHandler } = await import('./handlers/createFeature.js');
+
+  return createFeatureHandler(request);
+});
+
+/**
  * Health check endpoint for monitoring
  */
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {

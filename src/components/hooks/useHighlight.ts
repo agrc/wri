@@ -95,9 +95,9 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
       clearFeatureEffects(mapView.map);
       muteAllFeatures(mapView.map);
 
-      // apply the featureEffect to visually highlight the requested objectId
+      // apply the featureEffect to visually highlight the requested featureId
       layer.featureEffect = {
-        filter: { objectIds: [details.id] },
+        filter: { where: `FeatureID=${details.id}` },
         includedEffect: HIGHLIGHT_EFFECT,
         excludedEffect: MUTED_EFFECT,
       };

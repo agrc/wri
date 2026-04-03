@@ -22,6 +22,7 @@ type LegendMetadata = (
 };
 
 const black = [0, 0, 0, 255];
+export const POLY_OPACITY = 0.7;
 const baseUrl = import.meta.env.VITE_GIS_BASE_URL;
 
 export const landOwnership = new VectorTileLayer({
@@ -913,7 +914,7 @@ export const polygons = new FeatureLayer({
   visible: false,
   labelsVisible: true,
   definitionExpression: '',
-  opacity: 0.7,
+  opacity: POLY_OPACITY,
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
     uniqueValueInfos: [

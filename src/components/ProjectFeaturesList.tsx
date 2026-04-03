@@ -11,32 +11,11 @@ import {
   type Selection,
 } from 'react-aria-components';
 import type { FeatureKind } from '../types';
-import { enrichFeature, useFeatureSelection } from './contexts';
+import { useFeatureSelection } from './contexts';
 import { ErrorBanner } from './ErrorBanner';
 import { FeatureCard } from './FeatureCard';
-import type { Feature, PolygonFeature, PolygonFeatures } from './ProjectSpecific';
-
-export type FeatureDetails = { layer: string; id: number; type: FeatureType };
-
-type FeatureType =
-  | 'terrestrial treatment area'
-  | 'aquatic/riparian treatment area'
-  | 'affected area'
-  | 'easement/acquisition'
-  | 'guzzler'
-  | 'water development point feature'
-  | 'other point feature'
-  | 'fish passage structure'
-  | 'fence'
-  | 'pipeline'
-  | 'dam';
-
-const FEATURE_KEY_SEPARATOR = '|';
-const baseLayerIdByKind: Record<FeatureKind, string> = {
-  poly: 'feature-poly',
-  line: 'feature-line',
-  point: 'feature-point',
-} as const;
+import { getProjectFeatureLayerId, parseFeatureKey, serializeFeatureKey } from './featureSelection';
+import type { Feature, PolygonFeatures } from './ProjectSpecific';
 const sectionHeadingByKind: Record<FeatureKind, string> = {
   poly: 'Polygon features',
   line: 'Line features',
@@ -44,28 +23,6 @@ const sectionHeadingByKind: Record<FeatureKind, string> = {
 } as const;
 
 const notNull = <T,>(value: T | null | undefined): value is T => value != null;
-
-const getLayerId = (projectId: number, kind: FeatureKind) => `project-${projectId}-${baseLayerIdByKind[kind]}`;
-
-const serializeFeatureKey = (kind: FeatureKind, id: number): string => {
-  return `${kind}${FEATURE_KEY_SEPARATOR}${id}`;
-};
-
-const parseFeatureKey = (key?: Key): { kind: FeatureKind; id: number } | undefined => {
-  if (key == null) {
-    return undefined;
-  }
-
-  const raw = typeof key === 'string' ? key : String(key);
-  const [kind, idPart] = raw.split(FEATURE_KEY_SEPARATOR);
-  const id = Number(idPart);
-
-  if (!kind || Number.isNaN(id) || !(kind === 'poly' || kind === 'line' || kind === 'point')) {
-    return undefined;
-  }
-
-  return { kind: kind as FeatureKind, id };
-};
 
 const getFirstKey = (selection: Selection | Key | null | undefined): Key | undefined => {
   if (!selection || selection === 'all') {
@@ -88,8 +45,7 @@ type Props = {
   polygons: PolygonFeatures;
   lines: Feature[];
   points: Feature[];
-  onSelect: (details: FeatureDetails) => boolean;
-  onClear?: () => void;
+  isVisible?: boolean;
   onDelete?: (featureId: number, featureType: string, featureKind: FeatureKind) => void | Promise<void>;
   onViewDetails?: () => void;
   renderOpacity?: (layerId: string, oid?: number) => JSX.Element | null;
@@ -103,16 +59,28 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   polygons,
   lines,
   points,
-  onSelect,
-  onClear,
+  isVisible = true,
   onDelete,
   onViewDetails,
   renderOpacity,
   featureError,
   onDismissFeatureError,
 }) => {
-  const { setSelectedFeature } = useFeatureSelection();
-  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(new Set());
+  const { clearSelection, selectedFeatureKey, selectFeature } = useFeatureSelection();
+  const listRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!selectedFeatureKey || !isVisible) {
+      return;
+    }
+
+    const selectedItem = listRef.current?.querySelector<HTMLElement>(`[data-feature-key="${selectedFeatureKey}"]`);
+
+    // give the tab time to render the content
+    setTimeout(() => {
+      selectedItem?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    }, 0);
+  }, [isVisible, selectedFeatureKey]);
 
   const renderControls = (kind: FeatureKind, featureId?: number | nullish, featureType?: string) => {
     if (typeof featureId !== 'number') {
@@ -120,8 +88,8 @@ export const ProjectFeaturesList: React.FC<Props> = ({
     }
 
     const featureKey = serializeFeatureKey(kind, featureId);
-    const isSelected = selectedKeys === 'all' || selectedKeys.has(featureKey);
-    const opacityControl = renderOpacity?.(getLayerId(projectId, kind), featureId);
+    const isSelected = selectedFeatureKey === featureKey;
+    const opacityControl = renderOpacity?.(getProjectFeatureLayerId(projectId, kind), featureId);
 
     return (
       <Toolbar aria-label="Feature options" className="flex gap-x-1">
@@ -200,7 +168,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
       const polyDetails = featureGroup
         .map((pt) => [pt?.action, pt?.subtype, pt?.herbicide].filter(Boolean).join(' - '))
         .filter((line) => line.length > 0);
-      const isRetreatment = feature.retreatment?.toUpperCase() === 'Y';
+      const isRetreatment = feature.retreatment === true;
 
       return (
         <FeatureCard
@@ -284,61 +252,21 @@ export const ProjectFeaturesList: React.FC<Props> = ({
     <>
       <ErrorBanner message={featureError} onDismiss={onDismissFeatureError} />
       <GridList
+        ref={listRef}
         selectionMode="single"
+        selectedKeys={selectedFeatureKey ? new Set([selectedFeatureKey]) : new Set()}
         className="flex flex-col gap-y-2 dark:text-zinc-100"
         renderEmptyState={() => <p>This project has no features</p>}
         onSelectionChange={(selection: Selection) => {
-          setSelectedKeys(selection);
-
-          const parsed = parseFeatureKey(getFirstKey(selection));
+          const key = getFirstKey(selection);
+          const parsed = parseFeatureKey(key == null ? undefined : String(key));
           if (!parsed) {
-            setSelectedFeature(null);
-            onClear?.();
+            clearSelection();
 
             return;
           }
 
-          // Look up the full feature data based on the kind and id
-          let foundFeature: Feature | PolygonFeature | undefined;
-          let polyGroup: PolygonFeature[] | undefined;
-
-          if (parsed.kind === 'poly') {
-            polyGroup = Object.values(polygons).find((group) => group[0]?.id === parsed.id);
-            foundFeature = polyGroup?.[0];
-          } else if (parsed.kind === 'line') {
-            foundFeature = lines.find((f) => f.id === parsed.id);
-          } else if (parsed.kind === 'point') {
-            foundFeature = points.find((f) => f.id === parsed.id);
-          }
-
-          if (!foundFeature) {
-            setSelectedFeature(null);
-            onClear?.();
-
-            return;
-          }
-
-          // Enrich feature using context helper
-          const enrichedFeature =
-            parsed.kind === 'poly'
-              ? enrichFeature({ kind: 'poly', feature: foundFeature as PolygonFeature, polyGroup: polyGroup! })
-              : parsed.kind === 'line'
-                ? enrichFeature({ kind: 'line', feature: foundFeature })
-                : enrichFeature({ kind: 'point', feature: foundFeature });
-
-          // Store enriched feature in context
-          setSelectedFeature(enrichedFeature);
-
-          const details: FeatureDetails = {
-            layer: getLayerId(projectId, parsed.kind),
-            id: parsed.id,
-            type: foundFeature.type.toLowerCase() as FeatureType,
-          };
-
-          const isActive = onSelect(details);
-          if (isActive === false) {
-            onClear?.();
-          }
+          selectFeature({ projectId, kind: parsed.kind, id: parsed.id }, 'list');
         }}
         aria-label="Project features list"
       >

@@ -97,6 +97,42 @@ export const tableLookup: Record<string, FeatureTable> = {
   dam: 'LINE',
 };
 
+const RETREATMENT_ELIGIBLE_CATEGORIES = new Set(['terrestrial treatment area', 'aquatic/riparian treatment area']);
+
+export type RetreatmentValue = 'Y' | 'N';
+
+export const isRetreatmentEligibleFeatureType = (featureType: string) =>
+  RETREATMENT_ELIGIBLE_CATEGORIES.has(featureType.toLowerCase());
+
+export const booleanToRetreatment = (value: boolean | null | undefined): RetreatmentValue => (value ? 'Y' : 'N');
+
+export const retreatmentToBoolean = (value: string | null | undefined): boolean => value?.toUpperCase() === 'Y';
+
+export const parseRetreatmentInput = (value: unknown): RetreatmentValue => {
+  if (typeof value === 'boolean') {
+    return booleanToRetreatment(value);
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'y' || normalized === 'yes' || normalized === 'true') {
+      return 'Y';
+    }
+  }
+
+  return 'N';
+};
+
+export const validateRetreatment = (featureType: string, retreatment: RetreatmentValue) => {
+  if (retreatment === 'Y' && !isRetreatmentEligibleFeatureType(featureType)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Retreatment is only supported for terrestrial and aquatic treatment areas',
+    );
+  }
+};
+
 // Tag for SQL syntax highlighting (zero runtime cost — alias for String.raw)
 const sql = String.raw;
 
@@ -124,6 +160,104 @@ export const updateProjectStats = async (trx: import('knex').Knex.Transaction, p
     WHERE Project_ID = :projectId`,
     { projectId },
   );
+};
+
+/**
+ * Types and validation for feature action attributes.
+ *
+ * Mirrors the old .NET AttributeValidator.ValidAttributesFor() logic.
+ */
+export type PolyTreatment = {
+  treatment: string;
+  herbicide: string | null;
+};
+
+export type PolyAction = {
+  action: string;
+  treatments: PolyTreatment[];
+};
+
+export type PointLineAction = {
+  type: string;
+  action: string;
+  description: string;
+};
+
+// Categories where no actions are required
+const NO_ACTION_CATEGORIES = new Set(['affected area', 'other point feature']);
+
+// POINT categories that require action+type instead of description
+const SUBTYPE_ACTION_CATEGORIES = new Set(['guzzler', 'fish passage structure', 'fence', 'pipeline', 'dam']);
+
+const HERBICIDE_ACTION_NAME = 'herbicide application';
+
+const isHerbicideAction = (action: string) => action.trim().toLowerCase() === HERBICIDE_ACTION_NAME;
+
+/**
+ * Validates action data for a feature.
+ * Mirrors the old .NET AttributeValidator.ValidAttributesFor() logic.
+ */
+export const validateActions = (
+  table: FeatureTable,
+  featureType: string,
+  actions: PolyAction[] | PointLineAction[] | null | undefined,
+): void => {
+  const normalizedType = featureType.toLowerCase();
+
+  if (NO_ACTION_CATEGORIES.has(normalizedType)) {
+    return;
+  }
+
+  if (table === 'POLY') {
+    const polyActions = (actions ?? []) as PolyAction[];
+    if (polyActions.length === 0) {
+      throw new HttpsError('invalid-argument', 'Polygon features require at least one action');
+    }
+
+    for (const polyAction of polyActions) {
+      if (!polyAction.action?.trim()) {
+        throw new HttpsError('invalid-argument', 'Each action must have a non-empty action name');
+      }
+      for (const treatment of polyAction.treatments ?? []) {
+        if (!treatment.treatment?.trim()) {
+          throw new HttpsError('invalid-argument', 'Each treatment must have a non-empty treatment name');
+        }
+
+        const herbicide = (treatment as { herbicide: unknown }).herbicide;
+        if (herbicide != null && typeof herbicide !== 'string') {
+          throw new HttpsError('invalid-argument', 'Each treatment herbicide must be a string');
+        }
+
+        if (typeof herbicide === 'string' && herbicide.trim() && !isHerbicideAction(polyAction.action)) {
+          throw new HttpsError(
+            'invalid-argument',
+            'Herbicide values are only allowed for Herbicide Application actions',
+          );
+        }
+      }
+    }
+
+    return;
+  }
+
+  // POINT or LINE
+  const pointLineActions = (actions ?? []) as PointLineAction[];
+
+  if (pointLineActions.length !== 1) {
+    throw new HttpsError('invalid-argument', 'Point and line features require exactly one action');
+  }
+
+  const firstAction = pointLineActions[0]!;
+
+  if (table === 'LINE' || SUBTYPE_ACTION_CATEGORIES.has(normalizedType)) {
+    if (!firstAction.action?.trim() || !firstAction.type?.trim()) {
+      throw new HttpsError('invalid-argument', 'This feature type requires both an action and a type');
+    }
+  } else {
+    if (!firstAction.description?.trim()) {
+      throw new HttpsError('invalid-argument', 'This feature type requires a description');
+    }
+  }
 };
 
 /**

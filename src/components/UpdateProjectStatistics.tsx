@@ -34,7 +34,13 @@ export const UpdateProjectStatistics = ({ projectId, allowEdits }: Props) => {
   return (
     <>
       <ErrorBanner message={error} onDismiss={() => setError(null)} />
-      <Button variant="secondary" className="w-full" isPending={mutation.isPending} onPress={() => mutation.mutate()}>
+      <Button
+        variant="secondary"
+        className="w-full"
+        isDisabled={mutation.isPending}
+        isPending={mutation.isPending}
+        onPress={() => mutation.mutate()}
+      >
         Update statistics
       </Button>
     </>

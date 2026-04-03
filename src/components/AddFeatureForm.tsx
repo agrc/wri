@@ -418,8 +418,8 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         <Button variant="secondary" onPress={onCancel} isDisabled={isSaving}>
           Cancel
         </Button>
-        <Button variant="primary" onPress={handleSubmit} isDisabled={!isValid() || isSaving}>
-          {isSaving ? 'Saving…' : 'Save Feature'}
+        <Button variant="primary" onPress={handleSubmit} isDisabled={!isValid() || isSaving} isPending={isSaving}>
+          {isSaving ? <span className="ml-2">Saving…</span> : <span>Save Feature</span>}
         </Button>
       </div>
     </div>

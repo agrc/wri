@@ -41,7 +41,13 @@ export function DownloadProjectData({ projectId, downloadFn }: DownloadProjectDa
 
   return (
     <div className="mt-2 flex flex-col gap-2">
-      <Button variant="secondary" className="w-full" onPress={() => mutate()} isPending={isPending}>
+      <Button
+        variant="secondary"
+        className="w-full"
+        onPress={() => mutate()}
+        isDisabled={isPending}
+        isPending={isPending}
+      >
         {isPending ? <span className="ml-2">Preparing download...</span> : <span>Request file geodatabase</span>}
       </Button>
       {data && (

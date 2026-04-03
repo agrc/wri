@@ -1,3 +1,4 @@
+import type Multipoint from '@arcgis/core/geometry/Multipoint.js';
 import { execute as area } from '@arcgis/core/geometry/operators/areaOperator.js';
 import { accelerateGeometry, execute as intersect } from '@arcgis/core/geometry/operators/intersectionOperator.js';
 import { execute as length } from '@arcgis/core/geometry/operators/lengthOperator.js';
@@ -7,9 +8,8 @@ import {
   executeMany as projectMany,
 } from '@arcgis/core/geometry/operators/projectOperator.js';
 import { execute as union } from '@arcgis/core/geometry/operators/unionOperator.js';
-import Point from '@arcgis/core/geometry/Point.js';
-import Polygon from '@arcgis/core/geometry/Polygon.js';
-import Polyline from '@arcgis/core/geometry/Polyline.js';
+import type Polygon from '@arcgis/core/geometry/Polygon.js';
+import type Polyline from '@arcgis/core/geometry/Polyline.js';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference.js';
 import { fromJSON as geometryFromJSON, getJsonType } from '@arcgis/core/geometry/support/jsonUtils.js';
 import Graphic from '@arcgis/core/Graphic.js';
@@ -122,7 +122,7 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
  */
 export async function queryFeatureService(
   serviceUrl: string,
-  intersectionGeometry: Polygon | Polyline | Point,
+  intersectionGeometry: Polygon | Polyline | Multipoint,
   outFields: string[],
 ): Promise<IQueryFeaturesResponse> {
   const baseParams = {
@@ -311,12 +311,12 @@ export function formatMiles(meters: number): string {
 
 /**
  * Extracts intersection information for a user-provided geometry against reference layers
- * @param inputClipGeometry - User input geometry (polygon, polyline, or point) in Esri JSON format
+ * @param inputClipGeometry - User input geometry (polygon, polyline, or point) as Esri Geometry Objects
  * @param criteria - Criteria specifying which layers to query and what attributes to return
  * @returns Intersection results grouped by layer
  */
 export async function extractIntersections(
-  inputClipGeometry: Polygon | Polyline | Point,
+  inputClipGeometry: Polygon | Polyline | Multipoint,
   criteria: ExtractionCriteria,
 ): Promise<IntersectionResponse> {
   logger.info('Starting intersection extraction', { criteria });
@@ -327,18 +327,16 @@ export async function extractIntersections(
     throw new Error('No input geometry provided');
   }
 
-  inputClipGeometry = new Polygon({ ...inputClipGeometry });
+  let clipGeometry: Array<Polygon | Polyline | Multipoint>;
+  if (inputClipGeometry.spatialReference?.wkid !== SPATIAL_REFERENCES.UTM_ZONE_12N.wkid) {
+    // Project clip geometry to UTM Zone 12N (26912)
+    clipGeometry = await projectGeometries([inputClipGeometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
 
-  // Ensure geometry has spatial reference
-  if (!inputClipGeometry.spatialReference) {
-    inputClipGeometry.spatialReference = SPATIAL_REFERENCES.WEB_MERCATOR;
-  }
-
-  // Project clip geometry to UTM Zone 12N (26912)
-  const clipGeometry = await projectGeometries([inputClipGeometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
-
-  if (!clipGeometry) {
-    throw new Error('Failed to project input geometry to UTM');
+    if (!clipGeometry) {
+      throw new Error('Failed to project input geometry to UTM');
+    }
+  } else {
+    clipGeometry = [inputClipGeometry];
   }
 
   await accelerateGeometry(clipGeometry[0]);
@@ -480,12 +478,13 @@ export async function extractIntersections(
         if (!isPolylineLayer && measurements.areas && measurements.areas[0]) {
           const areaSquareMeters = Math.abs(measurements.areas[0]);
 
-          size = areaSquareMeters * 0.000247105; // Convert to acres
+          // Store raw area in square meters; only the display value is converted to acres.
+          size = areaSquareMeters;
           displaySize = formatAcres(areaSquareMeters);
         } else if (measurements.lengths && measurements.lengths[0]) {
           const lengthMeters = Math.abs(measurements.lengths[0]);
 
-          size = lengthMeters * 0.000621371; // Convert to miles
+          size = lengthMeters;
           displaySize = formatMiles(lengthMeters);
         } else {
           logger.warn('No measurement calculated for final geometry', { attributes: group.attributes });

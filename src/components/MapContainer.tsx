@@ -146,7 +146,14 @@ export const MapContainer = () => {
 
     const where = `Project_ID=${currentProject}`;
     const featureIdFieldName = 'FeatureID';
-    const outFields = [featureIdFieldName, 'Project_ID', 'TypeDescription', 'StatusDescription', 'Title'];
+    const outFieldDefs = [
+      { name: featureIdFieldName, type: 'integer' as const },
+      { name: 'Project_ID', type: 'integer' as const },
+      { name: 'TypeDescription', type: 'string' as const },
+      { name: 'StatusDescription', type: 'string' as const },
+      { name: 'Title', type: 'string' as const },
+    ];
+    const outFields = outFieldDefs.map((f) => f.name);
 
     const getFeatures = async () => {
       for (const layer of operationalLayers.current) {
@@ -168,12 +175,25 @@ export const MapContainer = () => {
           }),
         ];
 
+        // Use a synthetic OBJECTID (seeded from FeatureID) rather than making FeatureID the
+        // objectIdField. For client-side source layers, ArcGIS auto-generates OIDs during
+        // applyEdits starting from max(existing OIDs) + 1. If FeatureID were the objectIdField
+        // and the source was empty (no existing features of this type), the first added feature
+        // would get OID=1, overwriting the real database FeatureID. A separate OBJECTID field
+        // prevents that — FeatureID remains an ordinary integer attribute that applyEdits never
+        // touches.
+        const fields = [
+          new Field({ name: 'OBJECTID', type: 'oid' }),
+          ...outFieldDefs.map((f) => new Field(f)),
+          new Field({ name: virtualFieldName, type: 'double' }),
+        ];
+
         const featureLayer = new FeatureLayer({
           id: `project-${currentProject}-` + layer.id,
           title: layer.title,
           geometryType: layer.geometryType,
-          fields: featureSet.fields.concat([new Field({ name: virtualFieldName, type: 'double' })]),
-          objectIdField: featureIdFieldName,
+          fields,
+          objectIdField: 'OBJECTID',
           labelingInfo: layer.labelingInfo,
           source: featureSet.features.map(
             (feature) =>
@@ -181,6 +201,7 @@ export const MapContainer = () => {
                 geometry: feature.geometry,
                 attributes: {
                   ...feature.attributes,
+                  OBJECTID: feature.attributes[featureIdFieldName],
                   [virtualFieldName]: layer.opacity ?? 1,
                 },
               }),

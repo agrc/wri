@@ -8,11 +8,13 @@ const cors = [
   /utah\.gov$/, // remote dev, at, production
 ];
 
+const isDev = process.env.FUNCTIONS_EMULATOR === 'true';
+
 // Shared function options cached in global scope
 const options: HttpsOptions = {
   cors,
   region: 'us-west3',
-  timeoutSeconds: 10,
+  timeoutSeconds: isDev ? 3600 : 30, // use a large number in dev so that we have time to step through execution while debugging
   memory: '256MiB',
   maxInstances: 5,
   minInstances: 0,
@@ -60,6 +62,26 @@ export const updateProjectStats = onCall({ ...options, secrets: [databaseInforma
 });
 
 /**
+ * Callable function for fetching editing domain data (valid feature attributes)
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const editingDomains = onCall({ ...options, secrets: [databaseInformation] }, async () => {
+  const { editingDomainsHandler } = await import('./handlers/editingDomains.js');
+
+  return editingDomainsHandler();
+});
+
+/**
+ * Callable function for creating a new feature
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const createFeature = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+  const { createFeatureHandler } = await import('./handlers/createFeature.js');
+
+  return createFeatureHandler(request);
+});
+
+/**
  * Health check endpoint for monitoring
  */
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {
@@ -67,4 +89,4 @@ const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, asyn
 });
 
 // Only export health check in emulator mode
-export const healthCheck = process.env.FUNCTIONS_EMULATOR === 'true' ? health : undefined;
+export const healthCheck = isDev ? health : undefined;

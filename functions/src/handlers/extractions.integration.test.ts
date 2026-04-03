@@ -1,9 +1,10 @@
-import Polygon from '@arcgis/core/geometry/Polygon.js';
+import type Polygon from '@arcgis/core/geometry/Polygon.js';
+import { fromJSON } from '@arcgis/core/geometry/support/jsonUtils.js';
 import { describe, expect, it } from 'vitest';
 import { extractIntersections, type ExtractionCriteria } from './extractions.js';
 
 // Test polygon from ArcGIS Pro - polygon crossing Salt Lake, Davis, Summit, and Morgan counties
-const testPolygon: Polygon = {
+const testPolygon = fromJSON({
   type: 'polygon',
   rings: [
     [
@@ -15,7 +16,7 @@ const testPolygon: Polygon = {
     ],
   ],
   spatialReference: { wkid: 3857 },
-};
+}) as Polygon;
 
 const countyCriteria: ExtractionCriteria = {
   county: {
@@ -30,6 +31,8 @@ const countyBaselineValues: Record<string, number> = {
   SUMMIT: 1271.419745,
   MORGAN: 582.49902,
 };
+
+const SQUARE_METERS_PER_ACRE = 4046.8564224;
 
 // Tolerance for floating point comparison (in acres)
 const TOLERANCE = 0.1;
@@ -46,7 +49,13 @@ describe('extractIntersections integration', () => {
       const baseline = countyBaselineValues[countyName];
 
       if (baseline) {
-        const diff = Math.abs(result.size - baseline);
+        const expectedSizeSquareMeters = baseline * SQUARE_METERS_PER_ACRE;
+        const sizeToleranceSquareMeters = TOLERANCE * SQUARE_METERS_PER_ACRE;
+
+        expect(result.size).toBeGreaterThan(expectedSizeSquareMeters - sizeToleranceSquareMeters);
+        expect(result.size).toBeLessThan(expectedSizeSquareMeters + sizeToleranceSquareMeters);
+        const sizeAcres = result.size * 0.000247105;
+        const diff = Math.abs(sizeAcres - baseline);
         expect(diff).toBeLessThan(TOLERANCE);
       }
     }

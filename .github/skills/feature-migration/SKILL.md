@@ -32,6 +32,8 @@ This new map application is being built from the ground up, so there is no share
 
 The Java app that embeds the map application is not being migrated at this time, so the new map application will need to be designed to be embedded in the same way as the old one. The new `wri` project has a mock wrapper in `index.html` that simulates the embedding environment for development purposes.
 
+The new application has not yet been deployed to production so there is no concern about breaking changes while making updates to it.
+
 ## Database
 
 The new application will use the same SQL Server database. The schema will remain unchanged. Use `wri/docs/database-schema.md` as a reference for the database schema. Suggest updates to it if you find any new information from the old app.

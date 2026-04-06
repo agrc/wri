@@ -29,10 +29,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
     const token = data?.token?.toString() ?? null;
 
     const db = await getDb();
-    const client = db.client;
-    const clientName = (client.config?.client ?? client.dialect ?? '').toString();
-    // SQLite doesn't support sql spatial in dev, so use a literal 1 for size in that case.
-    const sizeExpression = clientName.includes('sqlite') ? db.raw('1') : db.raw('Shape.STNumPoints()');
+    const sizeExpression = db.raw('Shape.STNumPoints()');
 
     logger.info('Fetching project data', { id });
 

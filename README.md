@@ -11,7 +11,10 @@ Staging: [wri-stage.at.utah.gov](https://wri-stage.at.utah.gov)
 ### Setup
 
 1. Duplicate `.env.example` as `.env.local` in the root directory and fill in the required values
-1. See `functions/README.md` for instructions on setting up the Firebase Functions
+1. Start your Cloud SQL proxy for the at database
+1. See `functions/README.md` for the local Firebase Functions and database requirements
+
+Set `DEV_USER_EMAIL` in `.env.local` if you want `npm start` to inject your local edit credentials from the dev database.
 
 ### Publishing Services to ArcGIS Server
 

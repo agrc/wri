@@ -52,6 +52,24 @@ const registerCleanup: RegisterCleanupFunction = () => {
 // Initialize cleanup handlers
 registerCleanup();
 
+interface DatabaseInformation {
+  database?: string;
+  instance?: string;
+  password?: string;
+  port?: string;
+  user?: string;
+}
+
+const getDatabaseInformation = (): DatabaseInformation => {
+  const dbInfo = JSON.parse(databaseInformation.value() || '{}') as DatabaseInformation;
+
+  if (!dbInfo.user || !dbInfo.password) {
+    throw new HttpsError('failed-precondition', 'Database credentials are not set');
+  }
+
+  return dbInfo;
+};
+
 /**
  * Get or create a database connection
  * This function is cached in global scope and will be reused across function invocations
@@ -60,62 +78,21 @@ registerCleanup();
 export const getDb = async () => {
   if (!db) {
     const config: Knex.Config = {
-      client: 'sqlite3',
-      connection: { filename: './dev.sqlite3' },
-      useNullAsDefault: true,
+      client: 'mssql',
     };
 
-    if (process.env.FUNCTIONS_EMULATOR !== 'true') {
-      const dbInfo = JSON.parse(databaseInformation.value() || '{}');
+    if (process.env.FUNCTIONS_EMULATOR === 'true') {
+      const dbInfo = getDatabaseInformation();
+      const port = Number.parseInt(dbInfo.port ?? '', 10);
 
-      if (!dbInfo.user || !dbInfo.password) {
-        throw new HttpsError('failed-precondition', 'Database credentials are not set');
+      if (!Number.isFinite(port)) {
+        throw new HttpsError('failed-precondition', 'Database proxy port is not set');
       }
 
-      connector = new Connector();
-
-      const clientOptions = await connector.getTediousOptions({
-        instanceConnectionName: dbInfo.instance,
-        ipType: IpAddressTypes.PUBLIC,
-        authType: AuthTypes.PASSWORD,
-      });
-
-      config.client = 'mssql';
-      config.connection = {
-        database: 'WRI',
-        server: '0.0.0.0', // The proxy server address
-        user: dbInfo.user,
-        password: dbInfo.password,
-        options: {
-          ...clientOptions,
-          encrypt: true, // required for MS Cloud SQL
-          trustServerCertificate: true, // required for MS Cloud SQL
-          enableArithAbort: true,
-          connectTimeout: 10000,
-          requestTimeout: 10000,
-        },
-      } as Knex.MsSqlConnectionConfig;
-
-      config.pool = {
-        min: 0,
-        max: 5,
-        idleTimeoutMillis: 30000,
-        acquireTimeoutMillis: 30000,
-      };
-    }
-
-    if (process.env.USE_PROD_DB === 'true') {
-      const dbInfo = JSON.parse(databaseInformation.value() || '{}');
-
-      if (!dbInfo.user || !dbInfo.password) {
-        throw new HttpsError('failed-precondition', 'Database credentials are not set');
-      }
-
-      config.client = 'mssql';
       config.connection = {
         database: dbInfo.database ?? 'WRI',
-        server: 'localhost', // proxy address
-        port: parseInt(dbInfo.port),
+        server: 'localhost',
+        port,
         user: dbInfo.user,
         password: dbInfo.password,
         options: {
@@ -126,14 +103,43 @@ export const getDb = async () => {
           requestTimeout: 10000,
         },
       } as Knex.MsSqlConnectionConfig;
+    } else {
+      const dbInfo = getDatabaseInformation();
 
-      config.pool = {
-        min: 0,
-        max: 5,
-        idleTimeoutMillis: 30000,
-        acquireTimeoutMillis: 30000,
-      };
+      if (!dbInfo.instance) {
+        throw new HttpsError('failed-precondition', 'Database instance is not set');
+      }
+
+      connector = new Connector();
+
+      const clientOptions = await connector.getTediousOptions({
+        instanceConnectionName: dbInfo.instance,
+        ipType: IpAddressTypes.PUBLIC,
+        authType: AuthTypes.PASSWORD,
+      });
+
+      config.connection = {
+        database: dbInfo.database ?? 'WRI',
+        server: '0.0.0.0',
+        user: dbInfo.user,
+        password: dbInfo.password,
+        options: {
+          ...clientOptions,
+          encrypt: true,
+          trustServerCertificate: true,
+          enableArithAbort: true,
+          connectTimeout: 10000,
+          requestTimeout: 10000,
+        },
+      } as Knex.MsSqlConnectionConfig;
     }
+
+    config.pool = {
+      min: 0,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      acquireTimeoutMillis: 30000,
+    };
 
     db = knex(config);
   }

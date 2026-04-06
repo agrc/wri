@@ -1,5 +1,6 @@
+import * as logger from 'firebase-functions/logger';
 import { onCall, onRequest, type HttpsOptions } from 'firebase-functions/v2/https';
-import { databaseInformation } from './database.js';
+import { databaseInformation, getDb } from './database.js';
 
 // CORS configuration cached in global scope
 const cors = [
@@ -85,7 +86,14 @@ export const createFeature = onCall({ ...options, secrets: [databaseInformation]
  * Health check endpoint for monitoring
  */
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {
-  res.send('healthy');
+  try {
+    const db = await getDb();
+    await db.raw('SELECT 1 AS health');
+    res.send('healthy');
+  } catch (error) {
+    logger.error('Health check failed', error);
+    res.status(503).send('database unavailable');
+  }
 });
 
 // Only export health check in emulator mode

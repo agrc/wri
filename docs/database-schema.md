@@ -45,25 +45,27 @@ erDiagram
 
 The top-level record for a restoration project. Stores metadata and pre-computed aggregate spatial statistics that are recalculated whenever features are created, updated, or deleted.
 
-| Column                        | Type     | Notes                                                                                                                                                                                       |
-| ----------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Project_ID`                  | integer  | Primary key                                                                                                                                                                                 |
-| `ProjectManagerName`          | string   | Display name of the project manager                                                                                                                                                         |
-| `ProjectManager_ID`           | integer  | FK → `USERS.User_ID`                                                                                                                                                                        |
-| `LeadAgencyOrg`               | string   |                                                                                                                                                                                             |
-| `Title`                       | string   |                                                                                                                                                                                             |
-| `Status`                      | string   | e.g. `Active`, `Cancelled`, `Completed`                                                                                                                                                     |
-| `Description`                 | string   |                                                                                                                                                                                             |
-| `ProjRegion`                  | string   |                                                                                                                                                                                             |
-| `Features`                    | string   | `Yes` / `No`; controls whether features can be added; added by the `auth` migration                                                                                                         |
-| `AffectedAreaSqMeters`        | string   | Pre-computed aggregate; updated by project stats query                                                                                                                                      |
-| `TerrestrialSqMeters`         | string   | Pre-computed aggregate                                                                                                                                                                      |
-| `AqRipSqMeters`               | string   | Pre-computed aggregate                                                                                                                                                                      |
-| `EasementAcquisitionSqMeters` | string   | Pre-computed aggregate                                                                                                                                                                      |
-| `StreamLnMeters`              | string   | Pre-computed aggregate (sum of `STREAM.Intersection`)                                                                                                                                       |
-| `Centroid`                    | geometry | SQL Server spatial type; centroid of all features combined; updated by project stats query. **Not defined in migrations** (pre-existing prod-only column; SQLite emulator does not have it) |
+| Column                        | Type     | Notes                                                                               |
+| ----------------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `Project_ID`                  | integer  | Primary key                                                                         |
+| `ProjectManagerName`          | string   | Display name of the project manager                                                 |
+| `ProjectManager_ID`           | integer  | FK → `USERS.User_ID`                                                                |
+| `LeadAgencyOrg`               | string   |                                                                                     |
+| `Title`                       | string   |                                                                                     |
+| `Status`                      | string   | e.g. `Active`, `Cancelled`, `Completed`                                             |
+| `Description`                 | string   |                                                                                     |
+| `ProjRegion`                  | string   |                                                                                     |
+| `Features`                    | string   | `Yes` / `No`; controls whether features can be added; added by the `auth` migration |
+| `AffectedAreaSqMeters`        | string   | Pre-computed aggregate; updated by project stats query                              |
+| `TerrestrialSqMeters`         | string   | Pre-computed aggregate                                                              |
+| `AqRipSqMeters`               | string   | Pre-computed aggregate                                                              |
+| `EasementAcquisitionSqMeters` | string   | Pre-computed aggregate                                                              |
+| `StreamLnMeters`              | string   | Pre-computed aggregate (sum of `STREAM.Intersection`)                               |
+| `Centroid`                    | geometry | SQL Server spatial centroid; updated by project stats query                         |
 
 ---
+
+`Centroid` exists in the shared dev and production databases but is not managed by this repo.
 
 ### USERS
 
@@ -286,7 +288,7 @@ DELETE FROM COUNTY WHERE FeatureID = @id AND FeatureClass = 'POLY'
 
 ### Pre-computed project statistics
 
-`PROJECT` stores pre-computed aggregates (`TerrestrialSqMeters`, `AqRipSqMeters`, etc.) and a spatial `Centroid`. These are kept in sync by running the project stats update query after any feature create, update, or delete. The update uses SQL Server spatial aggregate functions which require a live SQL Server connection (not SQLite).
+`PROJECT` stores pre-computed aggregates (`TerrestrialSqMeters`, `AqRipSqMeters`, etc.) and a spatial `Centroid`. These are kept in sync by running the project stats update query after any feature create, update, or delete. The update uses SQL Server spatial aggregate functions and therefore requires a live SQL Server connection.
 
 ### `FeatureClass` values vs table names
 

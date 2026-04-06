@@ -10,93 +10,51 @@ This directory contains Firebase Cloud Functions for the WRI (Watershed Restorat
 
 ## Available Scripts
 
-### Database Migrations
+### `npm run build`
 
-#### `npm run migrate:create`
+Builds the Firebase Functions TypeScript source into `lib/`.
 
-Creates a new Knex migration file. Migrations are used to create and modify the database schema. Pass the migration name as an argument.
+### `npm run build:watch`
 
-```bash
-npm run migrate:create -- migration_name
-```
+Watches the Firebase Functions TypeScript source and rebuilds on change.
 
-Example:
+### `npm run serve`
 
-```bash
-npm run migrate:create -- seed
-```
-
-### Database Seeds
-
-#### `npm run seed`
-
-Runs all seed files to populate the database with initial data.
-
-```bash
-npm run seed
-```
-
-#### `npm run seed:create`
-
-Creates a new Knex seed file. Seed files should be prefixed with a padded number (e.g., `01_`, `02_`) to control execution order.
-
-```bash
-npm run seed:create -- name
-```
-
-Example:
-
-```bash
-npm run seed:create -- 01_projects
-```
+Builds the functions and starts the local Firebase Functions emulator.
 
 ## Database Configuration
 
-The functions use Knex.js for database operations. Configuration can be found in `knexfile.ts`:
+The functions use Knex.js for runtime database operations.
 
-- **Development**: Uses SQLite (`dev.sqlite3`)
-- **Production**: Connects to Google Cloud SQL (MS SQL Server)
+- **Local development**: Connects to the dev SQL Server through a developer-managed Cloud SQL proxy on `localhost`
+- **Production**: Connects to Google Cloud SQL (MS SQL Server) through the Cloud SQL connector
 
 ## Environment Variables
 
 - `FUNCTIONS_EMULATOR`: Set to `'true'` when running in emulator mode
-- `USE_PROD_DB`: Set to `'true'` to connect to production database locally
 - `DATABASE_INFORMATION`: Firebase secret containing database credentials
 
 ## Local Development — Auth & `allowEdits`
 
-In production the Java app injects `UserKey` and `Token` into a hidden `#user-data` form before the Vite bundle loads. Locally that form is empty, so credentials fall back to two Vite env vars.
+In production the Java app injects `UserKey` and `Token` into a hidden `#user-data` form before the Vite bundle loads. Locally that form is empty, so `npm start` can optionally inject credentials from the dev database when `DEV_USER_EMAIL` is configured.
 
-Create `.env.local` in the **repo root** (already gitignored) and set one of these pairs to
-simulate a specific role:
+Prerequisites:
 
-| `user_group`      | `VITE_DEV_USER_KEY` | `VITE_DEV_USER_TOKEN` | `allowEdits` behaviour                                                               |
-| ----------------- | ------------------- | --------------------- | ------------------------------------------------------------------------------------ |
-| `GROUP_ADMIN`     | `dev-admin-key`     | `dev-admin-token`     | `true` on all active **and** completed/cancelled projects                            |
-| `GROUP_PM`        | `dev-pm-key`        | `dev-pm-token`        | `true` on project 5772 (contributor); `false` on project 1922 (completed, non-admin) |
-| `GROUP_PUBLIC`    | `dev-public-key`    | `dev-public-token`    | always `false`                                                                       |
-| `GROUP_ANONYMOUS` | `dev-anon-key`      | `dev-anon-token`      | always `false`                                                                       |
+- Start your Cloud SQL proxy first
+- Set `DATABASE_INFORMATION` in `functions/.secret.local` with local proxy connection information
+- Ensure the shared dev database already contains the schema and the user referenced by `DEV_USER_EMAIL`
 
-Example `.env.local`:
-
-```
-VITE_DEV_USER_KEY=dev-admin-key
-VITE_DEV_USER_TOKEN=dev-admin-token
-```
-
-Run `npm run seed` inside `functions/` after running migrations to populate the test users.
-
-### Local Development — Auto-load Real User Credentials (`start:with-db`)
-
-When using the root script `npm run start:with-db`, the app loads your `UserKey`/`Token` from the database automatically instead of relying on a hard-coded pair in `.env.local`.
-
-Set this in root `.env.local`:
+Set this optional value in root `.env.local` if you want local edit credentials:
 
 ```text
 DEV_USER_EMAIL=your.email@example.com
 ```
 
-The startup script reads `UserKey`/`Token` for `DEV_USER_EMAIL` from the database and injects them at runtime (along with `USE_PROD_DB=true`), so you do not need to keep manual key/token values in `.env.local`.
+When `DEV_USER_EMAIL` is set, `npm start` reads `UserKey` and `Token` for that user from the dev database and injects them into the local app session. If `DEV_USER_EMAIL` is omitted, the app still starts but runs without local credentials, which means edit operations remain unavailable.
+
+### Local Development — Database Ownership
+
+This repo no longer manages schema creation, schema migration, or seed data for the dev database. Assume the shared dev database is already provisioned and kept current outside this codebase.
 
 ## Project Structure
 
@@ -104,8 +62,5 @@ The startup script reads `UserKey`/`Token` for `DEV_USER_EMAIL` from the databas
 functions/
 ├── src/           # TypeScript source files
 ├── lib/           # Compiled JavaScript output
-├── migrations/    # Knex migration files
-├── seeds/         # Knex seed files
-├── knexfile.ts    # Knex configuration
 └── package.json   # Dependencies and scripts
 ```

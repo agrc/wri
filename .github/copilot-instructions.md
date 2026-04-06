@@ -13,7 +13,7 @@
 - Root dev: `npm run start` runs functions build-watch, Firebase emulators, then Vite after `healthCheck` is up (see `package.json` and `firebase.json`).
 - Frontend-only: `npm run dev:vite` or `npm run dev:extractions-test` (see `package.json`).
 - Functions: `cd functions && npm run build:watch` and `npm run serve` for emulators; deploy with `npm run deploy`.
-- DB workflow: run migrations/seeds in `functions/` (`npm run migrate`, `npm run seed`). SQLite is used in emulator mode; MS SQL via Cloud SQL in prod (see `functions/README.md`).
+- DB workflow: local functions connect to the shared dev SQL Server through a developer-managed Cloud SQL proxy; the repo does not manage schema migrations or seed data (see `functions/README.md`).
 - Run tests with `npm run test` (see `vite.config.ts` for test config).
 - Run linting with `npm run lint` (see `package.json`).
 - Run type checks with `npm run check` (see `package.json`).
@@ -22,7 +22,7 @@
 ## Environment and auth conventions
 
 - Root `.env.local` must define `VITE_FIREBASE_CONFIG` JSON (frontend bootstrap in `src/main.tsx`).
-- Local auth uses `VITE_DEV_USER_KEY` and `VITE_DEV_USER_TOKEN` to simulate roles; `DEV_USER_EMAIL` is used by `npm run start:with-db` to auto-load credentials (see `functions/README.md`).
+- Local auth is optional in development; set `DEV_USER_EMAIL` in `.env.local` to let `npm start` auto-load credentials from the dev database for the session (see `functions/README.md`).
 - `DATABASE_INFORMATION` is a Firebase secret with `user`, `password`, and `instance` for prod DB access (see `README.md`, `functions/src/database.ts`).
 
 ## Project-specific patterns

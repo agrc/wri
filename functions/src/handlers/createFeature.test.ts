@@ -19,7 +19,7 @@ vi.mock('./extractions.js', async (importOriginal) => {
     ...actual,
     extractIntersections: vi.fn().mockResolvedValue({}),
     calculateAreasAndLengths: vi.fn().mockResolvedValue({}),
-    projectGeometries: vi.fn().mockResolvedValue([{}]),
+    projectGeometries: vi.fn().mockResolvedValue([{ spatialReference: { wkid: 26912 } }]),
   };
 });
 vi.mock('@arcgis/core/geometry/support/jsonUtils.js', () => ({
@@ -267,7 +267,7 @@ describe('createFeatureHandler', () => {
       transaction: vi.fn(async (cb: (trx: Knex.Transaction) => Promise<unknown>) => cb(trx)),
     } as never);
     vi.mocked(calculateAreasAndLengths).mockResolvedValue({ areas: [1000] });
-    vi.mocked(projectGeometries).mockResolvedValue([{}] as never);
+    vi.mocked(projectGeometries).mockResolvedValue([{ spatialReference: { wkid: 26912 } }] as never);
     vi.mocked(extractIntersections).mockResolvedValue(mockEmptyIntersections);
 
     const result = await createFeatureHandler({
@@ -284,7 +284,7 @@ describe('createFeatureHandler', () => {
         throw new Error('unexpected DB error');
       }),
     } as never);
-    vi.mocked(projectGeometries).mockResolvedValue([{}] as never);
+    vi.mocked(projectGeometries).mockResolvedValue([{ spatialReference: { wkid: 26912 } }] as never);
     vi.mocked(extractIntersections).mockResolvedValue(mockEmptyIntersections);
 
     await expect(createFeatureHandler({ data: validPolyData } as never)).rejects.toMatchObject({ code: 'internal' });

@@ -169,7 +169,7 @@ export const updateProjectStats = async (trx: import('knex').Knex.Transaction, p
  */
 export type PolyTreatment = {
   treatment: string;
-  herbicide: string | null;
+  herbicides: string[];
 };
 
 export type PolyAction = {
@@ -192,6 +192,10 @@ const SUBTYPE_ACTION_CATEGORIES = new Set(['guzzler', 'fish passage structure', 
 const HERBICIDE_ACTION_NAME = 'herbicide application';
 
 const isHerbicideAction = (action: string) => action.trim().toLowerCase() === HERBICIDE_ACTION_NAME;
+
+export const normalizeHerbicides = (herbicides: string[] | null | undefined): string[] => {
+  return [...new Set((herbicides ?? []).map((herbicide) => herbicide.trim()).filter(Boolean))];
+};
 
 /**
  * Validates action data for a feature.
@@ -223,12 +227,25 @@ export const validateActions = (
           throw new HttpsError('invalid-argument', 'Each treatment must have a non-empty treatment name');
         }
 
-        const herbicide = (treatment as { herbicide: unknown }).herbicide;
-        if (herbicide != null && typeof herbicide !== 'string') {
+        const herbicides = (treatment as { herbicides?: unknown }).herbicides;
+        if (herbicides != null && !Array.isArray(herbicides)) {
+          throw new HttpsError('invalid-argument', 'Each treatment herbicides value must be an array');
+        }
+
+        if ((herbicides ?? []).some((herbicide) => typeof herbicide !== 'string')) {
           throw new HttpsError('invalid-argument', 'Each treatment herbicide must be a string');
         }
 
-        if (typeof herbicide === 'string' && herbicide.trim() && !isHerbicideAction(polyAction.action)) {
+        const normalizedHerbicides = normalizeHerbicides(herbicides as string[] | undefined);
+
+        if (isHerbicideAction(polyAction.action) && normalizedHerbicides.length === 0) {
+          throw new HttpsError(
+            'invalid-argument',
+            'Herbicide Application treatments require at least one herbicide',
+          );
+        }
+
+        if (normalizedHerbicides.length > 0 && !isHerbicideAction(polyAction.action)) {
           throw new HttpsError(
             'invalid-argument',
             'Herbicide values are only allowed for Herbicide Application actions',

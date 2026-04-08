@@ -14,7 +14,7 @@ import type { FeatureKind } from '../types';
 import { useFeatureSelection } from './contexts';
 import { ErrorBanner } from './ErrorBanner';
 import { FeatureCard } from './FeatureCard';
-import { getProjectFeatureLayerId, parseFeatureKey, serializeFeatureKey } from './featureSelection';
+import { formatPolygonFeatureDetail, getProjectFeatureLayerId, parseFeatureKey, serializeFeatureKey } from './featureSelection';
 import type { Feature, PolygonFeatures } from './ProjectSpecific';
 const sectionHeadingByKind: Record<FeatureKind, string> = {
   poly: 'Polygon features',
@@ -165,9 +165,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
         return null;
       }
 
-      const polyDetails = featureGroup
-        .map((pt) => [pt?.action, pt?.subtype, pt?.herbicide].filter(Boolean).join(' - '))
-        .filter((line) => line.length > 0);
+      const polyDetails = featureGroup.map((pt) => formatPolygonFeatureDetail(pt)).filter((line) => line.length > 0);
       const isRetreatment = feature.retreatment === true;
 
       return (

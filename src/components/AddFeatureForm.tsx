@@ -14,7 +14,7 @@ import type {
   PolyFeatureAttributes,
 } from '../types';
 import { titleCase } from './';
-import { shouldShowHerbicideField } from './addFeatureFormHelpers';
+import { hasRequiredHerbicideSelections, shouldShowHerbicideField } from './addFeatureFormHelpers';
 import { isNoActionCategory, isRetreatmentEligibleCategory, isSubtypeActionCategory } from './addFeatureRules';
 import { useMap } from './hooks';
 
@@ -24,11 +24,15 @@ const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
   POINT: 'multipoint',
 };
 
-const NO_HERBICIDE_KEY = '__none__';
+const HERBICIDE_PLACEHOLDER_KEY = '__unselected__';
 
-const createEmptyPolyTreatment = (): FormPolyTreatment => ({ treatment: '', herbicide: null });
+const createEmptyPolyTreatment = (): FormPolyTreatment => ({ treatment: '', herbicides: [] });
 
 const createEmptyPolyAction = (): FormPolyAction => ({ action: '', treatments: [createEmptyPolyTreatment()] });
+
+const normalizeHerbicides = (herbicides: string[]) => {
+  return [...new Set(herbicides.map((herbicide) => herbicide.trim()).filter(Boolean))];
+};
 
 type Props = {
   projectId: number;
@@ -143,19 +147,64 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         i === actionIdx
           ? {
               ...a,
-              treatments: a.treatments.map((t, ti) => (ti === treatmentIdx ? { ...t, treatment, herbicide: null } : t)),
+              treatments: a.treatments.map((t, ti) => (ti === treatmentIdx ? { ...t, treatment, herbicides: [] } : t)),
             }
           : a,
       ),
     );
 
-  const updateHerbicide = (actionIdx: number, treatmentIdx: number, herbicide: string | null) =>
+  const addHerbicide = (actionIdx: number, treatmentIdx: number) =>
     setPolyActions((prev) =>
       prev.map((a, i) =>
         i === actionIdx
           ? {
               ...a,
-              treatments: a.treatments.map((t, ti) => (ti === treatmentIdx ? { ...t, herbicide } : t)),
+              treatments: a.treatments.map((t, ti) =>
+                ti === treatmentIdx
+                  ? { ...t, herbicides: t.herbicides.length > 0 ? [...t.herbicides, ''] : ['', ''] }
+                  : t,
+              ),
+            }
+          : a,
+      ),
+    );
+
+  const removeHerbicide = (actionIdx: number, treatmentIdx: number, herbicideIdx: number) =>
+    setPolyActions((prev) =>
+      prev.map((a, i) =>
+        i === actionIdx
+          ? {
+              ...a,
+              treatments: a.treatments.map((t, ti) =>
+                ti === treatmentIdx ? { ...t, herbicides: t.herbicides.filter((_, hi) => hi !== herbicideIdx) } : t,
+              ),
+            }
+          : a,
+      ),
+    );
+
+  const updateHerbicide = (actionIdx: number, treatmentIdx: number, herbicideIdx: number, herbicide: string | null) =>
+    setPolyActions((prev) =>
+      prev.map((a, i) =>
+        i === actionIdx
+          ? {
+              ...a,
+              treatments: a.treatments.map((t, ti) => {
+                if (ti !== treatmentIdx) {
+                  return t;
+                }
+
+                const nextHerbicide = herbicide?.trim() ?? '';
+
+                if (t.herbicides.length === 0) {
+                  return { ...t, herbicides: nextHerbicide ? [nextHerbicide] : [] };
+                }
+
+                return {
+                  ...t,
+                  herbicides: t.herbicides.map((value, hi) => (hi === herbicideIdx ? nextHerbicide : value)),
+                };
+              }),
             }
           : a,
       ),
@@ -173,7 +222,15 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   // Decide what actions to send
   const buildActions = (): CreateFeatureData['actions'] => {
     if (!table || isNoActionCategory(category)) return null;
-    if (table === 'POLY') return polyActions;
+    if (table === 'POLY') {
+      return polyActions.map((action) => ({
+        ...action,
+        treatments: action.treatments.map((treatment) => ({
+          ...treatment,
+          herbicides: normalizeHerbicides(treatment.herbicides),
+        })),
+      }));
+    }
     return [pointLineAction];
   };
 
@@ -181,7 +238,20 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     if (!category || !geometry) return false;
     if (isNoActionCategory(category)) return true;
     if (table === 'POLY') {
-      return polyActions.every((a) => a.action.trim() && a.treatments.every((t) => t.treatment.trim()));
+      return polyActions.every(
+        (a) =>
+          a.action.trim() &&
+          a.treatments.every(
+            (t) =>
+              t.treatment.trim() &&
+              hasRequiredHerbicideSelections(
+                a.action,
+                t.treatment,
+                t.herbicides.length > 0 ? t.herbicides : [''],
+                domains?.herbicides.length ?? 0,
+              ),
+          ),
+      );
     }
     if (isSubtypeActionCategory(category)) {
       return !!(pointLineAction.type.trim() && pointLineAction.action.trim());
@@ -301,58 +371,96 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
                         key={treatmentIdx}
                         className="flex flex-col gap-1 rounded border border-zinc-100 p-1.5 dark:border-zinc-800"
                       >
-                        <div className="flex items-end gap-2">
-                          <div className="flex-1">
-                            <Select
-                              label={`Treatment ${treatmentIdx + 1}`}
-                              selectedKey={treatment.treatment || null}
-                              onSelectionChange={(key) => updateTreatmentField(actionIdx, treatmentIdx, key as string)}
-                            >
-                              {treatmentOptions.map((opt) => (
-                                <SelectItem key={opt} id={opt}>
-                                  {opt}
-                                </SelectItem>
-                              ))}
-                            </Select>
-                          </div>
-                          {polyAction.treatments.length > 1 && (
-                            <Button
-                              variant="destructive"
-                              size="extraSmall"
-                              onPress={() => removeTreatment(actionIdx, treatmentIdx)}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                        </div>
+                        {(() => {
+                          const herbicideSelections = treatment.herbicides.length > 0 ? treatment.herbicides : [''];
 
-                        {domains &&
-                          shouldShowHerbicideField(
-                            polyAction.action,
-                            treatment.treatment,
-                            domains.herbicides.length,
-                          ) && (
-                            <Select
-                              label="Herbicide"
-                              selectedKey={treatment.herbicide?.trim() ? treatment.herbicide : NO_HERBICIDE_KEY}
-                              onSelectionChange={(key) =>
-                                updateHerbicide(
-                                  actionIdx,
-                                  treatmentIdx,
-                                  key === NO_HERBICIDE_KEY ? null : ((key as string) ?? null),
-                                )
-                              }
-                            >
-                              <SelectItem id={NO_HERBICIDE_KEY} key={NO_HERBICIDE_KEY}>
-                                No herbicide
-                              </SelectItem>
-                              {domains.herbicides.map((herbicide) => (
-                                <SelectItem key={herbicide} id={herbicide}>
-                                  {herbicide}
-                                </SelectItem>
-                              ))}
-                            </Select>
-                          )}
+                          return (
+                            <>
+                              <div className="flex items-end gap-2">
+                                <div className="flex-1">
+                                  <Select
+                                    label={`Treatment ${treatmentIdx + 1}`}
+                                    selectedKey={treatment.treatment || null}
+                                    onSelectionChange={(key) =>
+                                      updateTreatmentField(actionIdx, treatmentIdx, key as string)
+                                    }
+                                  >
+                                    {treatmentOptions.map((opt) => (
+                                      <SelectItem key={opt} id={opt}>
+                                        {opt}
+                                      </SelectItem>
+                                    ))}
+                                  </Select>
+                                </div>
+                                {polyAction.treatments.length > 1 && (
+                                  <Button
+                                    variant="destructive"
+                                    size="extraSmall"
+                                    onPress={() => removeTreatment(actionIdx, treatmentIdx)}
+                                  >
+                                    Remove
+                                  </Button>
+                                )}
+                              </div>
+
+                              {domains &&
+                                shouldShowHerbicideField(
+                                  polyAction.action,
+                                  treatment.treatment,
+                                  domains.herbicides.length,
+                                ) && (
+                                  <div className="flex flex-col gap-2 pt-1">
+                                    {herbicideSelections.map((herbicide, herbicideIdx) => (
+                                      <div
+                                        key={`${treatmentIdx}-herbicide-${herbicideIdx}`}
+                                        className="flex items-end gap-2"
+                                      >
+                                        <div className="flex-1">
+                                          <Select
+                                            label={`Herbicide ${herbicideIdx + 1}`}
+                                            selectedKey={herbicide.trim() ? herbicide : HERBICIDE_PLACEHOLDER_KEY}
+                                            onSelectionChange={(key) =>
+                                              updateHerbicide(
+                                                actionIdx,
+                                                treatmentIdx,
+                                                herbicideIdx,
+                                                key === HERBICIDE_PLACEHOLDER_KEY ? null : ((key as string) ?? null),
+                                              )
+                                            }
+                                          >
+                                            <SelectItem id={HERBICIDE_PLACEHOLDER_KEY} key={HERBICIDE_PLACEHOLDER_KEY}>
+                                              please select a herbicide
+                                            </SelectItem>
+                                            {domains.herbicides.map((herbicideOption) => (
+                                              <SelectItem key={herbicideOption} id={herbicideOption}>
+                                                {herbicideOption}
+                                              </SelectItem>
+                                            ))}
+                                          </Select>
+                                        </div>
+                                        {herbicideSelections.length > 1 && (
+                                          <Button
+                                            variant="destructive"
+                                            size="extraSmall"
+                                            onPress={() => removeHerbicide(actionIdx, treatmentIdx, herbicideIdx)}
+                                          >
+                                            Remove
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ))}
+                                    <Button
+                                      variant="secondary"
+                                      size="extraSmall"
+                                      onPress={() => addHerbicide(actionIdx, treatmentIdx)}
+                                    >
+                                      + Herbicide
+                                    </Button>
+                                  </div>
+                                )}
+                            </>
+                          );
+                        })()}
                       </div>
                     ))}
 

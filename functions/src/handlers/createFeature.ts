@@ -16,6 +16,7 @@ import {
   validateActions,
   validateRetreatment,
   type FeatureTable,
+  normalizeHerbicides,
   type PointLineAction,
   type PolyAction,
   type RetreatmentValue,
@@ -117,9 +118,7 @@ export const insertPolyActions = async (trx: Knex.Transaction, featureId: number
 
       const areaTreatmentId: number = (insertedTreatment as { AreaTreatmentID: number }).AreaTreatmentID;
 
-      const herbicide = treatment.herbicide?.trim();
-
-      if (herbicide) {
+      for (const herbicide of normalizeHerbicides(treatment.herbicides)) {
         const herbicideLookup = await trx('LU_HERBICIDE')
           .whereRaw('LOWER(HerbicideDescription) = LOWER(?)', [herbicide])
           .select('HerbicideID')

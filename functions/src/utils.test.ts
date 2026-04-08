@@ -49,26 +49,48 @@ describe('retreatment helpers', () => {
 });
 
 describe('validateActions', () => {
-  it('allows a singular herbicide value for Herbicide Application polygon actions', () => {
+  it('allows multiple herbicide values for Herbicide Application polygon actions', () => {
     expect(() =>
       validateActions('POLY', 'terrestrial treatment area', [
         {
           action: 'Herbicide Application',
-          treatments: [{ treatment: 'Aerial (helicopter)', herbicide: 'Imazapic' }],
+          treatments: [{ treatment: 'Aerial (helicopter)', herbicides: ['Imazapic', 'Glyphosate'] }],
         },
       ]),
     ).not.toThrow();
   });
 
-  it('allows null herbicide values for Herbicide Application polygon actions', () => {
+  it('rejects empty herbicide arrays for Herbicide Application polygon actions', () => {
     expect(() =>
       validateActions('POLY', 'terrestrial treatment area', [
         {
           action: 'Herbicide Application',
-          treatments: [{ treatment: 'Aerial (helicopter)', herbicide: null }],
+          treatments: [{ treatment: 'Aerial (helicopter)', herbicides: [] }],
         },
       ]),
-    ).not.toThrow();
+    ).toThrow('Herbicide Application treatments require at least one herbicide');
+  });
+
+  it('rejects herbicide arrays containing only blank values for Herbicide Application polygon actions', () => {
+    expect(() =>
+      validateActions('POLY', 'terrestrial treatment area', [
+        {
+          action: 'Herbicide Application',
+          treatments: [{ treatment: 'Aerial (helicopter)', herbicides: ['   '] }],
+        },
+      ]),
+    ).toThrow('Herbicide Application treatments require at least one herbicide');
+  });
+
+  it('rejects non-array herbicide values', () => {
+    expect(() =>
+      validateActions('POLY', 'terrestrial treatment area', [
+        {
+          action: 'Herbicide Application',
+          treatments: [{ treatment: 'Aerial (helicopter)', herbicides: 'Imazapic' as unknown as string[] }],
+        },
+      ]),
+    ).toThrow('Each treatment herbicides value must be an array');
   });
 
   it('rejects herbicide values for non-herbicide polygon actions', () => {
@@ -76,7 +98,7 @@ describe('validateActions', () => {
       validateActions('POLY', 'terrestrial treatment area', [
         {
           action: 'Mechanical treatment',
-          treatments: [{ treatment: 'Roller/crusher', herbicide: 'Imazapic' }],
+          treatments: [{ treatment: 'Roller/crusher', herbicides: ['Imazapic'] }],
         },
       ]),
     ).toThrow('Herbicide values are only allowed for Herbicide Application actions');

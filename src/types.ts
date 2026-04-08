@@ -13,7 +13,7 @@ export type EditingDomainsResponse = {
 
 export type FormPolyTreatment = {
   treatment: string;
-  herbicide: string | null;
+  herbicides: string[];
 };
 
 export type FormPolyAction = {

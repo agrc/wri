@@ -150,11 +150,18 @@ const createMockTrx = ({
 const mockEmptyIntersections = {};
 
 const validPolyActions = [
-  { action: 'Herbicide Application', treatments: [{ treatment: 'Aerial (helicopter)', herbicide: 'Imazapic' }] },
+  { action: 'Herbicide Application', treatments: [{ treatment: 'Aerial (helicopter)', herbicides: ['Imazapic'] }] },
 ];
 
 const validPolyActionsWithoutHerbicide = [
-  { action: 'Herbicide Application', treatments: [{ treatment: 'Aerial (helicopter)', herbicide: null }] },
+  { action: 'Herbicide Application', treatments: [{ treatment: 'Aerial (helicopter)', herbicides: [] }] },
+];
+
+const validPolyActionsWithMultipleHerbicides = [
+  {
+    action: 'Herbicide Application',
+    treatments: [{ treatment: 'Aerial (helicopter)', herbicides: ['Imazapic', 'Glyphosate'] }],
+  },
 ];
 
 const validPointAction = [{ type: 'Horizontal', action: 'Initial', description: '' }];
@@ -223,6 +230,21 @@ describe('createFeatureHandler', () => {
         data: { ...validPolyData, featureType: 'affected area', retreatment: true, actions: null },
       } as never),
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('re-throws invalid-argument when Herbicide Application is missing herbicides', async () => {
+    vi.mocked(validateActions).mockImplementationOnce(() => {
+      throw new HttpsError('invalid-argument', 'Herbicide Application treatments require at least one herbicide');
+    });
+
+    await expect(
+      createFeatureHandler({
+        data: { ...validPolyData, actions: validPolyActionsWithoutHerbicide },
+      } as never),
+    ).rejects.toMatchObject({
+      code: 'invalid-argument',
+      message: 'Herbicide Application treatments require at least one herbicide',
+    });
   });
 
   it('allows retreatment for aquatic treatment areas', async () => {
@@ -422,7 +444,7 @@ describe('createFeatureTransaction', () => {
     expect(actionInserts[0]!.data.ActionDescription).toBe('Herbicide Application');
   });
 
-  it('inserts a single AREAHERBICIDE row when a herbicide is provided', async () => {
+  it('inserts a single AREAHERBICIDE row when one herbicide is provided', async () => {
     const { trx, insertCalls } = createMockTrx();
     vi.mocked(updateProjectStats).mockResolvedValue(undefined);
 
@@ -442,6 +464,28 @@ describe('createFeatureTransaction', () => {
     const herbicideInserts = insertCalls.filter((c) => c.table === 'AREAHERBICIDE');
     expect(herbicideInserts).toHaveLength(1);
     expect(herbicideInserts[0]!.data.HerbicideDescription).toBe('Imazapic');
+  });
+
+  it('inserts one AREAHERBICIDE row per selected herbicide', async () => {
+    const { trx, insertCalls } = createMockTrx();
+    vi.mocked(updateProjectStats).mockResolvedValue(undefined);
+
+    await createFeatureTransaction(
+      trx,
+      1,
+      'terrestrial treatment area',
+      'POLY',
+      'POLYGON((0 0, 1 0, 1 1, 0 0))',
+      'N',
+      validPolyActionsWithMultipleHerbicides,
+      1000,
+      null,
+      mockEmptyIntersections,
+    );
+
+    const herbicideInserts = insertCalls.filter((c) => c.table === 'AREAHERBICIDE');
+    expect(herbicideInserts).toHaveLength(2);
+    expect(herbicideInserts.map((call) => call.data.HerbicideDescription)).toEqual(['Imazapic', 'Glyphosate']);
   });
 
   it('skips AREAHERBICIDE inserts when no herbicide is provided', async () => {

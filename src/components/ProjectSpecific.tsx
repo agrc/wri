@@ -78,7 +78,7 @@ export type Feature = {
   layer: FeatureLayerId;
 };
 export type PolygonFeature = Feature & {
-  herbicide: string | nullish;
+  herbicides: string[];
   retreatment: boolean | nullish;
 };
 

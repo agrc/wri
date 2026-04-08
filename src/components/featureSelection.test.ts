@@ -18,7 +18,7 @@ const polygons: PolygonFeatures = {
       description: 'Polygon feature',
       size: '11 ac',
       layer: 'feature-poly',
-      herbicide: 'Imazapic',
+      herbicides: ['Imazapic', 'Glyphosate'],
       retreatment: true,
     },
     {
@@ -29,7 +29,7 @@ const polygons: PolygonFeatures = {
       description: 'Polygon feature',
       size: '11 ac',
       layer: 'feature-poly',
-      herbicide: null,
+      herbicides: [],
       retreatment: true,
     },
   ],
@@ -82,7 +82,7 @@ describe('featureSelection helpers', () => {
       id: 10,
       kind: 'poly',
       isRetreatment: true,
-      details: ['Thin - Mechanical - Imazapic', 'Reseed - Seeding'],
+      details: ['Thin - Mechanical - Imazapic, Glyphosate', 'Reseed - Seeding'],
     });
   });
 

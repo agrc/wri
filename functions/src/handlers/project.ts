@@ -11,6 +11,17 @@ import {
   throwIfNoFormData,
 } from '../utils.js';
 
+type ProjectPolygonFeature = {
+  id: number;
+  type: string;
+  subtype: string;
+  action: string;
+  herbicides: string[];
+  retreatment: boolean;
+  layer: 'feature-poly';
+  size: string;
+};
+
 /**
  * Handler for project data requests
  * Fetches comprehensive project information including metadata, rollups, and features
@@ -163,12 +174,25 @@ export const projectHandler = async ({ data }: CallableRequest) => {
             acc[feature.id] = [];
           }
 
+          const herbicide = typeof feature.herbicide === 'string' ? feature.herbicide.trim() : '';
+          const existing = acc[feature.id]!.find(
+            (polygon: ProjectPolygonFeature) => polygon.action === feature.action && polygon.subtype === feature.subtype,
+          );
+
+          if (existing) {
+            if (herbicide && !existing.herbicides.includes(herbicide)) {
+              existing.herbicides.push(herbicide);
+            }
+
+            return acc;
+          }
+
           acc[feature.id]!.push({
             id: feature.id,
             type: feature.type,
             subtype: feature.subtype,
             action: feature.action,
-            herbicide: feature.herbicide,
+            herbicides: herbicide ? [herbicide] : [],
             retreatment: retreatmentToBoolean(feature.retreatment),
             layer: 'feature-poly',
             size: convertMetersToAcres(feature.size),
@@ -177,16 +201,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
         },
         {} as Record<
           string,
-          Array<{
-            id: number;
-            type: string;
-            subtype: string;
-            action: string;
-            herbicide: string;
-            retreatment: boolean;
-            layer: 'feature-poly';
-            size: string;
-          }>
+          ProjectPolygonFeature[]
         >,
       );
 

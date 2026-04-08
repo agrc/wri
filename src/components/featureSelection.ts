@@ -69,15 +69,18 @@ type EnrichFeatureParams =
   | { kind: 'line'; feature: Feature }
   | { kind: 'point'; feature: Feature };
 
+export const formatPolygonFeatureDetail = (feature: Pick<PolygonFeature, 'action' | 'subtype' | 'herbicides'>) => {
+  const herbicideLabel = feature.herbicides.filter(Boolean).join(', ');
+
+  return [feature.action, feature.subtype, herbicideLabel].filter(Boolean).join(' - ');
+};
+
 export const enrichFeature = (params: EnrichFeatureParams): SelectedFeature => {
   const { kind } = params;
 
   if (kind === 'poly') {
     const { feature, polyGroup } = params;
-    const polyDetails =
-      polyGroup
-        ?.map((pt) => [pt?.action, pt?.subtype, pt?.herbicide].filter(Boolean).join(' - '))
-        .filter((line) => line.length > 0) ?? [];
+    const polyDetails = polyGroup?.map((pt) => formatPolygonFeatureDetail(pt)).filter((line) => line.length > 0) ?? [];
     const isRetreatment = feature.retreatment === true;
 
     return {

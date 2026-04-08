@@ -4,6 +4,8 @@ import {
   isNoActionCategory,
   isRetreatmentEligibleCategory,
   isRetreatmentEligibleFeatureType,
+  isStreamEligibleCategory,
+  isStreamEligibleFeatureType,
   isSubtypeActionCategory,
   shouldShowHerbicideField,
 } from './featureRules.js';
@@ -36,6 +38,19 @@ describe('featureRules', () => {
     expect(isRetreatmentEligibleFeatureType('Aquatic/Riparian Treatment Area')).toBe(true);
     expect(isRetreatmentEligibleFeatureType('Affected Area')).toBe(false);
     expect(isRetreatmentEligibleFeatureType('Easement/Acquisition')).toBe(false);
+  });
+
+  it('limits stream extraction to aquatic/riparian treatment areas', () => {
+    expect(isStreamEligibleCategory('Aquatic/Riparian Treatment Area')).toBe(true);
+    expect(isStreamEligibleCategory('Terrestrial Treatment Area')).toBe(false);
+    expect(isStreamEligibleCategory('Affected Area')).toBe(false);
+    expect(isStreamEligibleCategory('Fence')).toBe(false);
+  });
+
+  it('exposes the feature-type stream-eligibility alias', () => {
+    expect(isStreamEligibleFeatureType('Aquatic/Riparian Treatment Area')).toBe(true);
+    expect(isStreamEligibleFeatureType('Terrestrial Treatment Area')).toBe(false);
+    expect(isStreamEligibleFeatureType('Easement/Acquisition')).toBe(false);
   });
 
   it('matches the herbicide action case-insensitively', () => {

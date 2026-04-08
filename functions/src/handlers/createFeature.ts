@@ -1,7 +1,7 @@
 import type Multipoint from '@arcgis/core/geometry/Multipoint.js';
 import type Polygon from '@arcgis/core/geometry/Polygon.js';
 import type Polyline from '@arcgis/core/geometry/Polyline.js';
-import { normalizeHerbicides } from '@ugrc/wri-shared/feature-rules';
+import { isStreamEligibleFeatureType, normalizeHerbicides } from '@ugrc/wri-shared/feature-rules';
 import type {
   CreateFeatureRequest,
   CreateFeatureResponse,
@@ -387,12 +387,14 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
 
     const geometryType = GEOMETRY_TYPE_BY_TABLE[table];
 
-    // Build intersection criteria — stream only for POLY
+    const shouldExtractStream = table === 'POLY' && isStreamEligibleFeatureType(featureType);
+
+    // Build intersection criteria — stream only for aquatic/riparian treatment areas
     const extractCriteria: ExtractionCriteria = {
       county: { attributes: [...FEATURE_SERVICE_CONFIG.county.attributes] },
       landowner: { attributes: [...FEATURE_SERVICE_CONFIG.landowner.attributes] },
       sgma: { attributes: [...FEATURE_SERVICE_CONFIG.sgma.attributes] },
-      ...(table === 'POLY' ? { stream: { attributes: [...FEATURE_SERVICE_CONFIG.stream.attributes] } } : {}),
+      ...(shouldExtractStream ? { stream: { attributes: [...FEATURE_SERVICE_CONFIG.stream.attributes] } } : {}),
     };
 
     // Measurements and GIS extractions run in parallel

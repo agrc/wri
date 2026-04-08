@@ -7,6 +7,8 @@ export const RETREATMENT_ELIGIBLE_CATEGORIES = new Set([
   'aquatic/riparian treatment area',
 ]);
 
+export const STREAM_ELIGIBLE_CATEGORIES = new Set(['aquatic/riparian treatment area']);
+
 const HERBICIDE_ACTION_NAME = 'herbicide application';
 
 export const isNoActionCategory = (category: string) => NO_ACTION_CATEGORIES.has(category.toLowerCase());
@@ -17,6 +19,10 @@ export const isRetreatmentEligibleCategory = (category: string) =>
   RETREATMENT_ELIGIBLE_CATEGORIES.has(category.toLowerCase());
 
 export const isRetreatmentEligibleFeatureType = isRetreatmentEligibleCategory;
+
+export const isStreamEligibleCategory = (category: string) => STREAM_ELIGIBLE_CATEGORIES.has(category.toLowerCase());
+
+export const isStreamEligibleFeatureType = isStreamEligibleCategory;
 
 export const isHerbicideAction = (action: string) => action.trim().toLowerCase() === HERBICIDE_ACTION_NAME;
 

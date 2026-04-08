@@ -1,0 +1,19 @@
+{
+  "name": "@ugrc/wri-shared",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    "./feature-rules": {
+      "types": "./dist/featureRules.d.ts",
+      "import": "./dist/featureRules.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}

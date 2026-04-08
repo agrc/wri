@@ -1,3 +1,18 @@
+import {
+  isHerbicideAction,
+  isNoActionCategory,
+  isRetreatmentEligibleFeatureType,
+  isSubtypeActionCategory,
+  normalizeHerbicides,
+} from '@ugrc/wri-shared/feature-rules';
+import type {
+  FeatureIntersections,
+  FeatureTable,
+  PointLineAction,
+  PolyAction,
+  ProjectRollup,
+  RetreatmentValue,
+} from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError } from 'firebase-functions/v2/https';
 
@@ -44,16 +59,22 @@ export const convertMetersToMiles = (meters: number) => {
   return `${Number(miles).toLocaleString('en-US')} mi`;
 };
 
+type RollupRow = {
+  origin: string;
+  name: string;
+  extra: string;
+  space: number;
+};
+
 /**
  * Processes rollup data by origin type, sorts by space descending, and converts to acres
  * @param rollup - Array of rollup records from database
  * @param includeStreamArray - If true, includes stream array in result; if false, stream property is omitted
  * @returns Object containing county, owner, and sgma arrays, plus optional stream array
  */
-export const processRollup = (
-  rollup: Array<{ origin: string; name: string; extra: string; space: number }>,
-  includeStreamArray = false,
-) => {
+export function processRollup(rollup: RollupRow[], includeStreamArray: true): FeatureIntersections;
+export function processRollup(rollup: RollupRow[], includeStreamArray?: false): ProjectRollup;
+export function processRollup(rollup: RollupRow[], includeStreamArray = false): ProjectRollup | FeatureIntersections {
   const sorted = rollup.sort((a, b) => b.space - a.space);
 
   const result = {
@@ -76,9 +97,7 @@ export const processRollup = (
   }
 
   return result;
-};
-
-export type FeatureTable = 'POLY' | 'LINE' | 'POINT';
+}
 
 /**
  * Lookup table for mapping feature types to database table names
@@ -96,13 +115,6 @@ export const tableLookup: Record<string, FeatureTable> = {
   pipeline: 'LINE',
   dam: 'LINE',
 };
-
-const RETREATMENT_ELIGIBLE_CATEGORIES = new Set(['terrestrial treatment area', 'aquatic/riparian treatment area']);
-
-export type RetreatmentValue = 'Y' | 'N';
-
-export const isRetreatmentEligibleFeatureType = (featureType: string) =>
-  RETREATMENT_ELIGIBLE_CATEGORIES.has(featureType.toLowerCase());
 
 export const booleanToRetreatment = (value: boolean | null | undefined): RetreatmentValue => (value ? 'Y' : 'N');
 
@@ -167,35 +179,6 @@ export const updateProjectStats = async (trx: import('knex').Knex.Transaction, p
  *
  * Mirrors the old .NET AttributeValidator.ValidAttributesFor() logic.
  */
-export type PolyTreatment = {
-  treatment: string;
-  herbicides: string[];
-};
-
-export type PolyAction = {
-  action: string;
-  treatments: PolyTreatment[];
-};
-
-export type PointLineAction = {
-  type: string;
-  action: string;
-  description: string;
-};
-
-// Categories where no actions are required
-const NO_ACTION_CATEGORIES = new Set(['affected area', 'other point feature']);
-
-// POINT categories that require action+type instead of description
-const SUBTYPE_ACTION_CATEGORIES = new Set(['guzzler', 'fish passage structure', 'fence', 'pipeline', 'dam']);
-
-const HERBICIDE_ACTION_NAME = 'herbicide application';
-
-const isHerbicideAction = (action: string) => action.trim().toLowerCase() === HERBICIDE_ACTION_NAME;
-
-export const normalizeHerbicides = (herbicides: string[] | null | undefined): string[] => {
-  return [...new Set((herbicides ?? []).map((herbicide) => herbicide.trim()).filter(Boolean))];
-};
 
 /**
  * Validates action data for a feature.
@@ -208,7 +191,7 @@ export const validateActions = (
 ): void => {
   const normalizedType = featureType.toLowerCase();
 
-  if (NO_ACTION_CATEGORIES.has(normalizedType)) {
+  if (isNoActionCategory(normalizedType)) {
     return;
   }
 
@@ -239,10 +222,7 @@ export const validateActions = (
         const normalizedHerbicides = normalizeHerbicides(herbicides as string[] | undefined);
 
         if (isHerbicideAction(polyAction.action) && normalizedHerbicides.length === 0) {
-          throw new HttpsError(
-            'invalid-argument',
-            'Herbicide Application treatments require at least one herbicide',
-          );
+          throw new HttpsError('invalid-argument', 'Herbicide Application treatments require at least one herbicide');
         }
 
         if (normalizedHerbicides.length > 0 && !isHerbicideAction(polyAction.action)) {
@@ -266,7 +246,7 @@ export const validateActions = (
 
   const firstAction = pointLineActions[0]!;
 
-  if (table === 'LINE' || SUBTYPE_ACTION_CATEGORIES.has(normalizedType)) {
+  if (table === 'LINE' || isSubtypeActionCategory(normalizedType)) {
     if (!firstAction.action?.trim() || !firstAction.type?.trim()) {
       throw new HttpsError('invalid-argument', 'This feature type requires both an action and a type');
     }

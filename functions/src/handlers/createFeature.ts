@@ -1,6 +1,15 @@
 import type Multipoint from '@arcgis/core/geometry/Multipoint.js';
 import type Polygon from '@arcgis/core/geometry/Polygon.js';
 import type Polyline from '@arcgis/core/geometry/Polyline.js';
+import { normalizeHerbicides } from '@ugrc/wri-shared/feature-rules';
+import type {
+  CreateFeatureRequest,
+  CreateFeatureResponse,
+  FeatureTable,
+  PointLineAction,
+  PolyAction,
+  RetreatmentValue,
+} from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
@@ -15,11 +24,6 @@ import {
   updateProjectStats,
   validateActions,
   validateRetreatment,
-  type FeatureTable,
-  normalizeHerbicides,
-  type PointLineAction,
-  type PolyAction,
-  type RetreatmentValue,
 } from '../utils.js';
 import {
   calculateAreasAndLengths,
@@ -73,16 +77,6 @@ const GEOMETRY_TYPE_BY_TABLE: Record<FeatureTable, string> = {
   POLY: 'esriGeometryPolygon',
   LINE: 'esriGeometryPolyline',
   POINT: 'esriGeometryMultipoint',
-};
-
-type CreateFeatureRequest = {
-  projectId?: number;
-  featureType?: string;
-  key?: string | null;
-  token?: string | null;
-  retreatment?: boolean | null;
-  actions?: PolyAction[] | PointLineAction[] | null;
-  geometry?: object | null;
 };
 
 /**
@@ -341,7 +335,7 @@ export const createFeatureTransaction = async (
  * geometry measurements and GIS intersections, then inserts the feature and all
  * related data inside a single transaction.
  */
-export const createFeatureHandler = async ({ data }: CallableRequest) => {
+export const createFeatureHandler = async ({ data }: CallableRequest): Promise<CreateFeatureResponse> => {
   throwIfNoFormData(data);
 
   try {

@@ -1,10 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Feature, PolygonFeatures } from '@ugrc/wri-shared/types';
 import { useEffect } from 'react';
 import { FeatureSelectionProvider, useFeatureSelection } from './contexts';
 import { resolveSelectedFeature } from './featureSelection';
 import ProjectFeaturesList from './ProjectFeaturesList';
-
-import type { Feature, PolygonFeatures } from './ProjectSpecific';
 
 const meta = {
   title: 'Components/ProjectFeaturesList',

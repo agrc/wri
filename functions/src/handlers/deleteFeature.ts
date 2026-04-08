@@ -1,8 +1,9 @@
+import type { DeleteFeatureResponse, FeatureTable } from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
-import { canEditProject, tableLookup, throwIfNoFormData, updateProjectStats, type FeatureTable } from '../utils.js';
+import { canEditProject, tableLookup, throwIfNoFormData, updateProjectStats } from '../utils.js';
 
 /**
  * Deletes all related rows for a polygon feature in a transaction:
@@ -80,7 +81,7 @@ export const deleteFeatureTransaction = async (
  * Handler for delete feature requests.
  * Validates input, checks authorization, then deletes the feature and all related data.
  */
-export const deleteFeatureHandler = async ({ data }: CallableRequest) => {
+export const deleteFeatureHandler = async ({ data }: CallableRequest): Promise<DeleteFeatureResponse> => {
   throwIfNoFormData(data);
 
   try {

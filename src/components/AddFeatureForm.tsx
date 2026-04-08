@@ -1,9 +1,14 @@
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
 import { Button, Checkbox, Select, SelectItem, TextArea, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
-import { PenLineIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { Toolbar, TooltipTrigger } from 'react-aria-components';
+import {
+  hasRequiredHerbicideSelections,
+  isNoActionCategory,
+  isRetreatmentEligibleCategory,
+  isSubtypeActionCategory,
+  normalizeHerbicides,
+  shouldShowHerbicideField,
+} from '@ugrc/wri-shared/feature-rules';
 import type {
   CreateFeatureData,
   EditingDomainsResponse,
@@ -12,10 +17,11 @@ import type {
   FormPolyAction,
   FormPolyTreatment,
   PolyFeatureAttributes,
-} from '../types';
+} from '@ugrc/wri-shared/types';
+import { PenLineIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Toolbar, TooltipTrigger } from 'react-aria-components';
 import { titleCase } from './';
-import { hasRequiredHerbicideSelections, shouldShowHerbicideField } from './addFeatureFormHelpers';
-import { isNoActionCategory, isRetreatmentEligibleCategory, isSubtypeActionCategory } from './addFeatureRules';
 import { useMap } from './hooks';
 
 const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
@@ -29,10 +35,6 @@ const HERBICIDE_PLACEHOLDER_KEY = '__unselected__';
 const createEmptyPolyTreatment = (): FormPolyTreatment => ({ treatment: '', herbicides: [] });
 
 const createEmptyPolyAction = (): FormPolyAction => ({ action: '', treatments: [createEmptyPolyTreatment()] });
-
-const normalizeHerbicides = (herbicides: string[]) => {
-  return [...new Set(herbicides.map((herbicide) => herbicide.trim()).filter(Boolean))];
-};
 
 type Props = {
   projectId: number;

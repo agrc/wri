@@ -44,7 +44,7 @@ import type { Knex } from 'knex';
 import { getDb } from '../database.js';
 import { canEditProject, updateProjectStats, validateActions } from '../utils.js';
 import { createFeatureHandler, createFeatureTransaction, geometryToWkt } from './createFeature.js';
-import { calculateAreasAndLengths, extractIntersections, projectGeometries } from './extractions.js';
+import { calculateAreasAndLengths, extractIntersections, FEATURE_SERVICE_CONFIG, projectGeometries } from './extractions.js';
 
 // ---------------------------------------------------------------------------
 // Mock transaction builder
@@ -297,6 +297,50 @@ describe('createFeatureHandler', () => {
     } as never);
 
     expect(result).toMatchObject({ featureId: 100 });
+  });
+
+  it('requests stream intersections for aquatic/riparian treatment areas only', async () => {
+    const { trx } = createMockTrx();
+    vi.mocked(canEditProject).mockResolvedValue(true);
+    vi.mocked(getDb).mockResolvedValue({
+      transaction: vi.fn(async (cb: (trx: Knex.Transaction) => Promise<unknown>) => cb(trx)),
+    } as never);
+    vi.mocked(calculateAreasAndLengths).mockResolvedValue({ areas: [1000] });
+    vi.mocked(projectGeometries).mockResolvedValue([{ spatialReference: { wkid: 26912 } }] as never);
+    vi.mocked(extractIntersections).mockResolvedValue(mockEmptyIntersections);
+
+    await createFeatureHandler({
+      data: { ...validPolyData, featureType: 'aquatic/riparian treatment area', retreatment: true },
+    } as never);
+
+    const [, criteria] = vi.mocked(extractIntersections).mock.calls[0]!;
+    expect(criteria).toEqual({
+      county: { attributes: [...FEATURE_SERVICE_CONFIG.county.attributes] },
+      landowner: { attributes: [...FEATURE_SERVICE_CONFIG.landowner.attributes] },
+      sgma: { attributes: [...FEATURE_SERVICE_CONFIG.sgma.attributes] },
+      stream: { attributes: [...FEATURE_SERVICE_CONFIG.stream.attributes] },
+    });
+  });
+
+  it('does not request stream intersections for non-aquatic polygon features', async () => {
+    const { trx } = createMockTrx();
+    vi.mocked(canEditProject).mockResolvedValue(true);
+    vi.mocked(getDb).mockResolvedValue({
+      transaction: vi.fn(async (cb: (trx: Knex.Transaction) => Promise<unknown>) => cb(trx)),
+    } as never);
+    vi.mocked(calculateAreasAndLengths).mockResolvedValue({ areas: [1000] });
+    vi.mocked(projectGeometries).mockResolvedValue([{ spatialReference: { wkid: 26912 } }] as never);
+    vi.mocked(extractIntersections).mockResolvedValue(mockEmptyIntersections);
+
+    await createFeatureHandler({ data: validPolyData } as never);
+
+    const [, criteria] = vi.mocked(extractIntersections).mock.calls[0]!;
+    expect(criteria).toEqual({
+      county: { attributes: [...FEATURE_SERVICE_CONFIG.county.attributes] },
+      landowner: { attributes: [...FEATURE_SERVICE_CONFIG.landowner.attributes] },
+      sgma: { attributes: [...FEATURE_SERVICE_CONFIG.sgma.attributes] },
+    });
+    expect(criteria).not.toHaveProperty('stream');
   });
 
   it('wraps unexpected errors in an internal HttpsError', async () => {

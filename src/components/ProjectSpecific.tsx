@@ -499,7 +499,10 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                       domains={editingDomainsQuery.data}
                       isSaving={createMutation.isPending}
                       saveError={createError}
-                      onCancel={() => setIsCreating(false)}
+                      onCancel={() => {
+                        setCreateError(null);
+                        setIsCreating(false);
+                      }}
                       onSave={(formData) => createMutation.mutate(formData)}
                     />
                   ) : (

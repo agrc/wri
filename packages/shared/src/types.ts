@@ -36,7 +36,7 @@ export type FormPointLineAction = PointLineAction;
 export type CreateFeatureData = {
   projectId: number;
   featureType: string;
-  geometry: object;
+  geometry: object | object[];
   retreatment: boolean;
   actions: FormPolyAction[] | FormPointLineAction[] | null;
 };
@@ -48,7 +48,7 @@ export type CreateFeatureRequest = {
   token?: string | null;
   retreatment?: boolean | null;
   actions?: PolyAction[] | PointLineAction[] | null;
-  geometry?: object | null;
+  geometry?: object | object[] | null;
 };
 
 export type RetreatmentValue = 'Y' | 'N';

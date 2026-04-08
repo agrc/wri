@@ -51,7 +51,8 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const graphicsLayerRef = useRef<GraphicsLayer | null>(null);
 
   const [category, setCategory] = useState<string>('');
-  const [geometry, setGeometry] = useState<__esri.Geometry | null>(null);
+  const [geometries, setGeometries] = useState<__esri.Geometry[]>([]);
+  const geometriesRef = useRef<__esri.Geometry[]>([]);
   const [drawingState, setDrawingState] = useState<'idle' | 'drawing' | 'complete'>('idle');
   const [retreatment, setRetreatment] = useState(false);
   const [polyActions, setPolyActions] = useState<FormPolyAction[]>([createEmptyPolyAction()]);
@@ -83,7 +84,8 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
       mapView.map?.remove(graphicsLayerRef.current);
       graphicsLayerRef.current = null;
     }
-    setGeometry(null);
+    setGeometries([]);
+    geometriesRef.current = [];
     setDrawingState('idle');
 
     const resolvedTable = domains?.featureTypes?.[category];
@@ -93,15 +95,30 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     graphicsLayerRef.current = graphicsLayer;
     mapView.map?.add(graphicsLayer);
 
-    const sketchVM = new SketchViewModel({ view: mapView, layer: graphicsLayer });
+    const isMultipart = resolvedTable === 'POLY' || resolvedTable === 'LINE';
+    const sketchVM = new SketchViewModel({
+      view: mapView,
+      layer: graphicsLayer,
+      creationMode: isMultipart ? 'continuous' : 'single',
+    });
     sketchVMRef.current = sketchVM;
 
     sketchVM.on('create', (event) => {
       if (event.state === 'complete' && event.graphic.geometry) {
-        setGeometry(event.graphic.geometry as __esri.Geometry);
-        setDrawingState('complete');
+        const geom = event.graphic.geometry as __esri.Geometry;
+        geometriesRef.current = [...geometriesRef.current, geom];
+        setGeometries([...geometriesRef.current]);
+        // For multipart types, creationMode:'continuous' auto-restarts drawing.
+        // For POINT the multipoint tool handles multipart natively in one interaction.
+        if (!isMultipart) {
+          setDrawingState('complete');
+        }
       } else if (event.state === 'cancel') {
-        setDrawingState('idle');
+        if (geometriesRef.current.length > 0) {
+          setDrawingState('complete');
+        } else {
+          setDrawingState('idle');
+        }
       }
     });
 
@@ -212,11 +229,9 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
       ),
     );
 
-  // Re-activate the draw tool (used by the toolbar Draw button)
+  // Re-activate the draw tool to add another part
   const startDrawing = () => {
     if (!sketchVMRef.current || !table) return;
-    graphicsLayerRef.current?.removeAll();
-    setGeometry(null);
     sketchVMRef.current.create(DRAW_TOOL[table]);
     setDrawingState('drawing');
   };
@@ -237,7 +252,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   };
 
   const isValid = (): boolean => {
-    if (!category || !geometry) return false;
+    if (!category || geometries.length === 0) return false;
     if (isNoActionCategory(category)) return true;
     if (table === 'POLY') {
       return polyActions.every(
@@ -262,11 +277,13 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   };
 
   const handleSubmit = () => {
-    if (!geometry) return;
+    if (geometries.length === 0) return;
+    const geometry =
+      geometries.length === 1 ? (geometries[0]!.toJSON() as object) : geometries.map((g) => g.toJSON() as object);
     onSave({
       projectId,
       featureType: category,
-      geometry: geometry.toJSON() as object,
+      geometry,
       retreatment,
       actions: buildActions(),
     });
@@ -319,13 +336,21 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
             </TooltipTrigger>
           </Toolbar>
           {drawingState === 'idle' && <p className="text-xs text-zinc-500 dark:text-zinc-400">Click Draw to begin.</p>}
-          {drawingState === 'drawing' && (
+          {drawingState === 'drawing' && geometries.length === 0 && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Click on the map to draw. Press Enter or double-click to finish. Press Escape to cancel.
+              Click on the map to draw. Press Enter or double-click to finish the current part. Press Escape to cancel.
+            </p>
+          )}
+          {drawingState === 'drawing' && geometries.length > 0 && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {geometries.length} part{geometries.length > 1 ? 's' : ''} drawn. Drawing next part. Press Enter or
+              double-click to finish the current part. Press Escape to stop.
             </p>
           )}
           {drawingState === 'complete' && (
-            <p className="text-xs text-emerald-700 dark:text-emerald-400">Feature drawn. Click Draw to redraw.</p>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">
+              {geometries.length} part{geometries.length > 1 ? 's' : ''} drawn. Click Draw to add another part.
+            </p>
           )}
         </div>
       )}

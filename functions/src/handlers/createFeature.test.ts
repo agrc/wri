@@ -43,8 +43,18 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
 import { canEditProject, updateProjectStats, validateActions } from '../utils.js';
-import { createFeatureHandler, createFeatureTransaction, geometryToWkt } from './createFeature.js';
-import { calculateAreasAndLengths, extractIntersections, FEATURE_SERVICE_CONFIG, projectGeometries } from './extractions.js';
+import {
+  createFeatureHandler,
+  createFeatureTransaction,
+  geometriesArrayToWkt,
+  geometryToWkt,
+} from './createFeature.js';
+import {
+  calculateAreasAndLengths,
+  extractIntersections,
+  FEATURE_SERVICE_CONFIG,
+  projectGeometries,
+} from './extractions.js';
 
 // ---------------------------------------------------------------------------
 // Mock transaction builder
@@ -731,5 +741,144 @@ describe('geometryToWkt', () => {
   it('throws HttpsError for unsupported geometry type', () => {
     const geometry = { toJSON: () => ({ x: 1, y: 2 }) } as never;
     expect(() => geometryToWkt(geometry)).toThrow(HttpsError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// geometriesArrayToWkt unit tests
+// ---------------------------------------------------------------------------
+
+describe('geometriesArrayToWkt', () => {
+  it('converts two disjoint polygons (one ring each) to MULTIPOLYGON WKT', () => {
+    const geometries = [
+      {
+        toJSON: () => ({
+          rings: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        }),
+      },
+      {
+        toJSON: () => ({
+          rings: [
+            [
+              [5, 5],
+              [6, 5],
+              [6, 6],
+              [5, 5],
+            ],
+          ],
+        }),
+      },
+    ] as never[];
+    expect(geometriesArrayToWkt(geometries)).toBe('MULTIPOLYGON (((0 0, 1 0, 1 1, 0 0)), ((5 5, 6 5, 6 6, 5 5)))');
+  });
+
+  it('preserves hole rings when building MULTIPOLYGON WKT', () => {
+    const geometries = [
+      {
+        toJSON: () => ({
+          rings: [
+            [
+              [0, 0],
+              [4, 0],
+              [4, 4],
+              [0, 0],
+            ],
+            [
+              [1, 1],
+              [2, 1],
+              [2, 2],
+              [1, 1],
+            ],
+          ],
+        }),
+      },
+      {
+        toJSON: () => ({
+          rings: [
+            [
+              [10, 10],
+              [11, 10],
+              [11, 11],
+              [10, 10],
+            ],
+          ],
+        }),
+      },
+    ] as never[];
+    expect(geometriesArrayToWkt(geometries)).toBe(
+      'MULTIPOLYGON (((0 0, 4 0, 4 4, 0 0), (1 1, 2 1, 2 2, 1 1)), ((10 10, 11 10, 11 11, 10 10)))',
+    );
+  });
+
+  it('converts two single-path polylines to MULTILINESTRING WKT', () => {
+    const geometries = [
+      {
+        toJSON: () => ({
+          paths: [
+            [
+              [0, 0],
+              [1, 1],
+            ],
+          ],
+        }),
+      },
+      {
+        toJSON: () => ({
+          paths: [
+            [
+              [5, 5],
+              [6, 6],
+            ],
+          ],
+        }),
+      },
+    ] as never[];
+    expect(geometriesArrayToWkt(geometries)).toBe('MULTILINESTRING ((0 0, 1 1), (5 5, 6 6))');
+  });
+
+  it('flattens all paths from multi-path polylines into MULTILINESTRING WKT', () => {
+    const geometries = [
+      {
+        toJSON: () => ({
+          paths: [
+            [
+              [0, 0],
+              [1, 1],
+            ],
+            [
+              [2, 2],
+              [3, 3],
+            ],
+          ],
+        }),
+      },
+      {
+        toJSON: () => ({
+          paths: [
+            [
+              [9, 9],
+              [10, 10],
+            ],
+          ],
+        }),
+      },
+    ] as never[];
+    expect(geometriesArrayToWkt(geometries)).toBe('MULTILINESTRING ((0 0, 1 1), (2 2, 3 3), (9 9, 10 10))');
+  });
+
+  it('throws HttpsError for an empty geometry array', () => {
+    expect(() => geometriesArrayToWkt([])).toThrow(HttpsError);
+  });
+
+  it('throws HttpsError for unsupported geometry type array', () => {
+    const geometries = [{ toJSON: () => ({ points: [[1, 2]] }) }] as never[];
+    expect(() => geometriesArrayToWkt(geometries)).toThrow(HttpsError);
   });
 });

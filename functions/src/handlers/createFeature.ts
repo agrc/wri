@@ -31,6 +31,7 @@ import {
   FEATURE_SERVICE_CONFIG,
   projectGeometries,
   SPATIAL_REFERENCES,
+  unionGeometries,
   type ExtractionCriteria,
   type IntersectionResponse,
 } from './extractions.js';
@@ -71,6 +72,46 @@ export function geometryToWkt(geometry: Polygon | Polyline | Multipoint): string
   }
 
   throw new HttpsError('invalid-argument', 'Unsupported geometry type');
+}
+
+/**
+ * Converts an array of polygon or polyline ArcGIS geometries to a MULTIPOLYGON or
+ * MULTILINESTRING WKT string for SQL Server storage.
+ * Each polygon may carry multiple rings (outer boundary + holes).
+ * Each polyline may carry multiple paths.
+ */
+export function geometriesArrayToWkt(geometries: (Polygon | Polyline | Multipoint)[]): string {
+  if (geometries.length === 0) {
+    throw new HttpsError('invalid-argument', 'Cannot convert empty geometry array to WKT');
+  }
+
+  const first = geometries[0]!.toJSON() as Record<string, unknown>;
+
+  if ('rings' in first) {
+    // Array of polygons → MULTIPOLYGON
+    const polygonParts = geometries.map((g) => {
+      const json = g.toJSON() as Record<string, unknown>;
+      const rings = json.rings as number[][][];
+      const ringStrings = rings.map((ring) => `(${ring.map(([x, y]) => `${x} ${y}`).join(', ')})`);
+      return `(${ringStrings.join(', ')})`;
+    });
+    return `MULTIPOLYGON (${polygonParts.join(', ')})`;
+  }
+
+  if ('paths' in first) {
+    // Array of polylines → MULTILINESTRING (flatten all paths from all polylines)
+    const pathStrings: string[] = [];
+    for (const g of geometries) {
+      const json = g.toJSON() as Record<string, unknown>;
+      const paths = json.paths as number[][][];
+      for (const path of paths) {
+        pathStrings.push(`(${path.map(([x, y]) => `${x} ${y}`).join(', ')})`);
+      }
+    }
+    return `MULTILINESTRING (${pathStrings.join(', ')})`;
+  }
+
+  throw new HttpsError('invalid-argument', 'geometriesArrayToWkt only supports polygon and polyline arrays');
 }
 
 const GEOMETRY_TYPE_BY_TABLE: Record<FeatureTable, string> = {
@@ -346,7 +387,7 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
     const token = request.token?.toString() ?? null;
     const retreatment = parseRetreatmentInput(request.retreatment);
     const actions = (request.actions ?? null) as PolyAction[] | PointLineAction[] | null;
-    const geometryData = request.geometry as object | null;
+    const geometryData = request.geometry as object | object[] | null;
 
     if (isNaN(projectId) || projectId <= 0 || projectId > Number.MAX_SAFE_INTEGER) {
       throw new HttpsError('invalid-argument', 'Invalid project ID');
@@ -359,6 +400,10 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
 
     if (!geometryData || typeof geometryData !== 'object') {
       throw new HttpsError('invalid-argument', 'Geometry is required');
+    }
+
+    if (Array.isArray(geometryData) && geometryData.length === 0) {
+      throw new HttpsError('invalid-argument', 'Geometry array must not be empty');
     }
 
     validateActions(table, featureType, actions);
@@ -374,16 +419,6 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
     logger.info('Creating feature', { projectId, featureType, table });
 
     const { fromJSON } = await importArcGIS();
-    const geometry = fromJSON(geometryData);
-
-    // Project geometry to UTM Zone 12N for accurate measurements
-    const [projectedGeometry] = await projectGeometries([geometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
-    if (!projectedGeometry || !projectedGeometry.spatialReference) {
-      throw new HttpsError(
-        'invalid-argument',
-        'Failed to project the submitted geometry to the required spatial reference.',
-      );
-    }
 
     const geometryType = GEOMETRY_TYPE_BY_TABLE[table];
 
@@ -397,19 +432,63 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
       ...(shouldExtractStream ? { stream: { attributes: [...FEATURE_SERVICE_CONFIG.stream.attributes] } } : {}),
     };
 
-    // Measurements and GIS extractions run in parallel
-    const [areasLengths, intersections] = await Promise.all([
-      table !== 'POINT'
+    let wkt: string;
+    let areaSqMeters: number | null;
+    let lengthLnMeters: number | null;
+    let intersectionGeometry: Polygon | Polyline | Multipoint;
+
+    if (Array.isArray(geometryData)) {
+      // Multi-part path: array of geometries from the frontend
+      const geoms = geometryData.map((d) => fromJSON(d as object)) as (Polygon | Polyline | Multipoint)[];
+
+      const projectedGeometries = await projectGeometries(geoms, SPATIAL_REFERENCES.UTM_ZONE_12N);
+      const validProjected = projectedGeometries.filter((g) => g?.spatialReference);
+      if (validProjected.length === 0) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Failed to project the submitted geometries to the required spatial reference.',
+        );
+      }
+
+      const [areasLengths, unioned] = await Promise.all([
+        table !== 'POINT'
+          ? calculateAreasAndLengths(validProjected as object[], geometryType)
+          : Promise.resolve({ areas: null, lengths: null }),
+        unionGeometries(validProjected),
+      ]);
+
+      if (!unioned) {
+        throw new HttpsError('invalid-argument', 'Failed to union the submitted geometries.');
+      }
+
+      areaSqMeters = areasLengths.areas ? areasLengths.areas.reduce((sum, a) => sum + a, 0) : null;
+      lengthLnMeters = areasLengths.lengths ? areasLengths.lengths.reduce((sum, l) => sum + l, 0) : null;
+      intersectionGeometry = unioned as Polygon | Polyline | Multipoint;
+      wkt = geometriesArrayToWkt(geoms);
+    } else {
+      // Single-geometry path (unchanged behaviour)
+      const geometry = fromJSON(geometryData);
+
+      const [projectedGeometry] = await projectGeometries([geometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
+      if (!projectedGeometry || !projectedGeometry.spatialReference) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Failed to project the submitted geometry to the required spatial reference.',
+        );
+      }
+
+      const areasLengths = await (table !== 'POINT'
         ? calculateAreasAndLengths([projectedGeometry as object], geometryType)
-        : Promise.resolve({ areas: null, lengths: null }),
-      extractIntersections(projectedGeometry, extractCriteria),
-    ]);
+        : Promise.resolve({ areas: null, lengths: null }));
 
-    const areaSqMeters = areasLengths.areas?.[0] ?? null;
-    const lengthLnMeters = areasLengths.lengths?.[0] ?? null;
+      areaSqMeters = areasLengths.areas?.[0] ?? null;
+      lengthLnMeters = areasLengths.lengths?.[0] ?? null;
+      intersectionGeometry = projectedGeometry as Polygon | Polyline | Multipoint;
+      wkt = geometryToWkt(geometry as Polygon | Polyline | Multipoint);
+    }
 
-    // Convert to WKT for SQL Server storage
-    const wkt = geometryToWkt(geometry);
+    // Measurements and GIS extractions run in parallel (intersections use the unioned/single geometry)
+    const intersections = await extractIntersections(intersectionGeometry, extractCriteria);
 
     const { featureId, statusDescription } = await db.transaction((trx) =>
       createFeatureTransaction(

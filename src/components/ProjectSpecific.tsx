@@ -43,6 +43,67 @@ import { useHighlight } from './hooks/useHighlight';
 import ProjectFeaturesList from './ProjectFeaturesList';
 import { UpdateProjectStatistics } from './UpdateProjectStatistics';
 
+const buildDisplayGeometry = (geometry: CreateFeatureData['geometry']): __esri.Geometry => {
+  const parseGeometry = (value: object): __esri.Geometry => {
+    const parsedGeometry = fromJSON(value);
+
+    if (!parsedGeometry) {
+      throw new Error('Failed to parse display geometry.');
+    }
+
+    return parsedGeometry as __esri.Geometry;
+  };
+
+  if (!Array.isArray(geometry)) {
+    return parseGeometry(geometry);
+  }
+
+  if (geometry.length === 0) {
+    throw new Error('Cannot build display geometry from an empty geometry array.');
+  }
+
+  const first = geometry[0] as Record<string, unknown>;
+  const spatialReference = first.spatialReference as Record<string, unknown> | undefined;
+
+  if ('rings' in first) {
+    const rings = geometry.flatMap((item) => {
+      const json = item as Record<string, unknown>;
+
+      if (!('rings' in json) || !Array.isArray(json.rings)) {
+        throw new Error('Multipart polygon payload must contain only polygon geometries.');
+      }
+
+      return json.rings as number[][][];
+    });
+
+    return parseGeometry({
+      type: 'polygon',
+      rings,
+      ...(spatialReference ? { spatialReference } : {}),
+    });
+  }
+
+  if ('paths' in first) {
+    const paths = geometry.flatMap((item) => {
+      const json = item as Record<string, unknown>;
+
+      if (!('paths' in json) || !Array.isArray(json.paths)) {
+        throw new Error('Multipart polyline payload must contain only polyline geometries.');
+      }
+
+      return json.paths as number[][][];
+    });
+
+    return parseGeometry({
+      type: 'polyline',
+      paths,
+      ...(spatialReference ? { spatialReference } : {}),
+    });
+  }
+
+  throw new Error('Unsupported multipart geometry payload.');
+};
+
 const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
@@ -163,7 +224,20 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
       const layer = getFeatureLayer(kind);
 
       if (layer) {
-        const geom = fromJSON(variables.geometry);
+        let geom: __esri.Geometry;
+
+        try {
+          geom = buildDisplayGeometry(variables.geometry);
+        } catch (error) {
+          const failure = error instanceof Error ? error : new Error('Failed to build display geometry.');
+          console.error('Failed to build feature geometry for map layer:', failure, {
+            featureType: variables.featureType,
+            featureId: _data.featureId,
+          });
+          setCreateError(failure.message);
+          return;
+        }
+
         const graphic = new Graphic({
           geometry: geom,
           attributes: {

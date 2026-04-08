@@ -25,6 +25,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     test: {
+      // Resolve shared package imports to source during tests so Vitest doesn't depend on stale dist output.
+      alias: {
+        '@ugrc/wri-shared/feature-rules': resolve(__dirname, 'packages/shared/src/featureRules.ts'),
+        '@ugrc/wri-shared/types': resolve(__dirname, 'packages/shared/src/types.ts'),
+      },
       include: ['**/*.{test,spec}.{ts,tsx}'],
     },
   };

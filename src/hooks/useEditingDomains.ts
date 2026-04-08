@@ -1,19 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { useFirebaseFunctions } from '@ugrc/utah-design-system';
-import { httpsCallable } from 'firebase/functions';
-import type { EditingDomainsResponse } from '../types';
+import type { EditingDomainsResponse } from '@ugrc/wri-shared/types';
+import { useCallableData } from './useTypedCallable';
 
 export const useEditingDomains = (enabled: boolean) => {
-  const { functions } = useFirebaseFunctions();
-  functions.region = 'us-west3';
-  const editingDomainsFn = httpsCallable(functions, 'editingDomains');
+  const editingDomainsFn = useCallableData<void, EditingDomainsResponse>('editingDomains');
 
   return useQuery({
     queryKey: ['editingDomains'],
-    queryFn: async () => {
-      const result = await editingDomainsFn();
-      return result.data as EditingDomainsResponse;
-    },
+    queryFn: async () => editingDomainsFn(undefined),
     enabled,
     staleTime: Infinity,
   });

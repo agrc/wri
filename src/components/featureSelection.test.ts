@@ -1,3 +1,4 @@
+import type { Feature, PolygonFeatures } from '@ugrc/wri-shared/types';
 import { describe, expect, it } from 'vitest';
 import {
   getFeatureKindFromLayerId,
@@ -6,7 +7,6 @@ import {
   resolveSelectedFeature,
   serializeFeatureKey,
 } from './featureSelection';
-import type { Feature, PolygonFeatures } from './ProjectSpecific';
 
 const polygons: PolygonFeatures = {
   areaA: [

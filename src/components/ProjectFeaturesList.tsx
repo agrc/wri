@@ -1,4 +1,5 @@
 import { AlertDialog, Button, Modal, Tooltip } from '@ugrc/utah-design-system';
+import type { Feature, FeatureKind, PolygonFeatures } from '@ugrc/wri-shared/types';
 import { BookOpenText, Pencil, Trash2 } from 'lucide-react';
 import React, { type JSX } from 'react';
 import {
@@ -10,12 +11,15 @@ import {
   type Key,
   type Selection,
 } from 'react-aria-components';
-import type { FeatureKind } from '../types';
 import { useFeatureSelection } from './contexts';
 import { ErrorBanner } from './ErrorBanner';
 import { FeatureCard } from './FeatureCard';
-import { formatPolygonFeatureDetail, getProjectFeatureLayerId, parseFeatureKey, serializeFeatureKey } from './featureSelection';
-import type { Feature, PolygonFeatures } from './ProjectSpecific';
+import {
+  formatPolygonFeatureDetail,
+  getProjectFeatureLayerId,
+  parseFeatureKey,
+  serializeFeatureKey,
+} from './featureSelection';
 const sectionHeadingByKind: Record<FeatureKind, string> = {
   poly: 'Polygon features',
   line: 'Line features',

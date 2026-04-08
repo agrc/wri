@@ -1,3 +1,4 @@
+import type { FeatureIntersections } from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { getDb } from '../database.js';
@@ -7,7 +8,7 @@ import { processRollup, tableLookup, throwIfNoFormData } from '../utils.js';
  * Handler for feature data requests
  * Fetches rollup data for a specific feature including county, SGMA, owner, and stream information
  */
-export const featureHandler = async ({ data }: CallableRequest) => {
+export const featureHandler = async ({ data }: CallableRequest): Promise<FeatureIntersections> => {
   throwIfNoFormData(data);
 
   try {

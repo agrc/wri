@@ -1,3 +1,4 @@
+import type { PolygonFeature, ProjectResponse } from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
@@ -11,22 +12,13 @@ import {
   throwIfNoFormData,
 } from '../utils.js';
 
-type ProjectPolygonFeature = {
-  id: number;
-  type: string;
-  subtype: string;
-  action: string;
-  herbicides: string[];
-  retreatment: boolean;
-  layer: 'feature-poly';
-  size: string;
-};
+type ProjectPolygonFeature = PolygonFeature;
 
 /**
  * Handler for project data requests
  * Fetches comprehensive project information including metadata, rollups, and features
  */
-export const projectHandler = async ({ data }: CallableRequest) => {
+export const projectHandler = async ({ data }: CallableRequest): Promise<ProjectResponse> => {
   throwIfNoFormData(data);
 
   try {
@@ -176,7 +168,8 @@ export const projectHandler = async ({ data }: CallableRequest) => {
 
           const herbicide = typeof feature.herbicide === 'string' ? feature.herbicide.trim() : '';
           const existing = acc[feature.id]!.find(
-            (polygon: ProjectPolygonFeature) => polygon.action === feature.action && polygon.subtype === feature.subtype,
+            (polygon: ProjectPolygonFeature) =>
+              polygon.action === feature.action && polygon.subtype === feature.subtype,
           );
 
           if (existing) {
@@ -199,10 +192,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
           });
           return acc;
         },
-        {} as Record<
-          string,
-          ProjectPolygonFeature[]
-        >,
+        {} as Record<string, ProjectPolygonFeature[]>,
       );
 
     if (!project) {
@@ -237,6 +227,7 @@ export const projectHandler = async ({ data }: CallableRequest) => {
           id: f.id,
           type: f.type,
           subtype: f.subtype,
+          description: f.description,
           action: f.action,
           layer: 'feature-line',
           size: `${f.size} meters`,

@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, useFirebaseFunctions } from '@ugrc/utah-design-system';
-import { httpsCallable } from 'firebase/functions';
+import { Button } from '@ugrc/utah-design-system';
+import type { UpdateProjectStatsRequest, UpdateProjectStatsResponse } from '@ugrc/wri-shared/types';
 import { useState } from 'react';
-import { getUserCredentials } from '../utils/userCredentials';
+import { useAuthedCallable } from '../hooks/useTypedCallable';
 import { ErrorBanner } from './ErrorBanner';
 
 type Props = {
@@ -12,15 +12,14 @@ type Props = {
 
 export const UpdateProjectStatistics = ({ projectId, allowEdits }: Props) => {
   const [error, setError] = useState<string | null>(null);
-  const { functions } = useFirebaseFunctions();
-  functions.region = 'us-west3';
-  const updateProjectStatsFn = httpsCallable(functions, 'updateProjectStats');
+  const updateProjectStatsFn = useAuthedCallable<UpdateProjectStatsRequest, UpdateProjectStatsResponse>(
+    'updateProjectStats',
+  );
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const credentials = getUserCredentials();
-      await updateProjectStatsFn({ projectId, ...credentials });
+      await updateProjectStatsFn({ projectId });
     },
     onSuccess: () => {
       setError(null);

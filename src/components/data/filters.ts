@@ -1,4 +1,4 @@
-import type { FeatureKind } from '../../types';
+import type { FeatureKind } from '@ugrc/wri-shared/types';
 
 export const projectStatus = [
   {

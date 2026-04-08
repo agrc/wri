@@ -1,5 +1,4 @@
-import type { FeatureKind } from '../types';
-import type { Feature, PolygonFeature, PolygonFeatures } from './ProjectSpecific';
+import type { Feature, FeatureKind, PolygonFeature, PolygonFeatures } from '@ugrc/wri-shared/types';
 
 export type SelectedFeature = (Feature | PolygonFeature) & {
   kind: FeatureKind;

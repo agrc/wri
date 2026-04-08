@@ -1,15 +1,7 @@
+import type { EditingDomainsResponse, FeatureTable, PolyFeatureAttributes } from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { getDb } from '../database.js';
-import type { FeatureTable } from '../utils.js';
-
-export type PolyFeatureAttributes = Record<string, string[]>;
-export type EditingDomainsResponse = {
-  featureTypes: Record<string, FeatureTable>;
-  featureAttributes: Record<string, PolyFeatureAttributes | string[]>;
-  herbicides: string[];
-  pointLineActions: string[];
-};
 
 // FeatureTypeID = 5 is the generic point/line action type in the LU_FEATURETYPE table
 // (matches the old .NET API's hardcoded value in StandardQueries.cs)
@@ -28,7 +20,7 @@ const sortRecordByKey = <T>(record: Record<string, T>): Record<string, T> =>
  * the list of available herbicides, and the list of available point/line actions.
  * No authentication required — this is read-only public lookup data.
  */
-export const editingDomainsHandler = async () => {
+export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> => {
   try {
     const db = await getDb();
 

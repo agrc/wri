@@ -1,5 +1,5 @@
+import type { FeatureKind } from '@ugrc/wri-shared/types';
 import { type Selection } from 'react-stately';
-import type { FeatureKind } from '../types';
 import { featureTypes, projectStatus } from './data/filters';
 
 const allRecords = '';

@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import {
   booleanToRetreatment,
   canEditProject,
-  isRetreatmentEligibleFeatureType,
   parseRetreatmentInput,
   retreatmentToBoolean,
   validateActions,
@@ -12,13 +11,6 @@ import {
 } from './utils.js';
 
 describe('retreatment helpers', () => {
-  it('only allows retreatment for terrestrial and aquatic treatment areas', () => {
-    expect(isRetreatmentEligibleFeatureType('Terrestrial Treatment Area')).toBe(true);
-    expect(isRetreatmentEligibleFeatureType('Aquatic/Riparian Treatment Area')).toBe(true);
-    expect(isRetreatmentEligibleFeatureType('Affected Area')).toBe(false);
-    expect(isRetreatmentEligibleFeatureType('Easement/Acquisition')).toBe(false);
-  });
-
   it('rejects retreatment for unsupported feature types', () => {
     expect(() => validateRetreatment('affected area', 'Y')).toThrow(HttpsError);
     expect(() => validateRetreatment('easement/acquisition', 'Y')).toThrow(

@@ -2,17 +2,27 @@ import Collection from '@arcgis/core/core/Collection';
 import { fromJSON } from '@arcgis/core/geometry/support/jsonUtils';
 import Graphic from '@arcgis/core/Graphic';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Switch, Tab, TabList, TabPanel, Tabs, useFirebaseFunctions } from '@ugrc/utah-design-system';
-import { httpsCallable } from 'firebase/functions';
+import { Button, Switch, Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system';
+import type {
+  CreateFeatureData,
+  CreateFeatureRequest,
+  CreateFeatureResponse,
+  DeleteFeatureRequest,
+  DeleteFeatureResponse,
+  FeatureIntersections,
+  FeatureKind,
+  FeatureRequest,
+  ProjectRequest,
+  ProjectResponse,
+} from '@ugrc/wri-shared/types';
 import { DiamondIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useEditingDomains } from '../hooks/useEditingDomains';
+import { useAuthedCallable, useCallableData } from '../hooks/useTypedCallable';
 import { POLY_OPACITY } from '../mapLayers';
-import type { CreateFeatureData, FeatureKind } from '../types';
-import { getUserCredentials } from '../utils/userCredentials';
 import {
   AdjacentProjects,
   DownloadProjectData,
@@ -33,57 +43,6 @@ import { useHighlight } from './hooks/useHighlight';
 import ProjectFeaturesList from './ProjectFeaturesList';
 import { UpdateProjectStatistics } from './UpdateProjectStatistics';
 
-export type Project = {
-  id: number;
-  manager: string;
-  agency: string;
-  title: string;
-  status: string;
-  description: string;
-  region: string;
-  affected: number;
-  terrestrial: number;
-  aquatic: number;
-  easement: number;
-  stream: number;
-};
-export type ProjectFeatures = {
-  polygons: PolygonFeatures;
-  lines: Feature[];
-  points: Feature[];
-};
-export type ProjectResponse = {
-  allowEdits: boolean;
-  county: FeatureIntersection[];
-  owner: LandOwnerIntersection[];
-  sgma: FeatureIntersection[];
-} & Project &
-  ProjectFeatures;
-export type FeatureIntersections = {
-  county: FeatureIntersection[];
-  owner: LandOwnerIntersection[];
-  sgma: FeatureIntersection[];
-  stream: FeatureIntersection[];
-};
-export type FeatureIntersection = { name: string; area: string };
-export type LandOwnerIntersection = { owner: string; admin: string; area: string };
-export type PolygonFeatures = { [key: string]: PolygonFeature[] };
-export type Feature = {
-  id: number;
-  type: string;
-  subtype: string | nullish;
-  action: string | nullish;
-  description: string | nullish;
-  size: string;
-  layer: FeatureLayerId;
-};
-export type PolygonFeature = Feature & {
-  herbicides: string[];
-  retreatment: boolean | nullish;
-};
-
-export type FeatureLayerId = 'feature-point' | 'feature-line' | 'feature-poly';
-
 const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
@@ -103,13 +62,10 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     setMapSelectionEnabled,
   } = useFeatureSelection();
   const zoomSelectionRef = useRef(selected);
-  const { functions } = useFirebaseFunctions();
-  functions.region = 'us-west3';
-
-  const getProjectInfo = httpsCallable(functions, 'project');
-  const getFeatureInfo = httpsCallable(functions, 'feature');
-  const deleteFeatureFn = httpsCallable(functions, 'deleteFeature');
-  const createFeatureFn = httpsCallable(functions, 'createFeature');
+  const getProjectInfo = useAuthedCallable<ProjectRequest, ProjectResponse>('project');
+  const getFeatureInfo = useCallableData<FeatureRequest, FeatureIntersections>('feature');
+  const deleteFeatureFn = useAuthedCallable<DeleteFeatureRequest, DeleteFeatureResponse>('deleteFeature');
+  const createFeatureFn = useAuthedCallable<CreateFeatureRequest, CreateFeatureResponse>('createFeature');
 
   const queryClient = useQueryClient();
 
@@ -141,8 +97,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
       featureType: string;
       featureKind: FeatureKind;
     }) => {
-      const credentials = getUserCredentials();
-      await deleteFeatureFn({ projectId, featureId, featureType, ...credentials });
+      await deleteFeatureFn({ projectId, featureId, featureType });
     },
     onSuccess: (_data, variables) => {
       setFeatureError(null);
@@ -186,9 +141,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const createMutation = useMutation({
     mutationFn: async (formData: CreateFeatureData) => {
       setCreateError(null);
-      const credentials = getUserCredentials();
-      const result = await createFeatureFn({ ...formData, ...credentials });
-      return result.data as { message: string; featureId: number; statusDescription: string | null };
+      return createFeatureFn(formData);
     },
     onSuccess: (_data, variables) => {
       setIsCreating(false);
@@ -236,28 +189,27 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
 
   const { data, status } = useQuery<ProjectResponse>({
     queryKey: ['project', projectId],
-    queryFn: async () => {
-      const credentials = getUserCredentials();
-      const result = await getProjectInfo({ id: projectId, ...credentials });
-
-      return result.data as ProjectResponse;
-    },
+    queryFn: async () => getProjectInfo({ id: projectId }),
     enabled: projectId > 0,
   });
 
   const editingDomainsQuery = useEditingDomains(data?.allowEdits ?? false);
+  const selectedFeatureId = selectedFeature?.id ?? null;
+  const selectedFeatureType = selectedFeature?.type?.toLowerCase() ?? null;
 
   const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
-    queryKey: ['featureDetails', projectId, selectedFeature?.id ?? null, selectedFeature?.type ?? null],
+    queryKey: ['featureDetails', projectId, selectedFeatureId, selectedFeatureType],
     queryFn: async () => {
-      const result = await getFeatureInfo({
-        type: selectedFeature?.type.toLowerCase(),
-        featureId: selectedFeature?.id,
-      });
+      if (selectedFeatureId == null || !selectedFeatureType) {
+        throw new Error('A feature must be selected before requesting feature details.');
+      }
 
-      return result.data as FeatureIntersections;
+      return getFeatureInfo({
+        type: selectedFeatureType,
+        featureId: selectedFeatureId,
+      });
     },
-    enabled: selectedFeature !== null,
+    enabled: selectedFeatureId != null,
   });
 
   const resolveProjectSelection = useCallback(

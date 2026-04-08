@@ -1,3 +1,4 @@
+import type { UpdateProjectStatsResponse } from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { getDb } from '../database.js';
@@ -7,7 +8,7 @@ import { canEditProject, throwIfNoFormData, updateProjectStats } from '../utils.
  * Handler for recalculating project-level spatial statistics.
  * Validates input, checks authorization, then runs updateProjectStats inside a transaction.
  */
-export const updateProjectStatsHandler = async ({ data }: CallableRequest) => {
+export const updateProjectStatsHandler = async ({ data }: CallableRequest): Promise<UpdateProjectStatsResponse> => {
   throwIfNoFormData(data);
 
   try {

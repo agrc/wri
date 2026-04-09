@@ -81,7 +81,7 @@ export function geometryToWkt(geometry: Polygon | Polyline | Multipoint): string
  * Each polygon may carry multiple rings (outer boundary + holes).
  * Each polyline may carry multiple paths.
  */
-export function geometriesArrayToWkt(geometries: (Polygon | Polyline | Multipoint)[]): string {
+export function geometriesArrayToWkt(geometries: (Polygon | Polyline)[]): string {
   if (geometries.length === 0) {
     throw new HttpsError('invalid-argument', 'Cannot convert empty geometry array to WKT');
   }
@@ -451,21 +451,18 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
         );
       }
 
-      const [areasLengths, unioned] = await Promise.all([
-        table !== 'POINT'
-          ? calculateAreasAndLengths(validProjected as object[], geometryType)
-          : Promise.resolve({ areas: null, lengths: null }),
-        unionGeometries(validProjected),
-      ]);
+      const unioned = await unionGeometries(validProjected);
 
       if (!unioned) {
         throw new HttpsError('invalid-argument', 'Failed to union the submitted geometries.');
       }
 
-      areaSqMeters = areasLengths.areas ? areasLengths.areas.reduce((sum: number, area: number) => sum + area, 0) : null;
-      lengthLnMeters = areasLengths.lengths
-        ? areasLengths.lengths.reduce((sum: number, length: number) => sum + length, 0)
-        : null;
+      const areasLengths = await (table !== 'POINT'
+        ? calculateAreasAndLengths([unioned as object], geometryType)
+        : Promise.resolve({ areas: null, lengths: null }));
+
+      areaSqMeters = areasLengths.areas?.[0] ?? null;
+      lengthLnMeters = areasLengths.lengths?.[0] ?? null;
       intersectionGeometry = unioned as Polygon | Polyline | Multipoint;
       wkt = geometriesArrayToWkt(geoms);
     } else {

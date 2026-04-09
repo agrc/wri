@@ -23,37 +23,140 @@ import ky from 'ky';
 // Use a params shape that matches the query options except `url` (we add the URL later)
 type QueryParams = Omit<IQueryFeaturesOptions, 'url'>;
 
+const FEATURE_QUERY_TIMEOUT_MS = 60000;
+
+type SerializableParam =
+  | string
+  | number
+  | boolean
+  | string[]
+  | number[]
+  | boolean[]
+  | SpatialReference
+  | object
+  | null
+  | undefined;
+
+interface FeatureServiceQueryErrorOptions {
+  cause?: unknown;
+  isTimeout?: boolean;
+  layerName?: LayerName;
+  serviceUrl: string;
+}
+
+export class FeatureServiceQueryError extends Error {
+  override readonly cause?: unknown;
+  readonly isTimeout: boolean;
+  readonly layerName?: LayerName;
+  readonly serviceUrl: string;
+
+  constructor(message: string, options: FeatureServiceQueryErrorOptions) {
+    super(message);
+    this.name = 'FeatureServiceQueryError';
+    this.cause = options.cause;
+    this.isTimeout = options.isTimeout ?? false;
+    this.layerName = options.layerName;
+    this.serviceUrl = options.serviceUrl;
+  }
+}
+
 const httpClient = ky.create({
-  timeout: 30000,
+  timeout: FEATURE_QUERY_TIMEOUT_MS,
   retry: {
     limit: 3,
     jitter: true,
-    methods: ['get'],
+    methods: ['get', 'post'],
   },
 });
+
+function appendArcGISQueryParam(searchParams: URLSearchParams, key: string, value: SerializableParam) {
+  if (value == null) {
+    return;
+  }
+
+  if (key === 'outSR' && value instanceof SpatialReference) {
+    searchParams.set(key, String(value.wkid));
+
+    return;
+  }
+
+  if (key === 'geometry' && typeof value === 'object') {
+    const geometryJson = 'toJSON' in value && typeof value.toJSON === 'function' ? value.toJSON() : value;
+
+    searchParams.set(key, JSON.stringify(geometryJson));
+
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    searchParams.set(key, value.join(','));
+
+    return;
+  }
+
+  searchParams.set(key, String(value));
+}
+
+function buildArcGISQueryBody(params?: Record<string, SerializableParam>): URLSearchParams {
+  const searchParams = new URLSearchParams();
+
+  if (!params) {
+    return searchParams;
+  }
+
+  for (const [key, value] of Object.entries(params)) {
+    appendArcGISQueryParam(searchParams, key, value);
+  }
+
+  return searchParams;
+}
+
+function getGeometryPointCount(geometryJson: Record<string, unknown>): number {
+  if (Array.isArray(geometryJson.points)) {
+    return geometryJson.points.length;
+  }
+
+  if (Array.isArray(geometryJson.paths)) {
+    return geometryJson.paths.reduce((count, path) => count + (Array.isArray(path) ? path.length : 0), 0);
+  }
+
+  if (Array.isArray(geometryJson.rings)) {
+    return geometryJson.rings.reduce((count, ring) => count + (Array.isArray(ring) ? ring.length : 0), 0);
+  }
+
+  if (typeof geometryJson.x === 'number' && typeof geometryJson.y === 'number') {
+    return 1;
+  }
+
+  return 0;
+}
+
+function summarizeGeometry(geometry: Polygon | Polyline | Multipoint) {
+  const geometryJson =
+    typeof geometry.toJSON === 'function'
+      ? (geometry.toJSON() as Record<string, unknown>)
+      : (geometry as Record<string, unknown>);
+  const serializedGeometry = JSON.stringify(geometryJson);
+
+  return {
+    coordinateCount: getGeometryPointCount(geometryJson),
+    geometryType: getJsonType(geometry),
+    serializedLength: serializedGeometry.length,
+  };
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'TimeoutError';
+}
 
 async function kyRequestAdapter(url: string, requestOptions?: Record<string, unknown>) {
   const opts = requestOptions || {};
 
-  const params = (opts as unknown as { params?: Record<string, string | number | boolean> }).params;
+  const params = (opts as unknown as { params?: Record<string, SerializableParam> }).params;
+  const requestBody = buildArcGISQueryBody(params);
 
-  if (params) {
-    if ('geometry' in params) {
-      const g = params.geometry as unknown;
-      if (g && typeof (g as { toJSON?: unknown }).toJSON === 'function') {
-        params.geometry = JSON.stringify((g as { toJSON: () => unknown }).toJSON());
-      } else {
-        params.geometry = JSON.stringify(g as object);
-      }
-    }
-
-    if ('outSR' in params) {
-      params.outSR = (params.outSR as SpatialReference).wkid.toString();
-    }
-  }
-
-  const response = await httpClient.get(url, {
-    searchParams: params as Record<string, string | number | boolean> | undefined,
+  const response = await httpClient.post(url, {
+    body: requestBody,
   });
 
   if ((opts as unknown as { rawResponse?: boolean }).rawResponse) {
@@ -125,6 +228,7 @@ export async function queryFeatureService(
   intersectionGeometry: Polygon | Polyline | Multipoint,
   outFields: string[],
 ): Promise<IQueryFeaturesResponse> {
+  const geometrySummary = summarizeGeometry(intersectionGeometry);
   const baseParams = {
     f: 'json',
     geometry: intersectionGeometry,
@@ -140,12 +244,57 @@ export async function queryFeatureService(
   let exceededTransferLimit = true;
 
   while (exceededTransferLimit) {
-    const featureSet = (await queryFeatures({
-      url: serviceUrl,
-      ...baseParams,
+    const startedAt = Date.now();
+
+    logger.debug('Querying feature service', {
+      coordinateCount: geometrySummary.coordinateCount,
+      geometryType: geometrySummary.geometryType,
+      method: 'POST',
+      outFields,
       resultOffset,
-      request: kyRequestAdapter,
-    } as IQueryFeaturesOptions)) as IQueryFeaturesResponse;
+      serializedGeometryLength: geometrySummary.serializedLength,
+      serviceUrl,
+      timeoutMs: FEATURE_QUERY_TIMEOUT_MS,
+    });
+
+    let featureSet: IQueryFeaturesResponse;
+
+    try {
+      featureSet = (await queryFeatures({
+        url: serviceUrl,
+        ...baseParams,
+        resultOffset,
+        request: kyRequestAdapter,
+      } as IQueryFeaturesOptions)) as IQueryFeaturesResponse;
+    } catch (error) {
+      const elapsedMs = Date.now() - startedAt;
+
+      logger.error('Feature service query failed', {
+        coordinateCount: geometrySummary.coordinateCount,
+        elapsedMs,
+        geometryType: geometrySummary.geometryType,
+        isTimeout: isTimeoutError(error),
+        method: 'POST',
+        resultOffset,
+        serializedGeometryLength: geometrySummary.serializedLength,
+        serviceUrl,
+        timeoutMs: FEATURE_QUERY_TIMEOUT_MS,
+      });
+
+      throw new FeatureServiceQueryError('Feature service query failed', {
+        cause: error,
+        isTimeout: isTimeoutError(error),
+        serviceUrl,
+      });
+    }
+
+    logger.debug('Feature service query completed', {
+      elapsedMs: Date.now() - startedAt,
+      featureCount: featureSet.features?.length ?? 0,
+      method: 'POST',
+      resultOffset,
+      serviceUrl,
+    });
 
     allFeatures = allFeatures.concat(featureSet.features || []);
     exceededTransferLimit = featureSet.exceededTransferLimit || false;
@@ -356,7 +505,7 @@ export async function extractIntersections(
 
     try {
       // Response features are returned in UTM Zone 12N (26912) as specified by outSR parameter
-      const featureSet = await queryFeatureService(config.url, inputClipGeometry, layerCriteria.attributes);
+      const featureSet = await queryFeatureService(config.url, clipGeometry[0], layerCriteria.attributes);
       const graphics = (featureSet && (featureSet.features as Graphic[])) || [];
 
       if (graphics.length === 0) {
@@ -504,6 +653,15 @@ export async function extractIntersections(
       }
     } catch (error) {
       logger.error(`Error processing layer ${layer}`, { error });
+
+      if (error instanceof FeatureServiceQueryError) {
+        throw new FeatureServiceQueryError(`Failed to query ${layer} intersections`, {
+          cause: error.cause ?? error,
+          isTimeout: error.isTimeout,
+          layerName: layer,
+          serviceUrl: config.url,
+        });
+      }
 
       throw error;
     }

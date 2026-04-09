@@ -6,6 +6,7 @@ import { getDb } from '../database.js';
 // FeatureTypeID = 5 is the generic point/line action type in the LU_FEATURETYPE table
 // (matches the old .NET API's hardcoded value in StandardQueries.cs)
 const POINT_LINE_FEATURE_TYPE_ID = 5;
+const AFFECTED_AREA_FEATURE_TYPE = 'affected area';
 const alphabeticalSort = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 const sortRecordByKey = <T>(record: Record<string, T>): Record<string, T> =>
@@ -24,7 +25,8 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
   try {
     const db = await getDb();
 
-    const [polyRows, pointLineRows, herbicideRows, actionRows, featureTypeRows] = await Promise.all([
+    const [polyRows, pointLineRows, herbicideRows, actionRows, featureTypeRows, affectedAreaActionRows] =
+      await Promise.all([
       // Polygon feature types: actions → treatments
       db
         .select({
@@ -38,6 +40,7 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
         .join('ACTION_TREATMENT as at', 'at.ActionID', 'a.ActionID')
         .join('LU_TREATMENTTYPE as t', 't.TreatmentTypeID', 'at.TreatmentTypeID')
         .whereRaw("LOWER(ft.FeatureClassAssociation) = 'poly'")
+        .andWhereRaw('LOWER(ft.FeatureTypeDescription) <> ?', [AFFECTED_AREA_FEATURE_TYPE])
         .orderBy('ft.FeatureTypeDescription')
         .orderBy('a.ActionDescription')
         .orderBy('t.TreatmentTypeDescription'),
@@ -71,6 +74,15 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
         .select({ description: 'FeatureTypeDescription', featureClass: db.raw('UPPER(TRIM(FeatureClassAssociation))') })
         .from('LU_FEATURETYPE')
         .orderBy('FeatureTypeDescription'),
+
+      // Action-only polygon options for affected area
+      db
+        .select({ action: 'a.ActionDescription' })
+        .from({ ft: 'LU_FEATURETYPE' })
+        .join('FEATURE_ACTION as fa', 'fa.FeatureTypeID', 'ft.FeatureTypeID')
+        .join('LU_ACTION as a', 'a.ActionID', 'fa.ActionID')
+        .whereRaw('LOWER(ft.FeatureTypeDescription) = ?', [AFFECTED_AREA_FEATURE_TYPE])
+        .orderBy('a.ActionDescription'),
     ]);
 
     logger.debug('editingDomains query results', {
@@ -78,6 +90,7 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
       pointLineRows: pointLineRows.length,
       herbicideRows: herbicideRows.length,
       actionRows: actionRows.length,
+      affectedAreaActionRows: affectedAreaActionRows.length,
     });
 
     // Build poly featureAttributes: { [category]: { [action]: string[] } }
@@ -105,6 +118,10 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
       }
     }
 
+    if (!featureAttributes[AFFECTED_AREA_FEATURE_TYPE]) {
+      featureAttributes[AFFECTED_AREA_FEATURE_TYPE] = {};
+    }
+
     const result: EditingDomainsResponse = {
       featureTypes: Object.fromEntries(
         (featureTypeRows as { description: string; featureClass: string }[]).map((r) => [
@@ -113,6 +130,7 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
         ]),
       ),
       featureAttributes: sortRecordByKey(featureAttributes) as EditingDomainsResponse['featureAttributes'],
+      affectedAreaActions: affectedAreaActionRows.map((r: { action: string }) => r.action),
       herbicides: herbicideRows.map((r: { HerbicideDescription: string }) => r.HerbicideDescription),
       pointLineActions: actionRows.map((r: { action: string }) => r.action),
     };

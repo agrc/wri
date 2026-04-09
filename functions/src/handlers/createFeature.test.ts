@@ -175,6 +175,8 @@ const validPolyActionsWithMultipleHerbicides = [
   },
 ];
 
+const validAffectedAreaActions = [{ action: 'Engineering', treatments: [] }];
+
 const validPointAction = [{ type: 'Horizontal', action: 'Initial', description: '' }];
 const validLineAction = [{ type: 'Barbed wire', action: 'Initial', description: '' }];
 
@@ -499,6 +501,29 @@ describe('createFeatureTransaction', () => {
     );
 
     expect(featureId).toBe(77);
+  });
+
+  it('inserts an affected area POLY feature with an action but no treatments', async () => {
+    const { trx, insertCalls } = createMockTrx({ featureIdPoly: 84 });
+    vi.mocked(updateProjectStats).mockResolvedValue(undefined);
+
+    const { featureId } = await createFeatureTransaction(
+      trx,
+      1,
+      'affected area',
+      'POLY',
+      'POLYGON((0 0, 1 0, 1 1, 0 0))',
+      'N',
+      validAffectedAreaActions,
+      1000,
+      null,
+      mockEmptyIntersections,
+    );
+
+    expect(featureId).toBe(84);
+    expect(insertCalls.filter((call) => call.table === 'AREAACTION')).toHaveLength(1);
+    expect(insertCalls.filter((call) => call.table === 'AREATREATMENT')).toHaveLength(0);
+    expect(insertCalls.filter((call) => call.table === 'AREAHERBICIDE')).toHaveLength(0);
   });
 
   it('calls updateProjectStats after inserting', async () => {

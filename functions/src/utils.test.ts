@@ -95,6 +95,28 @@ describe('validateActions', () => {
       ]),
     ).toThrow('Herbicide values are only allowed for Herbicide Application actions');
   });
+
+  it('allows action-only affected area polygon actions', () => {
+    expect(() =>
+      validateActions('POLY', 'affected area', [
+        {
+          action: 'Engineering',
+          treatments: [],
+        },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('rejects affected area polygon actions with treatments or herbicides', () => {
+    expect(() =>
+      validateActions('POLY', 'affected area', [
+        {
+          action: 'Engineering',
+          treatments: [{ treatment: 'Unexpected', herbicides: [] }],
+        },
+      ]),
+    ).toThrow('Affected Area features do not support treatments or herbicides');
+  });
 });
 
 describe('canEditProject', () => {

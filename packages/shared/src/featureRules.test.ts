@@ -1,5 +1,7 @@
+import { describe, expect, it } from 'vitest';
 import {
   hasRequiredHerbicideSelections,
+  isAffectedAreaCategory,
   isHerbicideAction,
   isNoActionCategory,
   isRetreatmentEligibleCategory,
@@ -9,13 +11,17 @@ import {
   isSubtypeActionCategory,
   shouldShowHerbicideField,
 } from './featureRules.js';
-import { describe, expect, it } from 'vitest';
 
 describe('featureRules', () => {
   it('identifies no-action categories', () => {
-    expect(isNoActionCategory('Affected Area')).toBe(true);
+    expect(isNoActionCategory('Affected Area')).toBe(false);
     expect(isNoActionCategory('Other Point Feature')).toBe(true);
     expect(isNoActionCategory('Terrestrial Treatment Area')).toBe(false);
+  });
+
+  it('identifies affected area categories', () => {
+    expect(isAffectedAreaCategory('Affected Area')).toBe(true);
+    expect(isAffectedAreaCategory('Terrestrial Treatment Area')).toBe(false);
   });
 
   it('identifies subtype-action categories', () => {

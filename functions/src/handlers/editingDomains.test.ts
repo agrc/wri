@@ -7,7 +7,6 @@ import { getDb } from '../database.js';
 import { editingDomainsHandler } from './editingDomains.js';
 
 const mockPolyRows = [
-  { category: 'affected area', action: 'N/A', treatment: 'N/A' },
   { category: 'terrestrial treatment area', action: 'Herbicide Application', treatment: 'Aerial (fixed wing)' },
   { category: 'terrestrial treatment area', action: 'Herbicide Application', treatment: 'Aerial (helicopter)' },
   { category: 'terrestrial treatment area', action: 'Mechanical treatment', treatment: 'Roller/crusher' },
@@ -25,6 +24,13 @@ const mockHerbicideRows = [{ HerbicideDescription: 'Clopyralid' }, { HerbicideDe
 
 const mockActionRows = [{ action: 'Initial' }, { action: 'Maintenance' }];
 
+const mockAffectedAreaActionRows = [
+  { action: 'Biological Surveys' },
+  { action: 'Cultural Resource Inventory' },
+  { action: 'Engineering' },
+  { action: 'Other' },
+];
+
 const mockFeatureTypeRows = [
   { description: 'affected area', featureClass: 'POLY' },
   { description: 'fence', featureClass: 'LINE' },
@@ -39,13 +45,14 @@ const createMockDb = () => {
     join: vi.fn().mockReturnThis(),
     leftJoin: vi.fn().mockReturnThis(),
     whereRaw: vi.fn().mockReturnThis(),
+    andWhereRaw: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
   };
 
   let callCount = 0;
 
-  // Return different data for each of the 5 parallel queries
+  // Return different data for each of the 6 parallel queries
   const resolvingChain = {
     ...mockQueryChain,
     then: (resolve: (val: unknown) => unknown) => {
@@ -54,7 +61,8 @@ const createMockDb = () => {
       if (callCount === 2) return Promise.resolve(mockPointLineRows).then(resolve);
       if (callCount === 3) return Promise.resolve(mockHerbicideRows).then(resolve);
       if (callCount === 4) return Promise.resolve(mockActionRows).then(resolve);
-      return Promise.resolve(mockFeatureTypeRows).then(resolve);
+      if (callCount === 5) return Promise.resolve(mockFeatureTypeRows).then(resolve);
+      return Promise.resolve(mockAffectedAreaActionRows).then(resolve);
     },
   };
 
@@ -86,6 +94,7 @@ describe('editingDomainsHandler', () => {
       'Herbicide Application': ['Aerial (fixed wing)', 'Aerial (helicopter)'],
       'Mechanical treatment': ['Roller/crusher'],
     });
+    expect(result.featureAttributes['affected area']).toEqual({});
   });
 
   it('returns correctly structured featureAttributes for point/line categories', async () => {
@@ -120,6 +129,19 @@ describe('editingDomainsHandler', () => {
     const result = await editingDomainsHandler();
 
     expect(result.pointLineActions).toEqual(['Initial', 'Maintenance']);
+  });
+
+  it('returns flat affected area action list', async () => {
+    vi.mocked(getDb).mockResolvedValue(createMockDb() as never);
+
+    const result = await editingDomainsHandler();
+
+    expect(result.affectedAreaActions).toEqual([
+      'Biological Surveys',
+      'Cultural Resource Inventory',
+      'Engineering',
+      'Other',
+    ]);
   });
 
   it('returns featureTypes map with correct table associations', async () => {

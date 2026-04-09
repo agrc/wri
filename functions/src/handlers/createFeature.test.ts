@@ -53,6 +53,7 @@ import {
   calculateAreasAndLengths,
   extractIntersections,
   FEATURE_SERVICE_CONFIG,
+  FeatureServiceQueryError,
   projectGeometries,
 } from './extractions.js';
 
@@ -364,6 +365,50 @@ describe('createFeatureHandler', () => {
     vi.mocked(extractIntersections).mockResolvedValue(mockEmptyIntersections);
 
     await expect(createFeatureHandler({ data: validPolyData } as never)).rejects.toMatchObject({ code: 'internal' });
+  });
+
+  it('maps SGMA timeout failures to a specific internal HttpsError message', async () => {
+    vi.mocked(canEditProject).mockResolvedValue(true);
+    vi.mocked(getDb).mockResolvedValue({
+      transaction: vi.fn(async () => {
+        throw new Error('transaction should not run when SGMA extraction fails');
+      }),
+    } as never);
+    vi.mocked(projectGeometries).mockResolvedValue([{ spatialReference: { wkid: 26912 } }] as never);
+    vi.mocked(extractIntersections).mockRejectedValue(
+      new FeatureServiceQueryError('Failed to query sgma intersections', {
+        isTimeout: true,
+        layerName: 'sgma',
+        serviceUrl: FEATURE_SERVICE_CONFIG.sgma.url,
+      }),
+    );
+
+    await expect(createFeatureHandler({ data: validPolyData } as never)).rejects.toMatchObject({
+      code: 'internal',
+      message: 'Failed to create feature because the required SGMA lookup timed out.',
+    });
+  });
+
+  it('maps non-timeout SGMA failures to a specific internal HttpsError message', async () => {
+    vi.mocked(canEditProject).mockResolvedValue(true);
+    vi.mocked(getDb).mockResolvedValue({
+      transaction: vi.fn(async () => {
+        throw new Error('transaction should not run when SGMA extraction fails');
+      }),
+    } as never);
+    vi.mocked(projectGeometries).mockResolvedValue([{ spatialReference: { wkid: 26912 } }] as never);
+    vi.mocked(extractIntersections).mockRejectedValue(
+      new FeatureServiceQueryError('Failed to query sgma intersections', {
+        isTimeout: false,
+        layerName: 'sgma',
+        serviceUrl: FEATURE_SERVICE_CONFIG.sgma.url,
+      }),
+    );
+
+    await expect(createFeatureHandler({ data: validPolyData } as never)).rejects.toMatchObject({
+      code: 'internal',
+      message: 'Failed to create feature because the required SGMA lookup failed.',
+    });
   });
 });
 

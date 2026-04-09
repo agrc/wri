@@ -22,6 +22,11 @@ const options: HttpsOptions = {
   concurrency: 100,
 };
 
+const createFeatureOptions: HttpsOptions = {
+  ...options,
+  timeoutSeconds: isDev ? 3600 : 120,
+};
+
 /**
  * Callable function for fetching project data
  * Dynamically imports the handler to improve cold start performance
@@ -76,7 +81,7 @@ export const editingDomains = onCall({ ...options, secrets: [databaseInformation
  * Callable function for creating a new feature
  * Dynamically imports the handler to improve cold start performance
  */
-export const createFeature = onCall({ ...options, secrets: [databaseInformation] }, async (request) => {
+export const createFeature = onCall({ ...createFeatureOptions, secrets: [databaseInformation] }, async (request) => {
   const { createFeatureHandler } = await import('./handlers/createFeature.js');
 
   return createFeatureHandler(request);

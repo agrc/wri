@@ -29,6 +29,7 @@ import {
   calculateAreasAndLengths,
   extractIntersections,
   FEATURE_SERVICE_CONFIG,
+  FeatureServiceQueryError,
   projectGeometries,
   SPATIAL_REFERENCES,
   unionGeometries,
@@ -461,8 +462,10 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
         throw new HttpsError('invalid-argument', 'Failed to union the submitted geometries.');
       }
 
-      areaSqMeters = areasLengths.areas ? areasLengths.areas.reduce((sum, a) => sum + a, 0) : null;
-      lengthLnMeters = areasLengths.lengths ? areasLengths.lengths.reduce((sum, l) => sum + l, 0) : null;
+      areaSqMeters = areasLengths.areas ? areasLengths.areas.reduce((sum: number, area: number) => sum + area, 0) : null;
+      lengthLnMeters = areasLengths.lengths
+        ? areasLengths.lengths.reduce((sum: number, length: number) => sum + length, 0)
+        : null;
       intersectionGeometry = unioned as Polygon | Polyline | Multipoint;
       wkt = geometriesArrayToWkt(geoms);
     } else {
@@ -520,6 +523,14 @@ export const createFeatureHandler = async ({ data }: CallableRequest): Promise<C
 
     if (error instanceof HttpsError) {
       throw error;
+    }
+
+    if (error instanceof FeatureServiceQueryError && error.layerName === 'sgma') {
+      const message = error.isTimeout
+        ? 'Failed to create feature because the required SGMA lookup timed out.'
+        : 'Failed to create feature because the required SGMA lookup failed.';
+
+      throw new HttpsError('internal', message);
     }
 
     throw new HttpsError('internal', 'Failed to create feature.');

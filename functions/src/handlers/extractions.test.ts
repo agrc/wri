@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock ky with a singleton mock client exposed on the mocked module
 vi.mock('ky', () => {
-  const mockClient = { get: vi.fn() };
+  const mockClient = { get: vi.fn(), post: vi.fn() };
 
   return {
     default: {
@@ -104,9 +104,9 @@ describe('extractions', () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mockGet = (ky.default as any).__client.get;
+      const mockPost = (ky.default as any).__client.post;
 
-      vi.mocked(mockGet).mockReturnValue({
+      vi.mocked(mockPost).mockReturnValue({
         json: async () => mockResponse,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
@@ -115,10 +115,20 @@ describe('extractions', () => {
       const result = await queryFeatureService(serviceUrl, testPolygon, ['NAME']);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((ky.default as any).__client.get).toHaveBeenCalledWith(
+      expect((ky.default as any).__client.post).toHaveBeenCalledWith(
         expect.stringContaining(serviceUrl),
-        expect.any(Object),
+        expect.objectContaining({
+          body: expect.any(URLSearchParams),
+        }),
       );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requestOptions = (ky.default as any).__client.post.mock.calls[0]?.[1];
+      const requestBody = requestOptions.body as URLSearchParams;
+
+      expect(requestBody.get('geometry')).toContain('rings');
+      expect(requestBody.get('outFields')).toBe('NAME');
+      expect(requestBody.get('outSR')).toBe('26912');
       expect(result.features).toHaveLength(1);
       expect(result.features[0]?.attributes.NAME).toBe('SALT LAKE');
     });
@@ -127,14 +137,14 @@ describe('extractions', () => {
       const ky = await import('ky');
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mockGet = (ky.default as any).__client.get;
+      const mockPost = (ky.default as any).__client.post;
 
       // Simulate a network/request error from the adapter so the helper will reject
-      vi.mocked(mockGet).mockRejectedValue(new Error('Service error'));
+      vi.mocked(mockPost).mockRejectedValue(new Error('Service error'));
 
       const serviceUrl = 'https://example.com/FeatureServer/0';
 
-      await expect(queryFeatureService(serviceUrl, testPolygon, ['NAME'])).rejects.toThrow('Service error');
+      await expect(queryFeatureService(serviceUrl, testPolygon, ['NAME'])).rejects.toThrow('Feature service query failed');
     });
 
     it('should handle pagination when exceededTransferLimit is true', async () => {
@@ -203,9 +213,9 @@ describe('extractions', () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mockGet = (ky.default as any).__client.get;
+      const mockPost = (ky.default as any).__client.post;
 
-      vi.mocked(mockGet)
+      vi.mocked(mockPost)
         .mockReturnValueOnce({
           json: async () => firstResponse,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -218,25 +228,29 @@ describe('extractions', () => {
       const serviceUrl = 'https://example.com/FeatureServer/0';
       const result = await queryFeatureService(serviceUrl, testPolygon, ['NAME']);
 
-      // Should have called get twice - once for each page
+      // Should have called post twice - once for each page
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((ky.default as any).__client.get).toHaveBeenCalledTimes(2);
+      expect((ky.default as any).__client.post).toHaveBeenCalledTimes(2);
 
-      // First call should have resultOffset=0 encoded in the adapter searchParams
+      // First call should have resultOffset=0 encoded in the adapter body
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((ky.default as any).__client.get).toHaveBeenNthCalledWith(
+      expect((ky.default as any).__client.post).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining(serviceUrl),
-        expect.objectContaining({ searchParams: expect.objectContaining({ resultOffset: 0 }) }),
+        expect.objectContaining({ body: expect.any(URLSearchParams) }),
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(((ky.default as any).__client.post.mock.calls[0]?.[1].body as URLSearchParams).get('resultOffset')).toBe('0');
 
       // Second call should have resultOffset=2 (number of features from first page)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((ky.default as any).__client.get).toHaveBeenNthCalledWith(
+      expect((ky.default as any).__client.post).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining(serviceUrl),
-        expect.objectContaining({ searchParams: expect.objectContaining({ resultOffset: 2 }) }),
+        expect.objectContaining({ body: expect.any(URLSearchParams) }),
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(((ky.default as any).__client.post.mock.calls[1]?.[1].body as URLSearchParams).get('resultOffset')).toBe('2');
 
       // Should return all 3 features
       expect(result.features).toHaveLength(3);

@@ -26,7 +26,7 @@ const parseEnvFile = (filePath: string) => {
       .split(/\r?\n/)
       .filter((line) => line.trim() && !line.trim().startsWith('#'))
       .map((line) => {
-        const [key, ...value] = line.split('=');
+        const [key = '', ...value] = line.split('=');
         let parsedValue = value.join('=').trim();
 
         if (

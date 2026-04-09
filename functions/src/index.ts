@@ -24,7 +24,7 @@ const options: HttpsOptions = {
 
 const createFeatureOptions: HttpsOptions = {
   ...options,
-  timeoutSeconds: isDev ? 3600 : 120,
+  timeoutSeconds: isDev ? 3600 : 180,
 };
 
 /**

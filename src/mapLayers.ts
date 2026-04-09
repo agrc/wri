@@ -251,7 +251,7 @@ export const precipitation = new FeatureLayer({
 export const rangeSites = new FeatureLayer({
   title: 'Range Trend Studies',
   id: 'reference-range-sites',
-  url: `https://dwrmapserv.utah.gov/arcgis/rest/services/RangeTrendUGRC/RANGE_TREND_PROD_AGRC/MapServer/0`,
+  url: 'https://dwrmapserv.utah.gov/arcgis/rest/services/RangeTrendUGRC/RANGE_TREND_PROD_AGRC/MapServer/0',
   outFields: ['STUDY_NAME', 'GlobalID'],
   visible: false,
   renderer: new SimpleRenderer({
@@ -316,7 +316,7 @@ export const regions = new FeatureLayer({
 export const blmDistricts = new FeatureLayer({
   title: 'BLM Field Offices',
   id: 'reference-blm-districts',
-  url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/BLMDistricts/FeatureServer',
+  url: 'https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services/BLMDistricts/FeatureServer/0',
   outFields: ['FO_NAME'],
   visible: false,
   labelsVisible: false,

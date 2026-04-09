@@ -144,7 +144,9 @@ describe('extractions', () => {
 
       const serviceUrl = 'https://example.com/FeatureServer/0';
 
-      await expect(queryFeatureService(serviceUrl, testPolygon, ['NAME'])).rejects.toThrow('Feature service query failed');
+      await expect(queryFeatureService(serviceUrl, testPolygon, ['NAME'])).rejects.toThrow(
+        'Feature service query failed',
+      );
     });
 
     it('should handle pagination when exceededTransferLimit is true', async () => {
@@ -240,7 +242,9 @@ describe('extractions', () => {
         expect.objectContaining({ body: expect.any(URLSearchParams) }),
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(((ky.default as any).__client.post.mock.calls[0]?.[1].body as URLSearchParams).get('resultOffset')).toBe('0');
+      expect(((ky.default as any).__client.post.mock.calls[0]?.[1].body as URLSearchParams).get('resultOffset')).toBe(
+        '0',
+      );
 
       // Second call should have resultOffset=2 (number of features from first page)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -250,7 +254,9 @@ describe('extractions', () => {
         expect.objectContaining({ body: expect.any(URLSearchParams) }),
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(((ky.default as any).__client.post.mock.calls[1]?.[1].body as URLSearchParams).get('resultOffset')).toBe('2');
+      expect(((ky.default as any).__client.post.mock.calls[1]?.[1].body as URLSearchParams).get('resultOffset')).toBe(
+        '2',
+      );
 
       // Should return all 3 features
       expect(result.features).toHaveLength(3);

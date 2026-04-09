@@ -397,7 +397,7 @@ createRenderer({
 export const sageGrouse = new FeatureLayer({
   title: 'Sage Grouse Areas',
   id: 'reference-sage-grouse',
-  url: 'https://dwrmapserv.utah.gov/dwrarcgis/rest/services/Sage_grouse/SGMA_outlines/FeatureServer/0',
+  url: 'https://services.arcgis.com/ZzrwjTRez6FJiOq4/ArcGIS/rest/services/Utah_SageGrouse_SGMAs/FeatureServer/0',
   outFields: ['Area_name'],
   visible: false,
   labelsVisible: false,

@@ -179,7 +179,7 @@ export const FEATURE_SERVICE_CONFIG = {
     extraField: 'admin',
   },
   sgma: {
-    url: 'https://dwrmapserv.utah.gov/dwrarcgis/rest/services/Sage_grouse/SGMA_outlines/FeatureServer/0',
+    url: 'https://services.arcgis.com/ZzrwjTRez6FJiOq4/ArcGIS/rest/services/Utah_SageGrouse_SGMAs/FeatureServer/0',
     attributes: ['Area_name'] as const,
     nameField: 'Area_name',
   },

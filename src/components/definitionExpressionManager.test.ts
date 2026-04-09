@@ -1,7 +1,7 @@
 import { type Key } from 'react-aria';
 import { type Selection } from 'react-stately';
 import { describe, expect, it } from 'vitest';
-import { featureTypes, projectStatus } from './data/filters';
+import type { FilterOptions } from './data/filters';
 import { generateDefinitionExpression } from './definitionExpressionManager';
 
 const emptySet = new Set([]);
@@ -16,6 +16,30 @@ type State = {
   wriFunding: boolean;
 };
 
+const filterOptions: FilterOptions = {
+  projectStatus: [
+    { code: 1, value: 'Draft', default: false },
+    { code: 2, value: 'Proposed', default: true },
+    { code: 3, value: 'Current', default: true },
+    { code: 4, value: 'Pending Completed', default: true },
+    { code: 5, value: 'Completed', default: true },
+    { code: 6, value: 'Cancelled', default: false },
+  ],
+  featureTypes: [
+    { featureType: 'Terrestrial Treatment Area', kind: 'poly' },
+    { featureType: 'Aquatic/Riparian Treatment Area', kind: 'poly' },
+    { featureType: 'Affected Area', kind: 'poly' },
+    { featureType: 'Easement/Acquisition', kind: 'poly' },
+    { featureType: 'Guzzler', kind: 'point' },
+    { featureType: 'Other point feature', kind: 'point' },
+    { featureType: 'Fish passage structure', kind: 'point' },
+    { featureType: 'Fence', kind: 'line' },
+    { featureType: 'Pipeline', kind: 'line' },
+    { featureType: 'Dam', kind: 'line' },
+    { featureType: 'Water development point feature', kind: 'point' },
+  ],
+};
+
 describe('createDefinitionExpression', () => {
   it('should request no records when no filters are selected', () => {
     const state: State = {
@@ -24,7 +48,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `1=0`,
@@ -33,6 +57,7 @@ describe('createDefinitionExpression', () => {
       poly: `1=0`,
     });
   });
+
   it('should should request no records when no project status are selected', () => {
     const state: State = {
       projects: emptySet,
@@ -40,7 +65,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `1=0`,
@@ -49,6 +74,7 @@ describe('createDefinitionExpression', () => {
       poly: `1=0`,
     });
   });
+
   it('should should request no records when no feature types are selected', () => {
     const state: State = {
       projects: all,
@@ -56,7 +82,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `1=0`,
@@ -65,15 +91,15 @@ describe('createDefinitionExpression', () => {
       poly: `1=0`,
     });
   });
+
   it('should request all records when all filters are selected', () => {
-    // using 'all' and all keys
     const state: State = {
       projects: all,
       features: all,
       join: or,
       wriFunding: false,
     };
-    let result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: ``,
@@ -82,10 +108,10 @@ describe('createDefinitionExpression', () => {
       poly: ``,
     });
 
-    state.projects = new Set(projectStatus.map(({ value }) => value));
-    state.features = new Set(featureTypes.map(({ featureType }) => featureType));
+    state.projects = new Set(filterOptions.projectStatus.map(({ value }) => value));
+    state.features = new Set(filterOptions.featureTypes.map(({ featureType }) => featureType));
 
-    result = generateDefinitionExpression(state);
+    result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: ``,
@@ -94,15 +120,15 @@ describe('createDefinitionExpression', () => {
       poly: ``,
     });
   });
+
   it('should request all wri funded records when all filters are selected', () => {
-    // using 'all' and all keys
     const state: State = {
       projects: all,
       features: all,
       join: or,
       wriFunding: true,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1)`,
@@ -111,15 +137,15 @@ describe('createDefinitionExpression', () => {
       poly: `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1)`,
     });
   });
+
   it('should request all records when all type filters are selected', () => {
-    // using 'all' and all keys
     const state: State = {
       projects: new Set(['Proposed']),
-      features: new Set(featureTypes.map(({ featureType }) => featureType)),
+      features: new Set(filterOptions.featureTypes.map(({ featureType }) => featureType)),
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Status in('Proposed')`,
@@ -128,15 +154,15 @@ describe('createDefinitionExpression', () => {
       poly: `StatusDescription in('Proposed')`,
     });
   });
+
   it('should request all wri funded records when all type filters are selected', () => {
-    // using 'all' and all keys
     const state: State = {
       projects: new Set(['Proposed']),
-      features: new Set(featureTypes.map(({ featureType }) => featureType)),
+      features: new Set(filterOptions.featureTypes.map(({ featureType }) => featureType)),
       join: or,
       wriFunding: true,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1) and Status in('Proposed')`,
@@ -145,6 +171,7 @@ describe('createDefinitionExpression', () => {
       poly: `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1) and StatusDescription in('Proposed')`,
     });
   });
+
   it('should use project status values when selecting project status', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current']),
@@ -152,7 +179,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    let result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Status in('Proposed','Current')`,
@@ -163,7 +190,7 @@ describe('createDefinitionExpression', () => {
 
     state.join = and;
 
-    result = generateDefinitionExpression(state);
+    result = generateDefinitionExpression(state, filterOptions);
     expect(result).toEqual({
       centroids: `Status in('Proposed','Current')`,
       point: `StatusDescription in('Proposed','Current')`,
@@ -171,6 +198,7 @@ describe('createDefinitionExpression', () => {
       poly: `StatusDescription in('Proposed','Current')`,
     });
   });
+
   it('should use feature type codes when selecting feature types', () => {
     const state: State = {
       projects: all,
@@ -178,7 +206,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    let result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area'))`,
@@ -188,7 +216,7 @@ describe('createDefinitionExpression', () => {
     });
 
     state.features = new Set<Key>(['Terrestrial Treatment Area', 'Fish passage structure', 'Dam']);
-    result = generateDefinitionExpression(state);
+    result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `(Project_ID in(select Project_ID from POINT where TypeDescription in('Fish passage structure')) or Project_ID in(select Project_ID from LINE where TypeDescription in('Dam')) or Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area')))`,
@@ -198,7 +226,7 @@ describe('createDefinitionExpression', () => {
     });
 
     state.features = new Set<Key>(['Dam']);
-    result = generateDefinitionExpression(state);
+    result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from LINE where TypeDescription in('Dam'))`,
@@ -207,6 +235,7 @@ describe('createDefinitionExpression', () => {
       poly: `1=0`,
     });
   });
+
   it('should only apply selected feature types to its containing table', () => {
     const state: State = {
       projects: all,
@@ -214,7 +243,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `(Project_ID in(select Project_ID from POINT where TypeDescription in('Guzzler')) or Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area','Affected Area')))`,
@@ -223,6 +252,7 @@ describe('createDefinitionExpression', () => {
       poly: `TypeDescription in('Terrestrial Treatment Area','Affected Area')`,
     });
   });
+
   it('should use the user input join value or when selecting feature types with or', () => {
     const state: State = {
       projects: all,
@@ -230,7 +260,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `(Project_ID in(select Project_ID from POINT where TypeDescription in('Guzzler')) or Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area','Affected Area')))`,
@@ -239,6 +269,7 @@ describe('createDefinitionExpression', () => {
       poly: `TypeDescription in('Terrestrial Treatment Area','Affected Area')`,
     });
   });
+
   it('should handle when all types in a geometry are selected correctly using or', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current', 'Pending Completed', 'Completed']),
@@ -246,7 +277,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids:
@@ -256,6 +287,7 @@ describe('createDefinitionExpression', () => {
       poly: '1=0',
     });
   });
+
   it('should handle when all types in a geometry are selected correctly using and', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current', 'Pending Completed', 'Completed']),
@@ -263,7 +295,7 @@ describe('createDefinitionExpression', () => {
       join: and,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids:
@@ -273,6 +305,7 @@ describe('createDefinitionExpression', () => {
       poly: '1=0',
     });
   });
+
   it('should handle when some types in a geometry are selected correctly using and', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current', 'Pending Completed', 'Completed']),
@@ -280,7 +313,7 @@ describe('createDefinitionExpression', () => {
       join: and,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids:
@@ -290,6 +323,7 @@ describe('createDefinitionExpression', () => {
       poly: '1=0',
     });
   });
+
   it('should use the user input join value intersect when selecting feature types with and', () => {
     const state: State = {
       projects: all,
@@ -297,7 +331,7 @@ describe('createDefinitionExpression', () => {
       join: and,
       wriFunding: false,
     };
-    let result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from POINT where TypeDescription='Fish passage structure') and Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
@@ -307,7 +341,7 @@ describe('createDefinitionExpression', () => {
     });
 
     state.features = new Set(['Dam']);
-    result = generateDefinitionExpression(state);
+    result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from LINE where TypeDescription='Dam')`,
@@ -316,15 +350,15 @@ describe('createDefinitionExpression', () => {
       poly: `1=0`,
     });
   });
+
   it('should not join feature and project expressions if one is empty', () => {
-    // testing both sides being empty
     let state: State = {
       projects: all,
       features: new Set<Key>(['Terrestrial Treatment Area']),
       join: or,
       wriFunding: false,
     };
-    let result = generateDefinitionExpression(state);
+    let result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area'))`,
@@ -339,7 +373,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    result = generateDefinitionExpression(state);
+    result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Status in('Proposed','Current')`,
@@ -348,6 +382,7 @@ describe('createDefinitionExpression', () => {
       poly: `StatusDescription in('Proposed','Current')`,
     });
   });
+
   it('should join feature and project expressions with "and"', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current']),
@@ -355,7 +390,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: false,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Status in('Proposed','Current') and Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area'))`,
@@ -364,6 +399,7 @@ describe('createDefinitionExpression', () => {
       poly: `StatusDescription in('Proposed','Current') and TypeDescription in('Terrestrial Treatment Area')`,
     });
   });
+
   it('should join feature and project expressions with "and" and wri funding', () => {
     const state: State = {
       projects: new Set<Key>(['Proposed', 'Current']),
@@ -371,7 +407,7 @@ describe('createDefinitionExpression', () => {
       join: or,
       wriFunding: true,
     };
-    const result = generateDefinitionExpression(state);
+    const result = generateDefinitionExpression(state, filterOptions);
 
     expect(result).toEqual({
       centroids: `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1) and Status in('Proposed','Current') and Project_ID in(select Project_ID from POLY where TypeDescription in('Terrestrial Treatment Area'))`,

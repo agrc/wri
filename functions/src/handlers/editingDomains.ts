@@ -25,8 +25,15 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
   try {
     const db = await getDb();
 
-    const [polyRows, pointLineRows, herbicideRows, actionRows, featureTypeRows, affectedAreaActionRows] =
-      await Promise.all([
+    const [
+      polyRows,
+      pointLineRows,
+      herbicideRows,
+      actionRows,
+      projectStatusRows,
+      featureTypeRows,
+      affectedAreaActionRows,
+    ] = await Promise.all([
       // Polygon feature types: actions → treatments
       db
         .select({
@@ -69,6 +76,9 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
         .where('fa.FeatureTypeID', POINT_LINE_FEATURE_TYPE_ID)
         .orderBy('a.ActionDescription'),
 
+      // Project statuses for map filters
+      db.select({ code: 'StatusID', value: 'StatusDescription' }).from('LU_STATUS').orderBy('StatusID'),
+
       // All feature types with their table association
       db
         .select({ description: 'FeatureTypeDescription', featureClass: db.raw('UPPER(TRIM(FeatureClassAssociation))') })
@@ -90,6 +100,7 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
       pointLineRows: pointLineRows.length,
       herbicideRows: herbicideRows.length,
       actionRows: actionRows.length,
+      projectStatusRows: projectStatusRows.length,
       affectedAreaActionRows: affectedAreaActionRows.length,
     });
 
@@ -133,6 +144,10 @@ export const editingDomainsHandler = async (): Promise<EditingDomainsResponse> =
       affectedAreaActions: affectedAreaActionRows.map((r: { action: string }) => r.action),
       herbicides: herbicideRows.map((r: { HerbicideDescription: string }) => r.HerbicideDescription),
       pointLineActions: actionRows.map((r: { action: string }) => r.action),
+      projectStatuses: projectStatusRows.map((r: { code: number; value: string }) => ({
+        code: r.code,
+        value: r.value,
+      })),
     };
 
     return result;

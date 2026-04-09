@@ -1,9 +1,10 @@
 import Collection from '@arcgis/core/core/Collection';
-import { useContext } from 'react';
+import { useContext, useEffect, useMemo, useRef } from 'react';
 import { type Key } from 'react-aria';
 import { useImmerReducer } from 'use-immer';
 import { FilterContext, ProjectContext } from '.';
-import { featureTypes, projectStatus } from '../data/filters';
+import { useEditingDomains } from '../../hooks/useEditingDomains';
+import { getDefaultFeatureState, getDefaultProjectState, normalizeFilterOptions } from '../data/filters';
 import { generateDefinitionExpression } from '../definitionExpressionManager';
 
 type Filter = {
@@ -31,13 +32,14 @@ type FilterState = {
   wriFunding: boolean;
 };
 
-const defaultProjectState = new Set<Key>(projectStatus.filter((x) => x.default).map(({ value }) => value));
-const defaultFeatureState = new Set<Key>(featureTypes.map(({ featureType }) => featureType));
+const defaultProjectState = new Set<Key>();
+const defaultFeatureState = new Set<Key>();
+const defaultJoin = 'or' as const;
 
 const initialState: FilterState = {
   projects: defaultProjectState,
   features: defaultFeatureState,
-  join: 'or',
+  join: defaultJoin,
   wriFunding: false,
 };
 
@@ -46,17 +48,17 @@ const reducer = (draft: typeof initialState, action: FilterAction) => {
     case 'set': {
       switch (action.metadata) {
         case 'feature': {
-          draft.features = action.payload.features ?? initialState.features;
+          draft.features = action.payload.features ?? new Set<Key>();
 
           break;
         }
         case 'projects': {
-          draft.projects = action.payload.projects ?? initialState.projects;
+          draft.projects = action.payload.projects ?? new Set<Key>();
 
           break;
         }
         case 'feature-join': {
-          draft.join = action.payload.join ?? initialState.join;
+          draft.join = action.payload.join ?? defaultJoin;
 
           break;
         }
@@ -70,7 +72,10 @@ const reducer = (draft: typeof initialState, action: FilterAction) => {
       return draft;
     }
     case 'reset': {
-      draft = initialState;
+      draft.projects = action.payload.projects ?? new Set<Key>();
+      draft.features = action.payload.features ?? new Set<Key>();
+      draft.join = action.payload.join ?? defaultJoin;
+      draft.wriFunding = false;
 
       return draft;
     }
@@ -113,12 +118,53 @@ export const FilterProvider = ({
   featureLayers: __esri.Collection<__esri.FeatureLayer>;
 }) => {
   const [state, dispatch] = useImmerReducer(reducer, initialState);
+  const editingDomainsQuery = useEditingDomains(true);
   const context = useContext(ProjectContext);
+  const initializedFilters = useRef(false);
   let projectId = 0;
 
   if (context) {
     projectId = context.projectId ?? 0;
   }
+
+  const filterOptions = useMemo(() => {
+    if (!editingDomainsQuery.data) {
+      return null;
+    }
+
+    return normalizeFilterOptions(editingDomainsQuery.data);
+  }, [editingDomainsQuery.data]);
+
+  const normalizedDefaultProjectState = useMemo(() => {
+    return filterOptions ? getDefaultProjectState(filterOptions.projectStatus) : new Set<Key>();
+  }, [filterOptions]);
+
+  const normalizedDefaultFeatureState = useMemo(() => {
+    return filterOptions ? getDefaultFeatureState(filterOptions.featureTypes) : new Set<Key>();
+  }, [filterOptions]);
+
+  useEffect(() => {
+    if (projectId > 0 || !filterOptions || initializedFilters.current) {
+      return;
+    }
+
+    initializedFilters.current = true;
+    dispatch({
+      type: 'reset',
+      payload: {
+        projects: new Set(normalizedDefaultProjectState),
+        features: new Set(normalizedDefaultFeatureState),
+        join: defaultJoin,
+      },
+    });
+  }, [dispatch, filterOptions, normalizedDefaultFeatureState, normalizedDefaultProjectState, projectId]);
+
+  const filtersLoading = editingDomainsQuery.isPending;
+  const filtersError = editingDomainsQuery.isError
+    ? editingDomainsQuery.error instanceof Error
+      ? editingDomainsQuery.error.message
+      : 'Failed to load filter options.'
+    : null;
 
   if (projectId > 0) {
     setDefinitionExpression(featureLayers, {
@@ -127,8 +173,8 @@ export const FilterProvider = ({
       line: `Project_ID!=${projectId}`,
       poly: `Project_ID!=${projectId}`,
     });
-  } else {
-    const expressions = generateDefinitionExpression(state);
+  } else if (filterOptions && initializedFilters.current) {
+    const expressions = generateDefinitionExpression(state, filterOptions);
     setDefinitionExpression(featureLayers, expressions);
   }
 
@@ -139,8 +185,12 @@ export const FilterProvider = ({
         selectedProjects: state.projects,
         dispatch,
         featureLayers,
-        defaultFeatureState,
-        defaultProjectState,
+        defaultFeatureState: normalizedDefaultFeatureState,
+        defaultProjectState: normalizedDefaultProjectState,
+        projectStatus: filterOptions?.projectStatus ?? [],
+        featureTypes: filterOptions?.featureTypes ?? [],
+        filtersLoading,
+        filtersError,
         wriFunding: state.wriFunding,
       }}
     >

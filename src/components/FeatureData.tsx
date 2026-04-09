@@ -25,8 +25,8 @@ export const FeatureData = ({ featureTypes }: { featureTypes: FeatureType[] }) =
           })
         }
       >
-        {featureTypes.map(({ code, featureType }) => (
-          <Tag id={featureType} key={code} textValue={featureType}>
+        {featureTypes.map(({ featureType }) => (
+          <Tag id={featureType} key={featureType} textValue={featureType}>
             {featureType}
           </Tag>
         ))}

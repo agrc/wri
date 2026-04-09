@@ -1,6 +1,6 @@
-import type { FeatureKind } from '@ugrc/wri-shared/types';
+import type { FeatureKind, FeatureTable } from '@ugrc/wri-shared/types';
 import { type Selection } from 'react-stately';
-import { featureTypes, projectStatus } from './data/filters';
+import type { FeatureType, FilterOptions } from './data/filters';
 
 const allRecords = '';
 const noRecords = '1=0' as const;
@@ -8,13 +8,13 @@ const all = 'all' as const;
 const or = 'or' as const;
 const wriFunded = `Project_ID in(select Project_ID from PROJECTCATEGORYFUNDING where CategoryFundingID=1)`;
 
-const TABLES: Record<FeatureKind, string> = {
+const TABLES: Record<FeatureKind, FeatureTable> = {
   point: 'POINT',
   line: 'LINE',
   poly: 'POLY',
 };
 
-type FeatureItem = { code: number; type: string };
+type FeatureItem = { type: string };
 // Normalized: always return all keys, with either a list of items, '' for all, or '1=0' for none
 type NormalizedFeaturePredicates = Record<FeatureKind, FeatureItem[] | '' | typeof noRecords>;
 
@@ -26,23 +26,24 @@ const addPossibleConjunction = (phrase: string) => {
   return `${phrase} and `;
 };
 
-const full = featureTypes.reduce(
-  (acc, { kind }) => {
-    if (kind === 'point') {
-      acc.point += 1;
-    }
-    if (kind === 'line') {
-      acc.line += 1;
-    }
-    if (kind === 'poly') {
-      acc.poly += 1;
-    }
-    return acc;
-  },
-  { point: 0, line: 0, poly: 0 },
-);
+const getFeatureCounts = (featureTypes: FeatureType[]) =>
+  featureTypes.reduce(
+    (acc, { kind }) => {
+      if (kind === 'point') {
+        acc.point += 1;
+      }
+      if (kind === 'line') {
+        acc.line += 1;
+      }
+      if (kind === 'poly') {
+        acc.poly += 1;
+      }
+      return acc;
+    },
+    { point: 0, line: 0, poly: 0 },
+  );
 
-const getFeatureTablePredicates = (keys: Selection): NormalizedFeaturePredicates => {
+const getFeatureTablePredicates = (keys: Selection, featureTypes: FeatureType[]): NormalizedFeaturePredicates => {
   if (typeof keys === 'string' && keys === all) {
     return {
       point: allRecords,
@@ -62,8 +63,10 @@ const getFeatureTablePredicates = (keys: Selection): NormalizedFeaturePredicates
     if (!feature) {
       continue;
     }
-    buckets[feature.kind as FeatureKind].push({ code: feature.code, type: `'${feature.featureType}'` });
+    buckets[feature.kind].push({ type: `'${feature.featureType}'` });
   }
+
+  const full = getFeatureCounts(featureTypes);
 
   return {
     point: buckets.point.length === 0 ? noRecords : buckets.point.length === full.point ? allRecords : buckets.point,
@@ -72,7 +75,7 @@ const getFeatureTablePredicates = (keys: Selection): NormalizedFeaturePredicates
   };
 };
 
-const getProjectPredicate = (keys: Selection) => {
+const getProjectPredicate = (keys: Selection, projectStatus: FilterOptions['projectStatus']) => {
   if (keys instanceof Set) {
     if (keys.size === 0) {
       return noRecords;
@@ -110,6 +113,7 @@ const generateExpressions = (
   featurePredicates: NormalizedFeaturePredicates,
   join: 'and' | 'or',
   wriFunding: boolean,
+  featureTypes: FeatureType[],
 ) => {
   const result = {
     centroids: '',
@@ -284,19 +288,22 @@ const generateExpressions = (
   }
 };
 
-export const generateDefinitionExpression = ({
-  projects,
-  features,
-  join,
-  wriFunding,
-}: {
-  projects: Selection;
-  features: Selection;
-  join: 'and' | 'or';
-  wriFunding: boolean;
-}): { centroids: string; point: string; line: string; poly: string } => {
-  const projectPredicate = getProjectPredicate(projects);
-  const featurePredicates = getFeatureTablePredicates(features);
+export const generateDefinitionExpression = (
+  {
+    projects,
+    features,
+    join,
+    wriFunding,
+  }: {
+    projects: Selection;
+    features: Selection;
+    join: 'and' | 'or';
+    wriFunding: boolean;
+  },
+  filterOptions: FilterOptions,
+): { centroids: string; point: string; line: string; poly: string } => {
+  const projectPredicate = getProjectPredicate(projects, filterOptions.projectStatus);
+  const featurePredicates = getFeatureTablePredicates(features, filterOptions.featureTypes);
 
   // if nothing is selected in either filter, no features should be displayed
   if (projectPredicate === noRecords || Object.values(featurePredicates).every((x) => x === noRecords)) {
@@ -326,7 +333,13 @@ export const generateDefinitionExpression = ({
     };
   }
 
-  const expressions = generateExpressions(projectPredicate, featurePredicates, join, wriFunding);
+  const expressions = generateExpressions(
+    projectPredicate,
+    featurePredicates,
+    join,
+    wriFunding,
+    filterOptions.featureTypes,
+  );
 
   return expressions;
 };

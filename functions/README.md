@@ -54,13 +54,40 @@ When `DEV_USER_EMAIL` is set, `npm start` reads `UserKey` and `Token` for that u
 
 ### Local Development — Database Ownership
 
-This repo no longer manages schema creation, schema migration, or seed data for the dev database. Assume the shared dev database is already provisioned and kept current outside this codebase.
+This repo assumes the existing shared dev database already exists and is already provisioned. It does not attempt to recreate legacy schema history. New database changes can be applied forward from the current baseline using the migration workflow below.
+
+## Database Migrations
+
+The functions package now includes a forward-only Knex migration framework for new schema and reference-data changes.
+
+- Baseline policy: existing schema is assumed; migrations start from the current shared database state.
+- Current migration storage table: `knex_migrations`.
+- Connection source: `functions/.secret.local` by default, or `DATABASE_INFORMATION` if you export it explicitly.
+
+Available commands:
+
+```bash
+cd functions
+npm run db:migrate:status
+npm run db:migrate:latest
+npm run db:migrate:rollback
+npm run db:migrate:make -- migration_name
+```
+
+Notes:
+
+- Local migration runs expect the Cloud SQL proxy to be running and reachable on the port declared in `DATABASE_INFORMATION`.
+- Migration `20260409133000_add_affected_area_actions.ts` is the first forward migration and adds the Affected Area action lookup rows.
+- Treat lookup-data changes that are required by application behavior as migrations, not ad hoc seed scripts.
 
 ## Project Structure
 
 ```bash
 functions/
+├── migrations/    # Forward-only Knex migrations
+├── knexfile.ts    # Knex migration generation config
 ├── src/           # TypeScript source files
+├── scripts/       # Local dev and migration helpers
 ├── lib/           # Compiled JavaScript output
 └── package.json   # Dependencies and scripts
 ```

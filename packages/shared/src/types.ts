@@ -4,12 +4,18 @@ export type FeatureTable = 'POLY' | 'LINE' | 'POINT';
 
 export type PolyFeatureAttributes = Record<string, string[]>;
 
+export type ProjectStatusOption = {
+  code: number;
+  value: string;
+};
+
 export type EditingDomainsResponse = {
   featureTypes: Record<string, FeatureTable>;
   featureAttributes: Record<string, PolyFeatureAttributes | string[]>;
   affectedAreaActions: string[];
   herbicides: string[];
   pointLineActions: string[];
+  projectStatuses: ProjectStatusOption[];
 };
 
 export type PolyTreatment = {

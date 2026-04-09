@@ -2,11 +2,11 @@ import Collection from '@arcgis/core/core/Collection';
 import { createContext, type Dispatch } from 'react';
 import { type Key } from 'react-aria';
 import { type Selection } from 'react-stately';
-import { featureTypes, projectStatus } from '../data/filters';
+import type { FeatureType, ProjectStatuses } from '../data/filters';
 import type { FilterAction } from './';
 
-const defaultProjectState = new Set<Key>(projectStatus.filter((x) => x.default).map(({ value }) => value));
-const defaultFeatureState = new Set<Key>(featureTypes.map(({ featureType }) => featureType));
+const defaultProjectState = new Set<Key>();
+const defaultFeatureState = new Set<Key>();
 
 export const FilterContext = createContext<{
   featureLayers: __esri.Collection<__esri.FeatureLayer>;
@@ -15,13 +15,21 @@ export const FilterContext = createContext<{
   defaultFeatureState: Selection;
   selectedFeatures: Selection;
   selectedProjects: Selection;
+  projectStatus: ProjectStatuses[];
+  featureTypes: FeatureType[];
+  filtersLoading: boolean;
+  filtersError: string | null;
   wriFunding: boolean;
 }>({
   featureLayers: new Collection(),
   dispatch: () => {},
   defaultProjectState,
   defaultFeatureState,
-  selectedFeatures: defaultProjectState,
-  selectedProjects: defaultFeatureState,
+  selectedFeatures: defaultFeatureState,
+  selectedProjects: defaultProjectState,
+  projectStatus: [],
+  featureTypes: [],
+  filtersLoading: false,
+  filtersError: null,
   wriFunding: false,
 });

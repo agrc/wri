@@ -1,13 +1,19 @@
 import Collection from '@arcgis/core/core/Collection';
+import { useContext } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { CentroidToggle, ErrorFallback, FeatureData, ProjectStatus, Search, TagGroupLoader } from './';
+import { FilterContext } from './contexts';
+import { useMap } from './hooks';
 import { ReferenceData, ReferenceLabelSwitch, type ReferenceLayer } from './ReferenceData';
 import { WriFundingToggle } from './WriFundedToggle';
-import { featureTypes, projectStatus } from './data/filters';
-import { useMap } from './hooks';
+
+const FilterErrorMessage = ({ message }: { message: string }) => {
+  return <p className="text-sm text-red-600 dark:text-red-400">{message}</p>;
+};
 
 export const GeneralView = () => {
   const { mapView, currentMapScale } = useMap();
+  const { featureTypes, filtersError, filtersLoading, projectStatus } = useContext(FilterContext);
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<__esri.FeatureLayer>;
@@ -25,7 +31,17 @@ export const GeneralView = () => {
       <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <h5 className="dark:text-zinc-200">Project Status</h5>
-          {featureLayers.length > 0 ? <ProjectStatus status={projectStatus} /> : <TagGroupLoader />}
+          {featureLayers.length > 0 ? (
+            filtersLoading ? (
+              <TagGroupLoader />
+            ) : filtersError ? (
+              <FilterErrorMessage message={filtersError} />
+            ) : (
+              <ProjectStatus status={projectStatus} />
+            )
+          ) : (
+            <TagGroupLoader />
+          )}
           {featureLayers.length > 0 && <CentroidToggle />}
           {featureLayers.length > 0 && <WriFundingToggle />}
         </ErrorBoundary>
@@ -33,7 +49,17 @@ export const GeneralView = () => {
       <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <h5 className="dark:text-zinc-200">Feature Type</h5>
-          {featureLayers.length > 0 ? <FeatureData featureTypes={featureTypes} /> : <TagGroupLoader />}
+          {featureLayers.length > 0 ? (
+            filtersLoading ? (
+              <TagGroupLoader />
+            ) : filtersError ? (
+              <FilterErrorMessage message={filtersError} />
+            ) : (
+              <FeatureData featureTypes={featureTypes} />
+            )
+          ) : (
+            <TagGroupLoader />
+          )}
         </ErrorBoundary>
       </div>
       <div className="flex flex-col gap-4 rounded border border-zinc-200 p-3 dark:border-zinc-700">

@@ -1,98 +1,53 @@
-import type { FeatureKind } from '@ugrc/wri-shared/types';
+import type { EditingDomainsResponse, FeatureKind, FeatureTable, ProjectStatusOption } from '@ugrc/wri-shared/types';
 
-export const projectStatus = [
-  {
-    code: 1,
-    value: 'Draft',
-    default: false,
-  },
-  {
-    code: 2,
-    value: 'Proposed',
-    default: true,
-  },
-  {
-    code: 3,
-    value: 'Current',
-    default: true,
-  },
-  {
-    code: 4,
-    value: 'Pending Completed',
-    default: true,
-  },
-  {
-    code: 5,
-    value: 'Completed',
-    default: true,
-  },
-  {
-    code: 6,
-    value: 'Cancelled',
-    default: false,
-  },
-];
-export type ProjectStatuses = (typeof projectStatus)[number];
+const DEFAULT_PROJECT_STATUSES = new Set(['Proposed', 'Current', 'Pending Completed', 'Completed']);
+const alphabeticalSort = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+const featureKindByTable: Record<FeatureTable, FeatureKind> = {
+  POLY: 'poly',
+  LINE: 'line',
+  POINT: 'point',
+};
+
+export type ProjectStatuses = ProjectStatusOption & {
+  default: boolean;
+};
 
 export type FeatureType = {
-  code: number;
   featureType: string;
   kind: FeatureKind;
 };
-export const featureTypes = [
-  {
-    code: 1,
-    featureType: 'Terrestrial Treatment Area',
-    kind: 'poly',
-  },
-  {
-    code: 2,
-    featureType: 'Aquatic/Riparian Treatment Area',
-    kind: 'poly',
-  },
-  {
-    code: 3,
-    featureType: 'Affected Area',
-    kind: 'poly',
-  },
-  {
-    code: 4,
-    featureType: 'Easement/Acquisition',
-    kind: 'poly',
-  },
-  {
-    code: 5,
-    featureType: 'Guzzler',
-    kind: 'point',
-  },
-  {
-    code: 8,
-    featureType: 'Other point feature',
-    kind: 'point',
-  },
-  {
-    code: 9,
-    featureType: 'Fish passage structure',
-    kind: 'point',
-  },
-  {
-    code: 10,
-    featureType: 'Fence',
-    kind: 'line',
-  },
-  {
-    code: 11,
-    featureType: 'Pipeline',
-    kind: 'line',
-  },
-  {
-    code: 12,
-    featureType: 'Dam',
-    kind: 'line',
-  },
-  {
-    code: 13,
-    featureType: 'Water development point feature',
-    kind: 'point',
-  },
-] as FeatureType[];
+
+export type FilterOptions = {
+  projectStatus: ProjectStatuses[];
+  featureTypes: FeatureType[];
+};
+
+export const normalizeProjectStatuses = (projectStatuses: ProjectStatusOption[]): ProjectStatuses[] => {
+  return projectStatuses.map((status) => ({
+    ...status,
+    default: DEFAULT_PROJECT_STATUSES.has(status.value),
+  }));
+};
+
+export const normalizeFeatureTypes = (featureTypes: EditingDomainsResponse['featureTypes']): FeatureType[] => {
+  return Object.entries(featureTypes)
+    .map(([featureType, table]) => ({
+      featureType,
+      kind: featureKindByTable[table],
+    }))
+    .sort((left, right) => alphabeticalSort.compare(left.featureType, right.featureType));
+};
+
+export const normalizeFilterOptions = (domains: EditingDomainsResponse): FilterOptions => ({
+  projectStatus: normalizeProjectStatuses(domains.projectStatuses),
+  featureTypes: normalizeFeatureTypes(domains.featureTypes),
+});
+
+export const getDefaultProjectState = (projectStatuses: ProjectStatuses[]) => {
+  return new Set(projectStatuses.filter((status) => status.default).map(({ value }) => value));
+};
+
+export const getDefaultFeatureState = (featureTypes: FeatureType[]) => {
+  return new Set(featureTypes.map(({ featureType }) => featureType));
+};

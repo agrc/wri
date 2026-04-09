@@ -24,6 +24,15 @@ const mockHerbicideRows = [{ HerbicideDescription: 'Clopyralid' }, { HerbicideDe
 
 const mockActionRows = [{ action: 'Initial' }, { action: 'Maintenance' }];
 
+const mockProjectStatusRows = [
+  { code: 1, value: 'Draft' },
+  { code: 2, value: 'Proposed' },
+  { code: 3, value: 'Current' },
+  { code: 4, value: 'Pending Completed' },
+  { code: 5, value: 'Completed' },
+  { code: 6, value: 'Cancelled' },
+];
+
 const mockAffectedAreaActionRows = [
   { action: 'Biological Surveys' },
   { action: 'Cultural Resource Inventory' },
@@ -52,7 +61,7 @@ const createMockDb = () => {
 
   let callCount = 0;
 
-  // Return different data for each of the 6 parallel queries
+  // Return different data for each of the 7 parallel queries
   const resolvingChain = {
     ...mockQueryChain,
     then: (resolve: (val: unknown) => unknown) => {
@@ -61,7 +70,8 @@ const createMockDb = () => {
       if (callCount === 2) return Promise.resolve(mockPointLineRows).then(resolve);
       if (callCount === 3) return Promise.resolve(mockHerbicideRows).then(resolve);
       if (callCount === 4) return Promise.resolve(mockActionRows).then(resolve);
-      if (callCount === 5) return Promise.resolve(mockFeatureTypeRows).then(resolve);
+      if (callCount === 5) return Promise.resolve(mockProjectStatusRows).then(resolve);
+      if (callCount === 6) return Promise.resolve(mockFeatureTypeRows).then(resolve);
       return Promise.resolve(mockAffectedAreaActionRows).then(resolve);
     },
   };
@@ -155,6 +165,14 @@ describe('editingDomainsHandler', () => {
       guzzler: 'POINT',
       'terrestrial treatment area': 'POLY',
     });
+  });
+
+  it('returns project statuses for map filters', async () => {
+    vi.mocked(getDb).mockResolvedValue(createMockDb() as never);
+
+    const result = await editingDomainsHandler();
+
+    expect(result.projectStatuses).toEqual(mockProjectStatusRows);
   });
 
   it('wraps unexpected DB errors in an internal HttpsError', async () => {

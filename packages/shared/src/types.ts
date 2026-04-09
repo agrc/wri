@@ -7,6 +7,7 @@ export type PolyFeatureAttributes = Record<string, string[]>;
 export type EditingDomainsResponse = {
   featureTypes: Record<string, FeatureTable>;
   featureAttributes: Record<string, PolyFeatureAttributes | string[]>;
+  affectedAreaActions: string[];
   herbicides: string[];
   pointLineActions: string[];
 };

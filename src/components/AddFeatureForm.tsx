@@ -3,6 +3,7 @@ import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
 import { Button, Checkbox, Select, SelectItem, TextArea, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
 import {
   hasRequiredHerbicideSelections,
+  isAffectedAreaCategory,
   isNoActionCategory,
   isRetreatmentEligibleCategory,
   isSubtypeActionCategory,
@@ -55,6 +56,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const geometriesRef = useRef<__esri.Geometry[]>([]);
   const [drawingState, setDrawingState] = useState<'idle' | 'drawing' | 'complete'>('idle');
   const [retreatment, setRetreatment] = useState(false);
+  const [affectedAreaAction, setAffectedAreaAction] = useState('');
   const [polyActions, setPolyActions] = useState<FormPolyAction[]>([createEmptyPolyAction()]);
   const [pointLineAction, setPointLineAction] = useState<FormPointLineAction>({
     type: '',
@@ -64,6 +66,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
   const table = category && domains ? domains.featureTypes[category] : undefined;
   const categoryAttrs = category && domains ? domains.featureAttributes[category] : undefined;
+  const isAffectedArea = isAffectedAreaCategory(category);
   const showsRetreatment = isRetreatmentEligibleCategory(category);
 
   useEffect(() => {
@@ -240,6 +243,10 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const buildActions = (): CreateFeatureData['actions'] => {
     if (!table || isNoActionCategory(category)) return null;
     if (table === 'POLY') {
+      if (isAffectedArea) {
+        return [{ action: affectedAreaAction.trim(), treatments: [] }];
+      }
+
       return polyActions.map((action) => ({
         ...action,
         treatments: action.treatments.map((treatment) => ({
@@ -255,6 +262,10 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     if (!category || geometries.length === 0) return false;
     if (isNoActionCategory(category)) return true;
     if (table === 'POLY') {
+      if (isAffectedArea) {
+        return affectedAreaAction.trim().length > 0;
+      }
+
       return polyActions.every(
         (a) =>
           a.action.trim() &&
@@ -300,6 +311,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         selectedKey={category}
         onSelectionChange={(key) => {
           setCategory(key as string);
+          setAffectedAreaAction('');
           setRetreatment(false);
           setPolyActions([createEmptyPolyAction()]);
           setPointLineAction({ type: '', action: '', description: '' });
@@ -355,8 +367,21 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         </div>
       )}
 
-      {/* POLY actions (not for affected area) */}
-      {table === 'POLY' && !isNoActionCategory(category) && (
+      {table === 'POLY' && isAffectedArea && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium">Action</p>
+          <Select label="Action" selectedKey={affectedAreaAction || null} onSelectionChange={(key) => setAffectedAreaAction(key as string)}>
+            {(domains?.affectedAreaActions ?? []).map((opt) => (
+              <SelectItem key={opt} id={opt}>
+                {opt}
+              </SelectItem>
+            ))}
+          </Select>
+        </div>
+      )}
+
+      {/* POLY actions (excluding affected area) */}
+      {table === 'POLY' && !isNoActionCategory(category) && !isAffectedArea && (
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium">Actions</p>
           {polyActions.map((polyAction, actionIdx) => {

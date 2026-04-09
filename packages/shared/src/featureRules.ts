@@ -1,4 +1,6 @@
-export const NO_ACTION_CATEGORIES = new Set(['affected area', 'other point feature']);
+const AFFECTED_AREA_CATEGORY = 'affected area';
+
+export const NO_ACTION_CATEGORIES = new Set(['other point feature']);
 
 export const SUBTYPE_ACTION_CATEGORIES = new Set(['guzzler', 'fish passage structure', 'fence', 'pipeline', 'dam']);
 
@@ -12,6 +14,8 @@ export const STREAM_ELIGIBLE_CATEGORIES = new Set(['aquatic/riparian treatment a
 const HERBICIDE_ACTION_NAME = 'herbicide application';
 
 export const isNoActionCategory = (category: string) => NO_ACTION_CATEGORIES.has(category.toLowerCase());
+
+export const isAffectedAreaCategory = (category: string) => category.toLowerCase() === AFFECTED_AREA_CATEGORY;
 
 export const isSubtypeActionCategory = (category: string) => SUBTYPE_ACTION_CATEGORIES.has(category.toLowerCase());
 

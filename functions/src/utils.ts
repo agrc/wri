@@ -1,4 +1,5 @@
 import {
+  isAffectedAreaCategory,
   isHerbicideAction,
   isNoActionCategory,
   isRetreatmentEligibleFeatureType,
@@ -199,6 +200,28 @@ export const validateActions = (
     const polyActions = (actions ?? []) as PolyAction[];
     if (polyActions.length === 0) {
       throw new HttpsError('invalid-argument', 'Polygon features require at least one action');
+    }
+
+    if (isAffectedAreaCategory(normalizedType)) {
+      if (polyActions.length !== 1) {
+        throw new HttpsError('invalid-argument', 'Affected Area features require exactly one action');
+      }
+
+      const [affectedAreaAction] = polyActions;
+
+      if (!affectedAreaAction?.action?.trim()) {
+        throw new HttpsError('invalid-argument', 'Affected Area features require an action');
+      }
+
+      const hasTreatments = (affectedAreaAction.treatments ?? []).some(
+        (treatment) => treatment.treatment?.trim() || normalizeHerbicides(treatment.herbicides).length > 0,
+      );
+
+      if (hasTreatments) {
+        throw new HttpsError('invalid-argument', 'Affected Area features do not support treatments or herbicides');
+      }
+
+      return;
     }
 
     for (const polyAction of polyActions) {

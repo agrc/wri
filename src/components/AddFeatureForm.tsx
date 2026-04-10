@@ -21,7 +21,7 @@ import type {
   FormPolyTreatment,
   PolyFeatureAttributes,
 } from '@ugrc/wri-shared/types';
-import { PenLineIcon, ScissorsIcon } from 'lucide-react';
+import { PenLineIcon, ScissorsIcon, SquarePenIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toolbar, TooltipTrigger } from 'react-aria-components';
 import { titleCase } from './';
@@ -64,7 +64,8 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const [category, setCategory] = useState<string>('');
   const [geometries, setGeometries] = useState<__esri.Geometry[]>([]);
   const geometriesRef = useRef<__esri.Geometry[]>([]);
-  const [drawingState, setDrawingState] = useState<'idle' | 'drawing' | 'cutting' | 'complete'>('idle');
+  const [drawingState, setDrawingState] = useState<'idle' | 'drawing' | 'cutting' | 'editing' | 'complete'>('idle');
+  const [selectedDraftCount, setSelectedDraftCount] = useState(0);
   const [cutError, setCutError] = useState<string | null>(null);
   const [retreatment, setRetreatment] = useState(false);
   const [affectedAreaAction, setAffectedAreaAction] = useState('');
@@ -130,9 +131,23 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   );
 
   const stopSketch = () => {
+    if (sketchVMRef.current) {
+      sketchVMRef.current.updateOnGraphicClick = false;
+    }
+
+    setSelectedDraftCount(0);
     sketchVMRef.current?.cancel();
     activeToolRef.current = 'draw';
   };
+
+  const syncGraphicsFromLayer = useCallback(() => {
+    const layerGraphics = graphicsLayerRef.current?.graphics.toArray() ?? [];
+
+    setDraftGeometries(
+      layerGraphics.flatMap((graphic) => (graphic.geometry ? [graphic.geometry] : [])),
+      layerGraphics.map((graphic) => (graphic.symbol ? graphic.symbol.toJSON() : null)),
+    );
+  }, [setDraftGeometries]);
 
   useEffect(() => {
     if (!showsRetreatment) {
@@ -156,6 +171,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     geometriesRef.current = [];
     geometrySymbolsRef.current = [];
     setDrawingState('idle');
+    setSelectedDraftCount(0);
     setCutError(null);
     activeToolRef.current = 'draw';
 
@@ -171,6 +187,12 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
       view: mapView,
       layer: graphicsLayer,
       creationMode: isMultipart ? 'continuous' : 'single',
+      updateOnGraphicClick: false,
+      defaultUpdateOptions: {
+        tool: 'reshape',
+        toggleToolOnClick: false,
+        multipleSelectionEnabled: false,
+      },
     });
     sketchVMRef.current = sketchVM;
 
@@ -239,9 +261,45 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
       }
     });
 
+    sketchVM.on('update', (event) => {
+      if (event.state === 'start') {
+        setCutError(null);
+        setSelectedDraftCount(event.graphics.length);
+        setDrawingState('editing');
+
+        return;
+      }
+
+      if (event.state === 'active') {
+        setSelectedDraftCount(event.graphics.length);
+
+        return;
+      }
+
+      if (event.state === 'complete') {
+        syncGraphicsFromLayer();
+        setSelectedDraftCount(0);
+        setDrawingState(
+          sketchVM.updateOnGraphicClick ? 'editing' : geometriesRef.current.length > 0 ? 'complete' : 'idle',
+        );
+      }
+    });
+
+    sketchVM.on('delete', () => {
+      syncGraphicsFromLayer();
+      setSelectedDraftCount(0);
+      setDrawingState(
+        sketchVM.updateOnGraphicClick && graphicsLayer.graphics.length > 0
+          ? 'editing'
+          : graphicsLayer.graphics.length > 0
+            ? 'complete'
+            : 'idle',
+      );
+    });
+
     sketchVM.create(DRAW_TOOL[resolvedTable]);
     setDrawingState('drawing');
-  }, [mapView, category, domains?.featureTypes, setDraftGeometries, syncSketchLayerGeometries]);
+  }, [mapView, category, domains?.featureTypes, setDraftGeometries, syncGraphicsFromLayer, syncSketchLayerGeometries]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -350,7 +408,9 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const startDrawing = () => {
     if (!sketchVMRef.current || !table) return;
     setCutError(null);
+    setSelectedDraftCount(0);
     activeToolRef.current = 'draw';
+    sketchVMRef.current.updateOnGraphicClick = false;
     sketchVMRef.current.creationMode = table === 'POINT' ? 'single' : 'continuous';
     sketchVMRef.current.create(DRAW_TOOL[table]);
     setDrawingState('drawing');
@@ -363,10 +423,39 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
     sketchVMRef.current.cancel();
     activeToolRef.current = 'cut';
+    setSelectedDraftCount(0);
+    sketchVMRef.current.updateOnGraphicClick = false;
     sketchVMRef.current.creationMode = 'single';
     sketchVMRef.current.create('polyline');
     setCutError(null);
     setDrawingState('cutting');
+  };
+
+  const startEditing = () => {
+    if (!sketchVMRef.current) {
+      return;
+    }
+
+    const layerGraphics = graphicsLayerRef.current?.graphics.toArray() ?? [];
+
+    if (layerGraphics.length === 0) {
+      return;
+    }
+
+    sketchVMRef.current.cancel();
+    sketchVMRef.current.updateOnGraphicClick = true;
+    activeToolRef.current = 'draw';
+    setCutError(null);
+    setSelectedDraftCount(0);
+    setDrawingState('editing');
+  };
+
+  const deleteSelectedGeometry = () => {
+    if (!sketchVMRef.current || selectedDraftCount === 0) {
+      return;
+    }
+
+    sketchVMRef.current.delete();
   };
 
   // Decide what actions to send
@@ -476,6 +565,25 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
               </div>
               <Tooltip>Draw</Tooltip>
             </TooltipTrigger>
+            <TooltipTrigger>
+              <div>
+                <ToggleButton
+                  isSelected={drawingState === 'editing'}
+                  onChange={(selected) => {
+                    if (selected) {
+                      startEditing();
+                    } else {
+                      stopSketch();
+                    }
+                  }}
+                  aria-label="Edit vertices"
+                  isDisabled={geometries.length === 0}
+                >
+                  <SquarePenIcon className="size-4" />
+                </ToggleButton>
+              </div>
+              <Tooltip>Edit vertices</Tooltip>
+            </TooltipTrigger>
             {(table === 'POLY' || table === 'LINE') && (
               <TooltipTrigger>
                 <div>
@@ -497,6 +605,19 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
                 <Tooltip>Cut</Tooltip>
               </TooltipTrigger>
             )}
+            <TooltipTrigger>
+              <div>
+                <Button
+                  variant="icon"
+                  aria-label="Delete selected feature"
+                  isDisabled={drawingState !== 'editing' || selectedDraftCount === 0}
+                  onPress={deleteSelectedGeometry}
+                >
+                  <Trash2Icon className="size-4" />
+                </Button>
+              </div>
+              <Tooltip>Delete selected feature</Tooltip>
+            </TooltipTrigger>
           </Toolbar>
           {drawingState === 'idle' && <p className="text-xs text-zinc-500 dark:text-zinc-400">Click Draw to begin.</p>}
           {drawingState === 'drawing' && geometries.length === 0 && (
@@ -514,6 +635,12 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
               Draw a cut line across the drafted geometry. Press Enter or double-click to finish the cut. Press Escape
               to cancel.
+            </p>
+          )}
+          {drawingState === 'editing' && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Select a geometry, then drag vertices to adjust or use delete button to remove it. Press Escape to cancel
+              the current edit.
             </p>
           )}
           {drawingState === 'complete' && (

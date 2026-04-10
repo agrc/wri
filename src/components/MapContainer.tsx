@@ -70,7 +70,6 @@ export const MapContainer = () => {
       container: mapNode.current,
       map: mapComponent.current,
       extent: utahMercatorExtent,
-      scale: import.meta.env.DEV ? 90000 : undefined,
       popup: {
         dockEnabled: true,
         visibleElements: {

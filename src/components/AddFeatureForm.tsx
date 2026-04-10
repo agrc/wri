@@ -1,4 +1,6 @@
+import Graphic from '@arcgis/core/Graphic.js';
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
+import { fromJSON as symbolFromJSON } from '@arcgis/core/symbols/support/jsonUtils.js';
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
 import { Button, Checkbox, Select, SelectItem, TextArea, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
 import {
@@ -19,10 +21,11 @@ import type {
   FormPolyTreatment,
   PolyFeatureAttributes,
 } from '@ugrc/wri-shared/types';
-import { PenLineIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { PenLineIcon, ScissorsIcon } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toolbar, TooltipTrigger } from 'react-aria-components';
 import { titleCase } from './';
+import { canCutDraftGeometries, cutDraftGeometries } from './addFeatureDraftGeometry';
 import { useMap } from './hooks';
 
 const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
@@ -37,6 +40,10 @@ const createEmptyPolyTreatment = (): FormPolyTreatment => ({ treatment: '', herb
 
 const createEmptyPolyAction = (): FormPolyAction => ({ action: '', treatments: [createEmptyPolyTreatment()] });
 
+const cloneSymbol = (symbol: __esri.SymbolProperties | null | undefined): __esri.SymbolProperties | undefined => {
+  return symbol ? { ...symbol } : undefined;
+};
+
 type Props = {
   projectId: number;
   domains: EditingDomainsResponse | undefined;
@@ -50,11 +57,15 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const { mapView } = useMap();
   const sketchVMRef = useRef<SketchViewModel | null>(null);
   const graphicsLayerRef = useRef<GraphicsLayer | null>(null);
+  const activeToolRef = useRef<'draw' | 'cut'>('draw');
+  const tableRef = useRef<FeatureTable | undefined>(undefined);
+  const geometrySymbolsRef = useRef<Array<__esri.SymbolProperties | null>>([]);
 
   const [category, setCategory] = useState<string>('');
   const [geometries, setGeometries] = useState<__esri.Geometry[]>([]);
   const geometriesRef = useRef<__esri.Geometry[]>([]);
-  const [drawingState, setDrawingState] = useState<'idle' | 'drawing' | 'complete'>('idle');
+  const [drawingState, setDrawingState] = useState<'idle' | 'drawing' | 'cutting' | 'complete'>('idle');
+  const [cutError, setCutError] = useState<string | null>(null);
   const [retreatment, setRetreatment] = useState(false);
   const [affectedAreaAction, setAffectedAreaAction] = useState('');
   const [polyActions, setPolyActions] = useState<FormPolyAction[]>([createEmptyPolyAction()]);
@@ -68,6 +79,60 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   const categoryAttrs = category && domains ? domains.featureAttributes[category] : undefined;
   const isAffectedArea = isAffectedAreaCategory(category);
   const showsRetreatment = isRetreatmentEligibleCategory(category);
+  const isCutEnabled = canCutDraftGeometries(table, geometries);
+
+  tableRef.current = table;
+
+  const syncSketchLayerGeometries = useCallback(
+    (
+      nextGeometries: __esri.Geometry[],
+      nextSymbols: Array<__esri.SymbolProperties | null> = geometrySymbolsRef.current,
+    ) => {
+      const graphicsLayer = graphicsLayerRef.current;
+
+      if (!graphicsLayer) {
+        return;
+      }
+
+      graphicsLayer.removeAll();
+
+      if (nextGeometries.length === 0) {
+        return;
+      }
+
+      graphicsLayer.addMany(
+        nextGeometries.map((geometry, index) => {
+          const graphic = new Graphic({ geometry });
+          const symbol = cloneSymbol(nextSymbols[index]);
+
+          if (symbol) {
+            graphic.symbol = symbolFromJSON(symbol);
+          }
+
+          return graphic;
+        }),
+      );
+    },
+    [],
+  );
+
+  const setDraftGeometries = useCallback(
+    (
+      nextGeometries: __esri.Geometry[],
+      nextSymbols: Array<__esri.SymbolProperties | null> = geometrySymbolsRef.current,
+    ) => {
+      geometriesRef.current = nextGeometries;
+      geometrySymbolsRef.current = nextSymbols;
+      setGeometries(nextGeometries);
+      syncSketchLayerGeometries(nextGeometries, nextSymbols);
+    },
+    [syncSketchLayerGeometries],
+  );
+
+  const stopSketch = () => {
+    sketchVMRef.current?.cancel();
+    activeToolRef.current = 'draw';
+  };
 
   useEffect(() => {
     if (!showsRetreatment) {
@@ -89,7 +154,10 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     }
     setGeometries([]);
     geometriesRef.current = [];
+    geometrySymbolsRef.current = [];
     setDrawingState('idle');
+    setCutError(null);
+    activeToolRef.current = 'draw';
 
     const resolvedTable = domains?.featureTypes?.[category];
     if (!resolvedTable) return;
@@ -108,11 +176,57 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
     sketchVM.on('create', (event) => {
       if (event.state === 'complete' && event.graphic.geometry) {
+        if (activeToolRef.current === 'cut' && event.graphic.geometry.type === 'polyline') {
+          const currentTable = tableRef.current;
+          const currentSymbols = geometrySymbolsRef.current.map((symbol) => symbol ?? null);
+
+          if (!currentTable || currentTable === 'POINT') {
+            syncSketchLayerGeometries(geometriesRef.current, currentSymbols);
+            setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
+
+            return;
+          }
+
+          try {
+            const result = cutDraftGeometries({
+              geometries: geometriesRef.current,
+              cutGeometry: event.graphic.geometry as __esri.Polyline,
+              table: currentTable,
+            });
+
+            syncSketchLayerGeometries(result.geometries, currentSymbols);
+
+            if (!result.changed) {
+              setCutError(result.error);
+              setDrawingState(result.geometries.length > 0 ? 'complete' : 'idle');
+
+              return;
+            }
+
+            setCutError(null);
+            setDraftGeometries(result.geometries, currentSymbols);
+            setDrawingState('complete');
+          } catch (error) {
+            setCutError(error instanceof Error ? error.message : 'Failed to cut the drafted geometry.');
+            syncSketchLayerGeometries(geometriesRef.current, currentSymbols);
+            setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
+          } finally {
+            activeToolRef.current = 'draw';
+          }
+
+          return;
+        }
+
         const geom = event.graphic.geometry as __esri.Geometry;
-        geometriesRef.current = [...geometriesRef.current, geom];
-        setGeometries([...geometriesRef.current]);
-        // For multipart types, creationMode:'continuous' auto-restarts drawing.
-        // For POINT the multipoint tool handles multipart natively in one interaction.
+        const nextGeometries = [...geometriesRef.current, geom];
+        const nextSymbols = [
+          ...geometrySymbolsRef.current,
+          event.graphic.symbol ? event.graphic.symbol.toJSON() : null,
+        ];
+        geometriesRef.current = nextGeometries;
+        geometrySymbolsRef.current = nextSymbols;
+        setGeometries(nextGeometries);
+        setCutError(null);
         if (!isMultipart) {
           setDrawingState('complete');
         }
@@ -127,7 +241,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
     sketchVM.create(DRAW_TOOL[resolvedTable]);
     setDrawingState('drawing');
-  }, [mapView, category, domains?.featureTypes]);
+  }, [mapView, category, domains?.featureTypes, setDraftGeometries, syncSketchLayerGeometries]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -235,8 +349,24 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   // Re-activate the draw tool to add another part
   const startDrawing = () => {
     if (!sketchVMRef.current || !table) return;
+    setCutError(null);
+    activeToolRef.current = 'draw';
+    sketchVMRef.current.creationMode = table === 'POINT' ? 'single' : 'continuous';
     sketchVMRef.current.create(DRAW_TOOL[table]);
     setDrawingState('drawing');
+  };
+
+  const startCutting = () => {
+    if (!sketchVMRef.current || !table || !isCutEnabled) {
+      return;
+    }
+
+    sketchVMRef.current.cancel();
+    activeToolRef.current = 'cut';
+    sketchVMRef.current.creationMode = 'single';
+    sketchVMRef.current.create('polyline');
+    setCutError(null);
+    setDrawingState('cutting');
   };
 
   // Decide what actions to send
@@ -336,7 +466,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
                     if (selected) {
                       startDrawing();
                     } else {
-                      sketchVMRef.current?.cancel();
+                      stopSketch();
                     }
                   }}
                   aria-label="Draw"
@@ -346,6 +476,27 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
               </div>
               <Tooltip>Draw</Tooltip>
             </TooltipTrigger>
+            {(table === 'POLY' || table === 'LINE') && (
+              <TooltipTrigger>
+                <div>
+                  <ToggleButton
+                    isSelected={drawingState === 'cutting'}
+                    onChange={(selected) => {
+                      if (selected) {
+                        startCutting();
+                      } else {
+                        stopSketch();
+                      }
+                    }}
+                    aria-label="Cut"
+                    isDisabled={!isCutEnabled}
+                  >
+                    <ScissorsIcon className="size-4" />
+                  </ToggleButton>
+                </div>
+                <Tooltip>Cut</Tooltip>
+              </TooltipTrigger>
+            )}
           </Toolbar>
           {drawingState === 'idle' && <p className="text-xs text-zinc-500 dark:text-zinc-400">Click Draw to begin.</p>}
           {drawingState === 'drawing' && geometries.length === 0 && (
@@ -359,18 +510,32 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
               double-click to finish the current part. Press Escape to stop.
             </p>
           )}
+          {drawingState === 'cutting' && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Draw a cut line across the drafted geometry. Press Enter or double-click to finish the cut. Press Escape
+              to cancel.
+            </p>
+          )}
           {drawingState === 'complete' && (
             <p className="text-xs text-emerald-700 dark:text-emerald-400">
               {geometries.length} part{geometries.length > 1 ? 's' : ''} drawn. Click Draw to add another part.
             </p>
           )}
+          {!isCutEnabled && (table === 'POLY' || table === 'LINE') && drawingState !== 'drawing' && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Finish at least one part before using Cut.</p>
+          )}
+          {cutError && <p className="text-xs text-red-600 dark:text-red-400">{cutError}</p>}
         </div>
       )}
 
       {table === 'POLY' && isAffectedArea && (
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium">Action</p>
-          <Select label="Action" selectedKey={affectedAreaAction || null} onSelectionChange={(key) => setAffectedAreaAction(key as string)}>
+          <Select
+            label="Action"
+            selectedKey={affectedAreaAction || null}
+            onSelectionChange={(key) => setAffectedAreaAction(key as string)}
+          >
             {(domains?.affectedAreaActions ?? []).map((opt) => (
               <SelectItem key={opt} id={opt}>
                 {opt}

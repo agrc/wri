@@ -1,11 +1,13 @@
 import Graphic from '@arcgis/core/Graphic.js';
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
-import { Button, Select, SelectItem, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
+import { Button, Checkbox, Popover, Select, SelectItem, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
 import {
   CheckIcon,
+  ChevronDownIcon,
   DiamondIcon,
+  MagnetIcon,
   PenLineIcon,
   RotateCcwIcon,
   ScissorsIcon,
@@ -13,7 +15,7 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Toolbar, TooltipTrigger } from 'react-aria-components';
+import { DialogTrigger, Toolbar, TooltipTrigger } from 'react-aria-components';
 import { getDraftPointSymbol, getDraftPolygonSymbol, getDraftPolylineSymbol } from '../config';
 import {
   BUFFER_DRAFT_DISTANCES,
@@ -22,6 +24,11 @@ import {
   canCutDraftGeometries,
   cutDraftGeometries,
 } from './addFeatureDraftGeometry';
+import {
+  ADJACENT_PROJECT_FEATURE_LAYER_IDS,
+  getEffectiveAdjacentSnappingEnabled,
+  getFeatureGeometrySnappingLayerIds,
+} from './featureGeometrySnapping';
 import { useMap } from './hooks';
 
 const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
@@ -33,6 +40,7 @@ const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
 type PolyDraftMode = 'polygon' | 'buffered-line';
 type DrawingState = 'idle' | 'drawing' | 'cutting' | 'editing' | 'complete';
 type SerializedGeometry = object | object[];
+type SnappingOptionKey = 'project' | 'adjacent';
 
 const getDrawTool = (table: FeatureTable, polyDraftMode: PolyDraftMode): 'polygon' | 'polyline' | 'multipoint' => {
   if (table === 'POLY' && polyDraftMode === 'buffered-line') {
@@ -70,8 +78,10 @@ const cloneGeometries = (geometries: __esri.Geometry[]): __esri.Geometry[] =>
   geometries.map((geometry) => geometry.clone() as __esri.Geometry);
 
 type Props = {
+  projectId: number;
   featureType: string;
   table: FeatureTable | undefined;
+  adjacentProjectsVisible: boolean;
   onChange: (serializedGeometry: SerializedGeometry | null) => void;
   initialGeometry?: __esri.Geometry | __esri.Geometry[] | null;
   disabled?: boolean;
@@ -79,8 +89,10 @@ type Props = {
 };
 
 export default function FeatureGeometryEditor({
+  projectId,
   featureType,
   table,
+  adjacentProjectsVisible,
   onChange,
   initialGeometry,
   disabled = false,
@@ -102,14 +114,83 @@ export default function FeatureGeometryEditor({
   const [geometryError, setGeometryError] = useState<string | null>(null);
   const [polyDraftMode, setPolyDraftMode] = useState<PolyDraftMode>('polygon');
   const [bufferDistance, setBufferDistance] = useState('');
+  const [projectSnappingEnabled, setProjectSnappingEnabled] = useState(false);
+  const [adjacentSnappingEnabled, setAdjacentSnappingEnabled] = useState(false);
 
   const hasDraftLines = table === 'POLY' && geometries.some((geometry) => geometry.type === 'polyline');
   const isBufferEnabled = canBufferDraftGeometries(table, geometries);
   const isCutEnabled = canCutDraftGeometries(table, geometries);
   const canFinishSketch = drawingState === 'drawing' || drawingState === 'cutting';
   const hasInitialGeometry = normalizedInitialGeometries.length > 0;
+  const effectiveAdjacentSnappingEnabled = getEffectiveAdjacentSnappingEnabled({
+    adjacentSnappingEnabled,
+    adjacentProjectsVisible,
+  });
+  const snappingLayerIds = useMemo(
+    () =>
+      getFeatureGeometrySnappingLayerIds({
+        projectId,
+        projectSnappingEnabled,
+        adjacentSnappingEnabled,
+        adjacentProjectsVisible,
+      }),
+    [adjacentProjectsVisible, adjacentSnappingEnabled, projectId, projectSnappingEnabled],
+  );
+  const adjacentSnappingPending = adjacentSnappingEnabled && !adjacentProjectsVisible;
+  const snappingControls = [
+    {
+      key: 'project',
+      label: 'Project Features',
+      isSelected: projectSnappingEnabled,
+      setSelected: setProjectSnappingEnabled,
+      isDisabled: disabled,
+    },
+    {
+      key: 'adjacent',
+      label: 'Adjacent Project Features',
+      isSelected: adjacentSnappingEnabled,
+      setSelected: setAdjacentSnappingEnabled,
+      isDisabled: disabled || (!adjacentProjectsVisible && !adjacentSnappingEnabled),
+    },
+  ] satisfies Array<{
+    key: SnappingOptionKey;
+    label: string;
+    isSelected: boolean;
+    setSelected: (selected: boolean) => void;
+    isDisabled: boolean;
+  }>;
 
   tableRef.current = table;
+
+  const syncSnappingOptions = useCallback(() => {
+    const sketchVM = sketchVMRef.current;
+
+    if (!sketchVM) {
+      return;
+    }
+
+    const featureLayers = snappingLayerIds.flatMap((layerId) => {
+      const layer = mapView?.map?.findLayerById(layerId);
+
+      if (!layer || layer.type !== 'feature') {
+        return [];
+      }
+
+      if (ADJACENT_PROJECT_FEATURE_LAYER_IDS.includes(layer.id) && !layer.visible) {
+        return [];
+      }
+
+      return [layer as __esri.FeatureLayer];
+    });
+
+    sketchVM.snappingOptions = {
+      enabled: featureLayers.length > 0,
+      featureEnabled: featureLayers.length > 0,
+      selfEnabled: true,
+      gridEnabled: false,
+      featureSources: featureLayers.map((layer) => ({ layer, enabled: true })),
+    };
+  }, [mapView, snappingLayerIds]);
 
   const syncSketchLayerGeometries = useCallback((nextGeometries: __esri.Geometry[]) => {
     const graphicsLayer = graphicsLayerRef.current;
@@ -226,6 +307,7 @@ export default function FeatureGeometryEditor({
       polygonSymbol: getDraftPolygonSymbol(),
     });
     sketchVMRef.current = sketchVM;
+    syncSnappingOptions();
 
     sketchVM.on('create', (event) => {
       if (event.state === 'complete' && event.graphic.geometry) {
@@ -353,9 +435,28 @@ export default function FeatureGeometryEditor({
     onChange,
     setDraftGeometries,
     syncGraphicsFromLayer,
+    syncSnappingOptions,
     syncSketchLayerGeometries,
     table,
   ]);
+
+  useEffect(() => {
+    syncSnappingOptions();
+  }, [syncSnappingOptions]);
+
+  useEffect(() => {
+    if (!mapView?.map) {
+      return;
+    }
+
+    const handle = mapView.map.layers.on('change', () => {
+      syncSnappingOptions();
+    });
+
+    return () => {
+      handle.remove();
+    };
+  }, [mapView, syncSnappingOptions]);
 
   useEffect(() => {
     if (!disabled) {
@@ -583,6 +684,36 @@ export default function FeatureGeometryEditor({
             <Tooltip>Cut</Tooltip>
           </TooltipTrigger>
         )}
+        <DialogTrigger>
+          <div>
+            <TooltipTrigger>
+              <Button variant="icon" aria-label="Snapping options" isDisabled={disabled} className="min-h-0 p-0.5">
+                <MagnetIcon className="size-4" />
+                <ChevronDownIcon className="size-4" />
+              </Button>
+              <Tooltip>Snapping options</Tooltip>
+            </TooltipTrigger>
+          </div>
+          <Popover placement="bottom left" className="w-72 px-4 py-3">
+            <div className="flex flex-col gap-3">
+              {snappingControls.map((option) => (
+                <Checkbox
+                  key={option.key}
+                  isSelected={option.isSelected}
+                  onChange={option.setSelected}
+                  isDisabled={option.isDisabled}
+                >
+                  <span className="text-sm">{option.label}</span>
+                </Checkbox>
+              ))}
+              {!adjacentProjectsVisible && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Turn on Adjacent Projects in the Reference tab to enable adjacent project snapping.
+                </p>
+              )}
+            </div>
+          </Popover>
+        </DialogTrigger>
         <div className="ml-auto flex items-center gap-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-700">
           <TooltipTrigger>
             <div>
@@ -644,6 +775,20 @@ export default function FeatureGeometryEditor({
             </SelectItem>
           ))}
         </Select>
+      )}
+      {adjacentSnappingPending && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Turn on Adjacent Projects in the Reference tab to snap to adjacent project features.
+        </p>
+      )}
+      {!adjacentSnappingPending && (projectSnappingEnabled || effectiveAdjacentSnappingEnabled) && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          {projectSnappingEnabled && effectiveAdjacentSnappingEnabled
+            ? 'Snapping to current project features and visible adjacent project features.'
+            : projectSnappingEnabled
+              ? 'Snapping to current project features.'
+              : 'Snapping to visible adjacent project features.'}
+        </p>
       )}
       {drawingState === 'idle' && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">

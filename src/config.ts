@@ -3,6 +3,7 @@ import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer';
 import UniqueValueInfo from '@arcgis/core/renderers/support/UniqueValueInfo';
 import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';
 import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
+import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol';
 
 const config = {
   MIN_DESKTOP_WIDTH: 768,
@@ -358,5 +359,34 @@ const config = {
     },
   ],
 };
+
+export const getDraftPointSymbol = () =>
+  new SimpleMarkerSymbol({
+    style: 'circle',
+    size: 10,
+    color: config.MARKER_FILL_COLOR,
+    outline: {
+      color: config.MARKER_OUTLINE_COLOR,
+      width: 1.5,
+    },
+  });
+
+export const getDraftPolylineSymbol = () =>
+  new SimpleLineSymbol({
+    style: 'solid',
+    color: config.MARKER_OUTLINE_COLOR,
+    width: 2.5,
+  });
+
+export const getDraftPolygonSymbol = () =>
+  new SimpleFillSymbol({
+    style: 'solid',
+    color: config.MARKER_FILL_COLOR,
+    outline: new SimpleLineSymbol({
+      style: 'solid',
+      color: config.MARKER_OUTLINE_COLOR,
+      width: 1.5,
+    }),
+  });
 
 export default config;

@@ -28,6 +28,7 @@ const createEmptyPolyAction = (): FormPolyAction => ({ action: '', treatments: [
 
 type Props = {
   projectId: number;
+  adjacentProjectsVisible: boolean;
   domains: EditingDomainsResponse | undefined;
   isSaving: boolean;
   saveError: string | null;
@@ -35,7 +36,15 @@ type Props = {
   onSave: (data: CreateFeatureData) => void;
 };
 
-export default function AddFeatureForm({ projectId, domains, isSaving, saveError, onCancel, onSave }: Props) {
+export default function AddFeatureForm({
+  projectId,
+  adjacentProjectsVisible,
+  domains,
+  isSaving,
+  saveError,
+  onCancel,
+  onSave,
+}: Props) {
   const [category, setCategory] = useState<string>('');
   const [serializedGeometry, setSerializedGeometry] = useState<object | object[] | null>(null);
   const [retreatment, setRetreatment] = useState(false);
@@ -236,8 +245,10 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
       {category && table && (
         <FeatureGeometryEditor
+          projectId={projectId}
           featureType={category}
           table={table}
+          adjacentProjectsVisible={adjacentProjectsVisible}
           disabled={isSaving}
           onChange={setSerializedGeometry}
         />
@@ -245,7 +256,6 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
       {table === 'POLY' && isAffectedArea && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium">Action</p>
           <Select
             label="Action"
             selectedKey={affectedAreaAction || null}

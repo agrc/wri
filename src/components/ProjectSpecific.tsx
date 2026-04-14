@@ -110,6 +110,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const [selectedTab, setSelectedTab] = useState<string>('project');
   const [featureError, setFeatureError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [adjacentProjectsVisible, setAdjacentProjectsVisible] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [projectLayerVersion, setProjectLayerVersion] = useState(0);
   const { mapView, currentMapScale } = useMap();
@@ -522,6 +523,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                   {isCreating ? (
                     <AddFeatureForm
                       projectId={projectId}
+                      adjacentProjectsVisible={adjacentProjectsVisible}
                       domains={editingDomainsQuery.data}
                       isSaving={createMutation.isPending}
                       saveError={createError}
@@ -664,7 +666,11 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                   )}
                 </TabPanel>
                 <TabPanel shouldForceMount id="reference" className="flex flex-col gap-2 p-0 data-[inert]:hidden">
-                  <AdjacentProjects mapView={mapView} />
+                  <AdjacentProjects
+                    mapView={mapView}
+                    isSelected={adjacentProjectsVisible}
+                    onChange={setAdjacentProjectsVisible}
+                  />
                   {referenceLayers.length > 0 ? (
                     <div>
                       <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />

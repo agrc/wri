@@ -3,8 +3,16 @@ import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
 import { Button, Select, SelectItem, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
-import { DiamondIcon, PenLineIcon, ScissorsIcon, SquarePenIcon, Trash2Icon } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  CheckIcon,
+  DiamondIcon,
+  PenLineIcon,
+  RotateCcwIcon,
+  ScissorsIcon,
+  SquarePenIcon,
+  Trash2Icon,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Toolbar, TooltipTrigger } from 'react-aria-components';
 import { getDraftPointSymbol, getDraftPolygonSymbol, getDraftPolylineSymbol } from '../config';
 import {
@@ -58,6 +66,9 @@ const normalizeInitialGeometries = (
   return Array.isArray(initialGeometry) ? initialGeometry : [initialGeometry];
 };
 
+const cloneGeometries = (geometries: __esri.Geometry[]): __esri.Geometry[] =>
+  geometries.map((geometry) => geometry.clone() as __esri.Geometry);
+
 type Props = {
   featureType: string;
   table: FeatureTable | undefined;
@@ -81,7 +92,9 @@ export default function FeatureGeometryEditor({
   const activeToolRef = useRef<'draw' | 'cut'>('draw');
   const tableRef = useRef<FeatureTable | undefined>(undefined);
   const geometriesRef = useRef<__esri.Geometry[]>([]);
+  const initialGeometriesRef = useRef<__esri.Geometry[]>([]);
   const polyDraftModeRef = useRef<PolyDraftMode>('polygon');
+  const normalizedInitialGeometries = useMemo(() => normalizeInitialGeometries(initialGeometry), [initialGeometry]);
 
   const [geometries, setGeometries] = useState<__esri.Geometry[]>([]);
   const [drawingState, setDrawingState] = useState<DrawingState>('idle');
@@ -93,6 +106,8 @@ export default function FeatureGeometryEditor({
   const hasDraftLines = table === 'POLY' && geometries.some((geometry) => geometry.type === 'polyline');
   const isBufferEnabled = canBufferDraftGeometries(table, geometries);
   const isCutEnabled = canCutDraftGeometries(table, geometries);
+  const canFinishSketch = drawingState === 'drawing' || drawingState === 'cutting';
+  const hasInitialGeometry = normalizedInitialGeometries.length > 0;
 
   tableRef.current = table;
 
@@ -188,6 +203,7 @@ export default function FeatureGeometryEditor({
     setPolyDraftMode('polygon');
     polyDraftModeRef.current = 'polygon';
     activeToolRef.current = 'draw';
+    initialGeometriesRef.current = cloneGeometries(normalizedInitialGeometries);
     onChange(null);
 
     const graphicsLayer = new GraphicsLayer({ id: 'feature-geometry-editor-sketch' });
@@ -305,10 +321,10 @@ export default function FeatureGeometryEditor({
       );
     });
 
-    const initialGeometries = normalizeInitialGeometries(initialGeometry);
+    const initialGeometries = initialGeometriesRef.current;
 
     if (initialGeometries.length > 0) {
-      setDraftGeometries(initialGeometries);
+      setDraftGeometries(cloneGeometries(initialGeometries));
       setDrawingState('complete');
 
       return () => {
@@ -332,8 +348,8 @@ export default function FeatureGeometryEditor({
     autoStart,
     disabled,
     featureType,
-    initialGeometry,
     mapView,
+    normalizedInitialGeometries,
     onChange,
     setDraftGeometries,
     syncGraphicsFromLayer,
@@ -457,6 +473,28 @@ export default function FeatureGeometryEditor({
     sketchVMRef.current.delete();
   };
 
+  const finishActiveSketch = () => {
+    if (disabled || !sketchVMRef.current || !canFinishSketch) {
+      return;
+    }
+
+    sketchVMRef.current.creationMode = 'single';
+    sketchVMRef.current.complete();
+  };
+
+  const resetDraftGeometries = () => {
+    if (disabled || !hasInitialGeometry) {
+      return;
+    }
+
+    stopSketch();
+    setDraftGeometries(cloneGeometries(initialGeometriesRef.current));
+    setBufferDistance('');
+    setPolyDraftMode('polygon');
+    polyDraftModeRef.current = 'polygon';
+    setDrawingState(initialGeometriesRef.current.length > 0 ? 'complete' : 'idle');
+  };
+
   if (!featureType || !table) {
     return null;
   }
@@ -464,7 +502,7 @@ export default function FeatureGeometryEditor({
   return (
     <div className="flex flex-col gap-1">
       <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Drawing tools</p>
-      <Toolbar aria-label="Drawing tools" className="flex gap-0.5">
+      <Toolbar aria-label="Drawing tools" className="flex flex-wrap items-center gap-0.5">
         {table === 'POLY' && (
           <TooltipTrigger>
             <div>
@@ -545,19 +583,52 @@ export default function FeatureGeometryEditor({
             <Tooltip>Cut</Tooltip>
           </TooltipTrigger>
         )}
-        <TooltipTrigger>
-          <div>
-            <Button
-              variant="icon"
-              aria-label="Delete selected feature"
-              isDisabled={disabled || drawingState !== 'editing' || selectedDraftCount === 0}
-              onPress={deleteSelectedGeometry}
-            >
-              <Trash2Icon className="size-4" />
-            </Button>
-          </div>
-          <Tooltip>Delete selected feature</Tooltip>
-        </TooltipTrigger>
+        <div className="ml-auto flex items-center gap-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-700">
+          <TooltipTrigger>
+            <div>
+              <Button
+                variant="primary"
+                aria-label="Finish drawing"
+                isDisabled={disabled || !canFinishSketch}
+                onPress={finishActiveSketch}
+                className="min-h-0 p-0.5"
+              >
+                <CheckIcon className="size-4" />
+              </Button>
+            </div>
+            <Tooltip>Finish drawing</Tooltip>
+          </TooltipTrigger>
+          {hasInitialGeometry && (
+            <TooltipTrigger>
+              <div>
+                <Button
+                  variant="secondary"
+                  aria-label="Reset geometry"
+                  isDisabled={disabled}
+                  onPress={resetDraftGeometries}
+                  className="min-h-0 p-0.5"
+                >
+                  <RotateCcwIcon className="size-4" />
+                </Button>
+              </div>
+              <Tooltip>Reset geometry</Tooltip>
+            </TooltipTrigger>
+          )}
+          <TooltipTrigger>
+            <div>
+              <Button
+                variant="destructive"
+                aria-label="Delete selected feature"
+                isDisabled={disabled || drawingState !== 'editing' || selectedDraftCount === 0}
+                onPress={deleteSelectedGeometry}
+                className="min-h-0 p-0.5"
+              >
+                <Trash2Icon className="size-4" />
+              </Button>
+            </div>
+            <Tooltip>Delete selected feature</Tooltip>
+          </TooltipTrigger>
+        </div>
       </Toolbar>
       {table === 'POLY' && polyDraftMode === 'buffered-line' && isBufferEnabled && (
         <Select
@@ -587,27 +658,27 @@ export default function FeatureGeometryEditor({
       {drawingState === 'drawing' && geometries.length === 0 && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {table === 'POLY' && polyDraftMode === 'buffered-line'
-            ? 'Click on the map to draw a line. Press Enter or double-click to finish the current line. Press Escape to stop.'
-            : 'Click on the map to draw. Press Enter or double-click to finish the current part. Press Escape to cancel.'}
+            ? `Click on the map to draw a line. Press Enter or double-click to finish the current line, or use Finish${hasInitialGeometry ? ' or Reset' : ''} when you are done.`
+            : `Click on the map to draw. Press Enter or double-click to finish the current part, or use Finish${hasInitialGeometry ? ' or Reset' : ''} when you are done.`}
         </p>
       )}
       {drawingState === 'drawing' && geometries.length > 0 && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {table === 'POLY' && polyDraftMode === 'buffered-line'
-            ? `${geometries.length} line part${geometries.length > 1 ? 's' : ''} drawn. Choose a buffer distance or keep drawing lines. Press Enter or double-click to finish the current line. Press Escape to stop.`
-            : `${geometries.length} part${geometries.length > 1 ? 's' : ''} drawn. Drawing next part. Press Enter or double-click to finish the current part. Press Escape to stop.`}
+            ? `${geometries.length} line part${geometries.length > 1 ? 's' : ''} drawn. Choose a buffer distance or keep drawing lines, or use Finish${hasInitialGeometry ? ' or Reset' : ''} when you are done.`
+            : `${geometries.length} part${geometries.length > 1 ? 's' : ''} drawn. Drawing next part. Press Enter or double-click to finish the current part, or use Finish${hasInitialGeometry ? ' or Reset' : ''} when you are done.`}
         </p>
       )}
       {drawingState === 'cutting' && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Draw a cut line across the drafted geometry. Press Enter or double-click to finish the cut. Press Escape to
-          cancel.
+          Draw a cut line across the drafted geometry. Press Enter or double-click to finish the cut.
+          {hasInitialGeometry ? ' Use Reset to restore the original geometry.' : ''}
         </p>
       )}
       {drawingState === 'editing' && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Select a geometry, then drag vertices to adjust or use delete button to remove it. Press Escape to cancel the
-          current edit.
+          Select a geometry, then drag vertices to adjust or use the delete button to remove it.
+          {hasInitialGeometry ? ' Use Reset to restore the original geometry.' : ''}
         </p>
       )}
       {drawingState === 'complete' && (

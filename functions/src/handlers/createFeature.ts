@@ -76,22 +76,47 @@ export function geometryToWkt(geometry: Polygon | Polyline | Multipoint): string
 }
 
 /**
- * Converts an array of polygon or polyline ArcGIS geometries to a MULTIPOLYGON or
- * MULTILINESTRING WKT string for SQL Server storage.
+ * Converts an array of ArcGIS geometries to a multi-part WKT string for SQL Server storage.
  * Each polygon may carry multiple rings (outer boundary + holes).
  * Each polyline may carry multiple paths.
+ * Each multipoint may carry multiple points.
  */
-export function geometriesArrayToWkt(geometries: (Polygon | Polyline)[]): string {
+export function geometriesArrayToWkt(geometries: (Polygon | Polyline | Multipoint)[]): string {
   if (geometries.length === 0) {
     throw new HttpsError('invalid-argument', 'Cannot convert empty geometry array to WKT');
   }
 
   const first = geometries[0]!.toJSON() as Record<string, unknown>;
 
+  if ('points' in first) {
+    const pointStrings: string[] = [];
+
+    for (const g of geometries) {
+      const json = g.toJSON() as Record<string, unknown>;
+
+      if (!('points' in json)) {
+        throw new HttpsError('invalid-argument', 'Geometry array must contain only multipoint geometries');
+      }
+
+      const points = json.points as number[][];
+
+      for (const [x, y] of points) {
+        pointStrings.push(`(${x} ${y})`);
+      }
+    }
+
+    return `MULTIPOINT (${pointStrings.join(', ')})`;
+  }
+
   if ('rings' in first) {
     // Array of polygons → MULTIPOLYGON
     const polygonParts = geometries.map((g) => {
       const json = g.toJSON() as Record<string, unknown>;
+
+      if (!('rings' in json)) {
+        throw new HttpsError('invalid-argument', 'Geometry array must contain only polygon geometries');
+      }
+
       const rings = json.rings as number[][][];
       const ringStrings = rings.map((ring) => `(${ring.map(([x, y]) => `${x} ${y}`).join(', ')})`);
       return `(${ringStrings.join(', ')})`;
@@ -104,6 +129,11 @@ export function geometriesArrayToWkt(geometries: (Polygon | Polyline)[]): string
     const pathStrings: string[] = [];
     for (const g of geometries) {
       const json = g.toJSON() as Record<string, unknown>;
+
+      if (!('paths' in json)) {
+        throw new HttpsError('invalid-argument', 'Geometry array must contain only polyline geometries');
+      }
+
       const paths = json.paths as number[][][];
       for (const path of paths) {
         pathStrings.push(`(${path.map(([x, y]) => `${x} ${y}`).join(', ')})`);
@@ -112,7 +142,10 @@ export function geometriesArrayToWkt(geometries: (Polygon | Polyline)[]): string
     return `MULTILINESTRING (${pathStrings.join(', ')})`;
   }
 
-  throw new HttpsError('invalid-argument', 'geometriesArrayToWkt only supports polygon and polyline arrays');
+  throw new HttpsError(
+    'invalid-argument',
+    'geometriesArrayToWkt only supports polygon, polyline, and multipoint arrays',
+  );
 }
 
 const GEOMETRY_TYPE_BY_TABLE: Record<FeatureTable, string> = {

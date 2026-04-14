@@ -20,6 +20,7 @@ vi.mock('./extractions.js', async (importOriginal) => {
     extractIntersections: vi.fn().mockResolvedValue({}),
     calculateAreasAndLengths: vi.fn().mockResolvedValue({}),
     projectGeometries: vi.fn().mockResolvedValue([{ spatialReference: { wkid: 26912 } }]),
+    unionGeometries: vi.fn().mockResolvedValue({ spatialReference: { wkid: 26912 } }),
   };
 });
 vi.mock('@arcgis/core/geometry/support/jsonUtils.js', () => ({
@@ -39,6 +40,7 @@ vi.mock('@arcgis/core/geometry/support/jsonUtils.js', () => ({
   }),
 }));
 
+import { fromJSON } from '@arcgis/core/geometry/support/jsonUtils.js';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
@@ -55,6 +57,7 @@ import {
   FEATURE_SERVICE_CONFIG,
   FeatureServiceQueryError,
   projectGeometries,
+  unionGeometries,
 } from './extractions.js';
 
 // ---------------------------------------------------------------------------
@@ -354,6 +357,61 @@ describe('createFeatureHandler', () => {
       sgma: { attributes: [...FEATURE_SERVICE_CONFIG.sgma.attributes] },
     });
     expect(criteria).not.toHaveProperty('stream');
+  });
+
+  it('accepts an array of multipoint geometries for POINT features', async () => {
+    const { trx } = createMockTrx({ featureIdPoint: 88 });
+
+    vi.mocked(canEditProject).mockResolvedValue(true);
+    vi.mocked(getDb).mockResolvedValue({
+      transaction: vi.fn(async (cb: (trx: Knex.Transaction) => Promise<unknown>) => cb(trx)),
+    } as never);
+    vi.mocked(projectGeometries).mockResolvedValue([
+      { spatialReference: { wkid: 26912 }, type: 'multipoint' },
+      { spatialReference: { wkid: 26912 }, type: 'multipoint' },
+    ] as never);
+    vi.mocked(unionGeometries).mockResolvedValue({ spatialReference: { wkid: 26912 }, type: 'multipoint' } as never);
+    vi.mocked(fromJSON)
+      .mockReturnValueOnce({
+        type: 'multipoint',
+        spatialReference: { wkid: 3857 },
+        toJSON: () => ({ points: [[1, 2]] }),
+      } as never)
+      .mockReturnValueOnce({
+        type: 'multipoint',
+        spatialReference: { wkid: 3857 },
+        toJSON: () => ({
+          points: [
+            [3, 4],
+            [5, 6],
+          ],
+        }),
+      } as never);
+
+    const result = await createFeatureHandler({
+      data: {
+        projectId: 1,
+        featureType: 'guzzler',
+        geometry: [
+          { type: 'multipoint', points: [[1, 2]] },
+          {
+            type: 'multipoint',
+            points: [
+              [3, 4],
+              [5, 6],
+            ],
+          },
+        ],
+        retreatment: false,
+        actions: validPointAction,
+        key: 'test-key',
+        token: 'test-token',
+      },
+    } as never);
+
+    expect(result).toMatchObject({ featureId: 88 });
+    expect(calculateAreasAndLengths).not.toHaveBeenCalled();
+    expect(unionGeometries).toHaveBeenCalled();
   });
 
   it('wraps unexpected errors in an internal HttpsError', async () => {
@@ -841,6 +899,26 @@ describe('geometryToWkt', () => {
 // ---------------------------------------------------------------------------
 
 describe('geometriesArrayToWkt', () => {
+  it('converts multiple multipoint geometries to MULTIPOINT WKT', () => {
+    const geometries = [
+      {
+        toJSON: () => ({
+          points: [[1, 2]],
+        }),
+      },
+      {
+        toJSON: () => ({
+          points: [
+            [3, 4],
+            [5, 6],
+          ],
+        }),
+      },
+    ] as never[];
+
+    expect(geometriesArrayToWkt(geometries)).toBe('MULTIPOINT ((1 2), (3 4), (5 6))');
+  });
+
   it('converts two disjoint polygons (one ring each) to MULTIPOLYGON WKT', () => {
     const geometries = [
       {
@@ -970,7 +1048,25 @@ describe('geometriesArrayToWkt', () => {
   });
 
   it('throws HttpsError for unsupported geometry type array', () => {
-    const geometries = [{ toJSON: () => ({ points: [[1, 2]] }) }] as never[];
+    const geometries = [{ toJSON: () => ({ x: 1, y: 2 }) }] as never[];
+    expect(() => geometriesArrayToWkt(geometries)).toThrow(HttpsError);
+  });
+
+  it('throws HttpsError for mixed geometry arrays', () => {
+    const geometries = [
+      { toJSON: () => ({ points: [[1, 2]] }) },
+      {
+        toJSON: () => ({
+          paths: [
+            [
+              [0, 0],
+              [1, 1],
+            ],
+          ],
+        }),
+      },
+    ] as never[];
+
     expect(() => geometriesArrayToWkt(geometries)).toThrow(HttpsError);
   });
 });

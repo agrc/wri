@@ -244,7 +244,7 @@ export const createFeatureTransaction = async (
       `SELECT COUNT(*) as overlap_count
        FROM [dbo].[POLY] p
        WHERE LOWER(p.TypeDescription) = LOWER(?) AND p.Project_ID = ?
-         AND p.Shape.STRelate(geometry::STGeomFromText(?, 3857), '2********') = 1`,
+         AND p.Shape.MakeValid().STRelate(geometry::STGeomFromText(?, 3857).MakeValid(), '2********') = 1`,
       [featureType, projectId, wkt],
     );
 
@@ -276,7 +276,7 @@ export const createFeatureTransaction = async (
     const rows = await trx.raw(
       `INSERT INTO [dbo].[POLY] (TypeDescription, Retreatment, Project_ID, Shape, TypeCode, StatusDescription, StatusCode, AreaSqMeters)
        OUTPUT INSERTED.FeatureID
-       VALUES (?, ?, ?, geometry::STGeomFromText(?, 3857), ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, geometry::STGeomFromText(?, 3857).MakeValid(), ?, ?, ?, ?)`,
 
       [featureType, retreatment, projectId, wkt, typeCode, statusDescription, statusCode, areaSqMeters],
     );
@@ -302,7 +302,7 @@ export const createFeatureTransaction = async (
     const rows = await trx.raw(
       `INSERT INTO [dbo].[LINE] (TypeDescription, FeatureSubTypeDescription, ActionDescription, Description, Shape, Project_ID, StatusDescription, StatusCode, TypeCode, FeatureSubTypeID, ActionID, LengthLnMeters)
        OUTPUT INSERTED.FeatureID
-       VALUES (?, ?, ?, ?, geometry::STGeomFromText(?, 3857), ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, geometry::STGeomFromText(?, 3857).MakeValid(), ?, ?, ?, ?, ?, ?, ?)`,
 
       [
         featureType,
@@ -345,7 +345,7 @@ export const createFeatureTransaction = async (
     const rows = await trx.raw(
       `INSERT INTO [dbo].[POINT] (TypeDescription, FeatureSubTypeDescription, ActionDescription, Description, Shape, Project_ID, StatusDescription, StatusCode, TypeCode, FeatureSubTypeID, ActionID)
        OUTPUT INSERTED.FeatureID
-       VALUES (?, ?, ?, ?, geometry::STGeomFromText(?, 3857), ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, geometry::STGeomFromText(?, 3857).MakeValid(), ?, ?, ?, ?, ?, ?)`,
 
       [
         featureType,

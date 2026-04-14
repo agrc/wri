@@ -442,6 +442,27 @@ describe('createFeatureTransaction', () => {
     ).rejects.toMatchObject({ code: 'already-exists' });
   });
 
+  it('uses MakeValid in the POLY overlap check', async () => {
+    const { trx, rawCalls } = createMockTrx({ overlapCount: 1 });
+
+    await expect(
+      createFeatureTransaction(
+        trx,
+        1,
+        'terrestrial treatment area',
+        'POLY',
+        'POLYGON((0 0, 1 0, 1 1, 0 0))',
+        'N',
+        validPolyActions,
+        1000,
+        null,
+        mockEmptyIntersections,
+      ),
+    ).rejects.toMatchObject({ code: 'already-exists' });
+
+    expect(rawCalls[0]?.sql).toContain('p.Shape.MakeValid().STRelate(geometry::STGeomFromText(?, 3857).MakeValid()');
+  });
+
   it('inserts a POLY feature and returns the featureId', async () => {
     const { trx, rawCalls } = createMockTrx({ featureIdPoly: 42 });
     vi.mocked(updateProjectStats).mockResolvedValue(undefined);
@@ -461,6 +482,7 @@ describe('createFeatureTransaction', () => {
 
     expect(featureId).toBe(42);
     expect(rawCalls.some((c) => c.sql.includes('[dbo].[POLY]'))).toBe(true);
+    expect(rawCalls.some((c) => c.sql.includes('geometry::STGeomFromText(?, 3857).MakeValid()'))).toBe(true);
   });
 
   it('inserts a LINE feature and returns the featureId', async () => {

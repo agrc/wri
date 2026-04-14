@@ -165,9 +165,9 @@ export const updateProjectStats = async (trx: import('knex').Knex.Transaction, p
       Centroid = (
         SELECT geometry::ConvexHullAggregate(polygons.shape).STCentroid()
         FROM (
-          SELECT geometry::ConvexHullAggregate(poly.Shape) AS shape FROM POLY poly WHERE poly.Project_ID = :projectId
-          UNION ALL SELECT geometry::EnvelopeAggregate(line.Shape) FROM LINE line WHERE line.Project_ID = :projectId
-          UNION ALL SELECT geometry::EnvelopeAggregate(point.Shape) FROM POINT point WHERE point.Project_ID = :projectId
+          SELECT geometry::ConvexHullAggregate(poly.Shape.MakeValid()) AS shape FROM POLY poly WHERE poly.Project_ID = :projectId
+          UNION ALL SELECT geometry::EnvelopeAggregate(line.Shape.MakeValid()) FROM LINE line WHERE line.Project_ID = :projectId
+          UNION ALL SELECT geometry::EnvelopeAggregate(point.Shape.MakeValid()) FROM POINT point WHERE point.Project_ID = :projectId
         ) polygons
       )
     WHERE Project_ID = :projectId`,

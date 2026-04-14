@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "node .github/hooks/apply-license-header.mjs",
+        "windows": "node .github\\hooks\\apply-license-header.mjs",
+        "cwd": ".",
+        "timeout": 15
+      }
+    ]
+  }
+}

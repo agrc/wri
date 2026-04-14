@@ -21,11 +21,17 @@ import type {
   FormPolyTreatment,
   PolyFeatureAttributes,
 } from '@ugrc/wri-shared/types';
-import { PenLineIcon, ScissorsIcon, SquarePenIcon, Trash2Icon } from 'lucide-react';
+import { DiamondIcon, PenLineIcon, ScissorsIcon, SquarePenIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toolbar, TooltipTrigger } from 'react-aria-components';
 import { titleCase } from './';
-import { canCutDraftGeometries, cutDraftGeometries } from './addFeatureDraftGeometry';
+import {
+  BUFFER_DRAFT_DISTANCES,
+  bufferDraftGeometries,
+  canBufferDraftGeometries,
+  canCutDraftGeometries,
+  cutDraftGeometries,
+} from './addFeatureDraftGeometry';
 import { useMap } from './hooks';
 
 const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
@@ -34,7 +40,17 @@ const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
   POINT: 'multipoint',
 };
 
+type PolyDraftMode = 'polygon' | 'buffered-line';
+
 const HERBICIDE_PLACEHOLDER_KEY = '__unselected__';
+
+const getDrawTool = (table: FeatureTable, polyDraftMode: PolyDraftMode): 'polygon' | 'polyline' | 'multipoint' => {
+  if (table === 'POLY' && polyDraftMode === 'buffered-line') {
+    return 'polyline';
+  }
+
+  return DRAW_TOOL[table];
+};
 
 const createEmptyPolyTreatment = (): FormPolyTreatment => ({ treatment: '', herbicides: [] });
 
@@ -75,11 +91,17 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     action: '',
     description: '',
   });
+  const [polyDraftMode, setPolyDraftMode] = useState<PolyDraftMode>('polygon');
+  const polyDraftModeRef = useRef<PolyDraftMode>('polygon');
+  const [bufferDistance, setBufferDistance] = useState('');
+  const [bufferError, setBufferError] = useState<string | null>(null);
 
   const table = category && domains ? domains.featureTypes[category] : undefined;
   const categoryAttrs = category && domains ? domains.featureAttributes[category] : undefined;
   const isAffectedArea = isAffectedAreaCategory(category);
   const showsRetreatment = isRetreatmentEligibleCategory(category);
+  const hasDraftLines = table === 'POLY' && geometries.some((geometry) => geometry.type === 'polyline');
+  const isBufferEnabled = canBufferDraftGeometries(table, geometries);
   const isCutEnabled = canCutDraftGeometries(table, geometries);
 
   tableRef.current = table;
@@ -136,6 +158,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     }
 
     setSelectedDraftCount(0);
+    setBufferError(null);
     sketchVMRef.current?.cancel();
     activeToolRef.current = 'draw';
   };
@@ -155,6 +178,10 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     }
   }, [showsRetreatment]);
 
+  useEffect(() => {
+    polyDraftModeRef.current = polyDraftMode;
+  }, [polyDraftMode]);
+
   // Start/restart drawing when category changes
   useEffect(() => {
     if (!mapView || !category) return;
@@ -173,6 +200,8 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     setDrawingState('idle');
     setSelectedDraftCount(0);
     setCutError(null);
+    setBufferDistance('');
+    setBufferError(null);
     activeToolRef.current = 'draw';
 
     const resolvedTable = domains?.featureTypes?.[category];
@@ -249,6 +278,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         geometrySymbolsRef.current = nextSymbols;
         setGeometries(nextGeometries);
         setCutError(null);
+        setBufferError(null);
         if (!isMultipart) {
           setDrawingState('complete');
         }
@@ -264,6 +294,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     sketchVM.on('update', (event) => {
       if (event.state === 'start') {
         setCutError(null);
+        setBufferError(null);
         setSelectedDraftCount(event.graphics.length);
         setDrawingState('editing');
 
@@ -288,6 +319,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     sketchVM.on('delete', () => {
       syncGraphicsFromLayer();
       setSelectedDraftCount(0);
+      setBufferError(null);
       setDrawingState(
         sketchVM.updateOnGraphicClick && graphicsLayer.graphics.length > 0
           ? 'editing'
@@ -297,7 +329,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
       );
     });
 
-    sketchVM.create(DRAW_TOOL[resolvedTable]);
+    sketchVM.create(getDrawTool(resolvedTable, polyDraftModeRef.current));
     setDrawingState('drawing');
   }, [mapView, category, domains?.featureTypes, setDraftGeometries, syncGraphicsFromLayer, syncSketchLayerGeometries]);
 
@@ -405,14 +437,25 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     );
 
   // Re-activate the draw tool to add another part
-  const startDrawing = () => {
+  const startDrawing = (nextPolyDraftMode: PolyDraftMode = polyDraftMode) => {
     if (!sketchVMRef.current || !table) return;
+
+    const nextDrawTool = getDrawTool(table, nextPolyDraftMode);
+
     setCutError(null);
+    setBufferError(null);
+    setBufferDistance('');
     setSelectedDraftCount(0);
     activeToolRef.current = 'draw';
+    if (table === 'POLY') {
+      polyDraftModeRef.current = nextPolyDraftMode;
+      setPolyDraftMode(nextPolyDraftMode);
+    }
+
+    sketchVMRef.current.cancel();
     sketchVMRef.current.updateOnGraphicClick = false;
     sketchVMRef.current.creationMode = table === 'POINT' ? 'single' : 'continuous';
-    sketchVMRef.current.create(DRAW_TOOL[table]);
+    sketchVMRef.current.create(nextDrawTool);
     setDrawingState('drawing');
   };
 
@@ -446,8 +489,61 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
     sketchVMRef.current.updateOnGraphicClick = true;
     activeToolRef.current = 'draw';
     setCutError(null);
+    setBufferError(null);
     setSelectedDraftCount(0);
     setDrawingState('editing');
+  };
+
+  const applyBufferDistance = async (nextDistance: string) => {
+    setBufferDistance(nextDistance);
+
+    if (!table || table !== 'POLY') {
+      return;
+    }
+
+    const parsedDistance = Number.parseInt(nextDistance, 10);
+
+    if (Number.isNaN(parsedDistance)) {
+      setBufferError(null);
+
+      return;
+    }
+
+    sketchVMRef.current?.cancel();
+    activeToolRef.current = 'draw';
+    setSelectedDraftCount(0);
+
+    try {
+      const currentSymbols = geometrySymbolsRef.current.map((symbol) => symbol ?? null);
+      const result = await bufferDraftGeometries({
+        geometries: geometriesRef.current,
+        distance: parsedDistance,
+        table,
+      });
+
+      if (!result.changed) {
+        setBufferError(result.error);
+
+        return;
+      }
+
+      const preservedSymbols = geometriesRef.current.flatMap((geometry, index) =>
+        geometry.type === 'polyline' ? [] : [currentSymbols[index] ?? null],
+      );
+      const bufferedSymbol = sketchVMRef.current?.polygonSymbol?.toJSON() ?? null;
+      const bufferedGeometryCount = result.geometries.length - preservedSymbols.length;
+
+      setDraftGeometries(result.geometries, [
+        ...preservedSymbols,
+        ...Array.from({ length: bufferedGeometryCount }, () => bufferedSymbol),
+      ]);
+      setBufferDistance('');
+      setBufferError(null);
+      setCutError(null);
+      setDrawingState('complete');
+    } catch (error) {
+      setBufferError(error instanceof Error ? error.message : 'Failed to buffer the drafted lines.');
+    }
   };
 
   const deleteSelectedGeometry = () => {
@@ -479,6 +575,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
 
   const isValid = (): boolean => {
     if (!category || geometries.length === 0) return false;
+    if (table === 'POLY' && hasDraftLines) return false;
     if (isNoActionCategory(category)) return true;
     if (table === 'POLY') {
       if (isAffectedArea) {
@@ -507,7 +604,7 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
   };
 
   const handleSubmit = () => {
-    if (geometries.length === 0) return;
+    if (geometries.length === 0 || (table === 'POLY' && hasDraftLines)) return;
     const geometry =
       geometries.length === 1 ? (geometries[0]!.toJSON() as object) : geometries.map((g) => g.toJSON() as object);
     onSave({
@@ -530,6 +627,10 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         selectedKey={category}
         onSelectionChange={(key) => {
           setCategory(key as string);
+          polyDraftModeRef.current = 'polygon';
+          setPolyDraftMode('polygon');
+          setBufferDistance('');
+          setBufferError(null);
           setAffectedAreaAction('');
           setRetreatment(false);
           setPolyActions([createEmptyPolyAction()]);
@@ -547,23 +648,43 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Drawing tools</p>
           <Toolbar aria-label="Drawing tools" className="flex gap-0.5">
+            {table === 'POLY' && (
+              <TooltipTrigger>
+                <div>
+                  <ToggleButton
+                    isSelected={drawingState === 'drawing' && polyDraftMode === 'polygon'}
+                    onChange={(selected) => {
+                      if (selected) {
+                        startDrawing('polygon');
+                      } else if (polyDraftMode === 'polygon') {
+                        stopSketch();
+                      }
+                    }}
+                    aria-label="Draw polygon"
+                  >
+                    <DiamondIcon className="size-4" />
+                  </ToggleButton>
+                </div>
+                <Tooltip>Draw polygon</Tooltip>
+              </TooltipTrigger>
+            )}
             <TooltipTrigger>
               <div>
                 <ToggleButton
-                  isSelected={drawingState === 'drawing'}
+                  isSelected={drawingState === 'drawing' && (table !== 'POLY' || polyDraftMode === 'buffered-line')}
                   onChange={(selected) => {
                     if (selected) {
-                      startDrawing();
+                      startDrawing(table === 'POLY' ? 'buffered-line' : polyDraftMode);
                     } else {
                       stopSketch();
                     }
                   }}
-                  aria-label="Draw"
+                  aria-label={table === 'POLY' ? 'Draw line' : 'Draw'}
                 >
                   <PenLineIcon className="size-4" />
                 </ToggleButton>
               </div>
-              <Tooltip>Draw</Tooltip>
+              <Tooltip>{table === 'POLY' ? 'Draw line' : 'Draw'}</Tooltip>
             </TooltipTrigger>
             <TooltipTrigger>
               <div>
@@ -619,16 +740,41 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
               <Tooltip>Delete selected feature</Tooltip>
             </TooltipTrigger>
           </Toolbar>
-          {drawingState === 'idle' && <p className="text-xs text-zinc-500 dark:text-zinc-400">Click Draw to begin.</p>}
+          {table === 'POLY' && polyDraftMode === 'buffered-line' && isBufferEnabled && (
+            <Select
+              label="Buffer distance"
+              selectedKey={bufferDistance || null}
+              onSelectionChange={(key) => void applyBufferDistance((key as string) ?? '')}
+            >
+              {BUFFER_DRAFT_DISTANCES.map((distance) => (
+                <SelectItem key={distance} id={distance.toString()}>
+                  {distance} meters
+                </SelectItem>
+              ))}
+            </Select>
+          )}
+          {drawingState === 'idle' && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {table === 'POLY' ? 'Choose Polygon or Line to begin.' : 'Click Draw to begin.'}
+            </p>
+          )}
+          {drawingState === 'idle' && table === 'POLY' && polyDraftMode === 'buffered-line' && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Draw one or more lines, then choose a buffer distance to convert them into polygon geometry.
+            </p>
+          )}
           {drawingState === 'drawing' && geometries.length === 0 && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Click on the map to draw. Press Enter or double-click to finish the current part. Press Escape to cancel.
+              {table === 'POLY' && polyDraftMode === 'buffered-line'
+                ? 'Click on the map to draw a line. Press Enter or double-click to finish the current line. Press Escape to stop.'
+                : 'Click on the map to draw. Press Enter or double-click to finish the current part. Press Escape to cancel.'}
             </p>
           )}
           {drawingState === 'drawing' && geometries.length > 0 && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {geometries.length} part{geometries.length > 1 ? 's' : ''} drawn. Drawing next part. Press Enter or
-              double-click to finish the current part. Press Escape to stop.
+              {table === 'POLY' && polyDraftMode === 'buffered-line'
+                ? `${geometries.length} line part${geometries.length > 1 ? 's' : ''} drawn. Choose a buffer distance or keep drawing lines. Press Enter or double-click to finish the current line. Press Escape to stop.`
+                : `${geometries.length} part${geometries.length > 1 ? 's' : ''} drawn. Drawing next part. Press Enter or double-click to finish the current part. Press Escape to stop.`}
             </p>
           )}
           {drawingState === 'cutting' && (
@@ -645,13 +791,25 @@ export default function AddFeatureForm({ projectId, domains, isSaving, saveError
           )}
           {drawingState === 'complete' && (
             <p className="text-xs text-emerald-700 dark:text-emerald-400">
-              {geometries.length} part{geometries.length > 1 ? 's' : ''} drawn. Click Draw to add another part.
+              {table === 'POLY' && polyDraftMode === 'buffered-line' && !hasDraftLines
+                ? `${geometries.length} polygon part${geometries.length > 1 ? 's' : ''} ready. Click Polygon or Line to add more geometry, or Edit vertices to adjust the buffered geometry.`
+                : `${geometries.length} part${geometries.length > 1 ? 's' : ''} drawn. ${table === 'POLY' ? 'Click Polygon or Line to add another part.' : 'Click Draw to add another part.'}`}
             </p>
           )}
           {!isCutEnabled && (table === 'POLY' || table === 'LINE') && drawingState !== 'drawing' && (
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Finish at least one part before using Cut.</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {table === 'POLY' && hasDraftLines
+                ? 'Buffer drafted lines before using Cut.'
+                : 'Finish at least one part before using Cut.'}
+            </p>
+          )}
+          {table === 'POLY' && hasDraftLines && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Buffer drafted lines before saving this polygon feature.
+            </p>
           )}
           {cutError && <p className="text-xs text-red-600 dark:text-red-400">{cutError}</p>}
+          {bufferError && <p className="text-xs text-red-600 dark:text-red-400">{bufferError}</p>}
         </div>
       )}
 

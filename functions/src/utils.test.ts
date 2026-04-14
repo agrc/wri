@@ -1,11 +1,12 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   booleanToRetreatment,
   canEditProject,
   parseRetreatmentInput,
   retreatmentToBoolean,
+  updateProjectStats,
   validateActions,
   validateRetreatment,
 } from './utils.js';
@@ -116,6 +117,22 @@ describe('validateActions', () => {
         },
       ]),
     ).toThrow('Affected Area features do not support treatments or herbicides');
+  });
+});
+
+describe('updateProjectStats', () => {
+  it('uses MakeValid when aggregating project centroid shapes', async () => {
+    const raw = vi.fn().mockResolvedValue(undefined);
+    const trx = { raw } as unknown as Knex.Transaction;
+
+    await updateProjectStats(trx, 123);
+
+    expect(raw).toHaveBeenCalledOnce();
+    const [sql] = raw.mock.calls[0] ?? [];
+
+    expect(sql).toContain('geometry::ConvexHullAggregate(poly.Shape.MakeValid())');
+    expect(sql).toContain('geometry::EnvelopeAggregate(line.Shape.MakeValid())');
+    expect(sql).toContain('geometry::EnvelopeAggregate(point.Shape.MakeValid())');
   });
 });
 

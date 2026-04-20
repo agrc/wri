@@ -1,4 +1,5 @@
 import Graphic from '@arcgis/core/Graphic.js';
+import { watch } from '@arcgis/core/core/reactiveUtils';
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
 import { Button, Checkbox, Popover, Select, SelectItem, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
@@ -28,6 +29,7 @@ import {
   ADJACENT_PROJECT_FEATURE_LAYER_IDS,
   getEffectiveAdjacentSnappingEnabled,
   getFeatureGeometrySnappingLayerIds,
+  LAND_OWNERSHIP_REFERENCE_LAYER_ID,
 } from './featureGeometrySnapping';
 import { useMap } from './hooks';
 
@@ -40,7 +42,7 @@ const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
 type PolyDraftMode = 'polygon' | 'buffered-line';
 type DrawingState = 'idle' | 'drawing' | 'cutting' | 'editing' | 'complete';
 type SerializedGeometry = object | object[];
-type SnappingOptionKey = 'project' | 'adjacent';
+type SnappingOptionKey = 'project' | 'adjacent' | 'landOwnership';
 
 const getDrawTool = (table: FeatureTable, polyDraftMode: PolyDraftMode): 'polygon' | 'polyline' | 'multipoint' => {
   if (table === 'POLY' && polyDraftMode === 'buffered-line') {
@@ -116,6 +118,8 @@ export default function FeatureGeometryEditor({
   const [bufferDistance, setBufferDistance] = useState('');
   const [projectSnappingEnabled, setProjectSnappingEnabled] = useState(false);
   const [adjacentSnappingEnabled, setAdjacentSnappingEnabled] = useState(false);
+  const [landOwnershipSnappingEnabled, setLandOwnershipSnappingEnabled] = useState(false);
+  const [landOwnershipReferenceVisible, setLandOwnershipReferenceVisible] = useState(false);
 
   const hasDraftLines = table === 'POLY' && geometries.some((geometry) => geometry.type === 'polyline');
   const isBufferEnabled = canBufferDraftGeometries(table, geometries);
@@ -126,17 +130,30 @@ export default function FeatureGeometryEditor({
     adjacentSnappingEnabled,
     adjacentProjectsVisible,
   });
+  const effectiveLandOwnershipSnappingEnabled = landOwnershipSnappingEnabled && landOwnershipReferenceVisible;
   const snappingLayerIds = useMemo(
     () =>
       getFeatureGeometrySnappingLayerIds({
         projectId,
         projectSnappingEnabled,
         adjacentSnappingEnabled,
+        landOwnershipSnappingEnabled: effectiveLandOwnershipSnappingEnabled,
         adjacentProjectsVisible,
       }),
-    [adjacentProjectsVisible, adjacentSnappingEnabled, projectId, projectSnappingEnabled],
+    [
+      adjacentProjectsVisible,
+      adjacentSnappingEnabled,
+      effectiveLandOwnershipSnappingEnabled,
+      projectId,
+      projectSnappingEnabled,
+    ],
   );
   const adjacentSnappingPending = adjacentSnappingEnabled && !adjacentProjectsVisible;
+  const enabledSnappingLabels = [
+    projectSnappingEnabled ? 'current project features' : null,
+    effectiveAdjacentSnappingEnabled ? 'visible adjacent project features' : null,
+    effectiveLandOwnershipSnappingEnabled ? 'land ownership boundaries' : null,
+  ].filter((label): label is string => label !== null);
   const snappingControls = [
     {
       key: 'project',
@@ -151,6 +168,13 @@ export default function FeatureGeometryEditor({
       isSelected: adjacentSnappingEnabled,
       setSelected: setAdjacentSnappingEnabled,
       isDisabled: disabled || (!adjacentProjectsVisible && !adjacentSnappingEnabled),
+    },
+    {
+      key: 'landOwnership',
+      label: 'Land Ownership',
+      isSelected: landOwnershipSnappingEnabled,
+      setSelected: setLandOwnershipSnappingEnabled,
+      isDisabled: disabled || !landOwnershipReferenceVisible,
     },
   ] satisfies Array<{
     key: SnappingOptionKey;
@@ -177,6 +201,10 @@ export default function FeatureGeometryEditor({
       }
 
       if (ADJACENT_PROJECT_FEATURE_LAYER_IDS.includes(layer.id) && !layer.visible) {
+        return [];
+      }
+
+      if (layer.id === LAND_OWNERSHIP_REFERENCE_LAYER_ID && !layer.visible) {
         return [];
       }
 
@@ -239,6 +267,30 @@ export default function FeatureGeometryEditor({
 
     setDraftGeometries(layerGraphics.flatMap((graphic) => (graphic.geometry ? [graphic.geometry] : [])));
   }, [setDraftGeometries]);
+
+  useEffect(() => {
+    const landOwnershipLayer = mapView?.map?.findLayerById(LAND_OWNERSHIP_REFERENCE_LAYER_ID);
+
+    if (!landOwnershipLayer || landOwnershipLayer.type !== 'feature') {
+      setLandOwnershipReferenceVisible(false);
+
+      return;
+    }
+
+    const featureLayer = landOwnershipLayer as __esri.FeatureLayer;
+    setLandOwnershipReferenceVisible(featureLayer.visible);
+
+    const handle = watch(
+      () => featureLayer.visible,
+      (visible) => {
+        setLandOwnershipReferenceVisible(visible);
+      },
+    );
+
+    return () => {
+      handle.remove();
+    };
+  }, [mapView]);
 
   useEffect(() => {
     polyDraftModeRef.current = polyDraftMode;
@@ -706,6 +758,11 @@ export default function FeatureGeometryEditor({
                   <span className="text-sm">{option.label}</span>
                 </Checkbox>
               ))}
+              {!landOwnershipReferenceVisible && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Turn on Land Ownership in the Reference tab to enable land ownership snapping.
+                </p>
+              )}
               {!adjacentProjectsVisible && (
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Turn on Adjacent Projects in the Reference tab to enable adjacent project snapping.
@@ -781,13 +838,9 @@ export default function FeatureGeometryEditor({
           Turn on Adjacent Projects in the Reference tab to snap to adjacent project features.
         </p>
       )}
-      {!adjacentSnappingPending && (projectSnappingEnabled || effectiveAdjacentSnappingEnabled) && (
+      {!adjacentSnappingPending && enabledSnappingLabels.length > 0 && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          {projectSnappingEnabled && effectiveAdjacentSnappingEnabled
-            ? 'Snapping to current project features and visible adjacent project features.'
-            : projectSnappingEnabled
-              ? 'Snapping to current project features.'
-              : 'Snapping to visible adjacent project features.'}
+          {`Snapping to ${enabledSnappingLabels.join(', ').replace(/, ([^,]*)$/, ' and $1')}.`}
         </p>
       )}
       {drawingState === 'idle' && (

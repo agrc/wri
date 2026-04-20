@@ -4,6 +4,7 @@ import {
   getCurrentProjectFeatureLayerIds,
   getEffectiveAdjacentSnappingEnabled,
   getFeatureGeometrySnappingLayerIds,
+  LAND_OWNERSHIP_REFERENCE_LAYER_ID,
 } from './featureGeometrySnapping';
 
 describe('featureGeometrySnapping helpers', () => {
@@ -37,6 +38,7 @@ describe('featureGeometrySnapping helpers', () => {
         projectId: 88,
         projectSnappingEnabled: true,
         adjacentSnappingEnabled: false,
+        landOwnershipSnappingEnabled: false,
         adjacentProjectsVisible: false,
       }),
     ).toEqual(['project-88-feature-poly', 'project-88-feature-line', 'project-88-feature-point']);
@@ -48,6 +50,7 @@ describe('featureGeometrySnapping helpers', () => {
         projectId: 88,
         projectSnappingEnabled: false,
         adjacentSnappingEnabled: true,
+        landOwnershipSnappingEnabled: false,
         adjacentProjectsVisible: true,
       }),
     ).toEqual(ADJACENT_PROJECT_FEATURE_LAYER_IDS);
@@ -59,6 +62,7 @@ describe('featureGeometrySnapping helpers', () => {
         projectId: 88,
         projectSnappingEnabled: true,
         adjacentSnappingEnabled: true,
+        landOwnershipSnappingEnabled: false,
         adjacentProjectsVisible: true,
       }),
     ).toEqual([
@@ -77,8 +81,41 @@ describe('featureGeometrySnapping helpers', () => {
         projectId: 0,
         projectSnappingEnabled: true,
         adjacentSnappingEnabled: false,
+        landOwnershipSnappingEnabled: false,
         adjacentProjectsVisible: false,
       }),
     ).toEqual([]);
+  });
+
+  it('returns the land ownership snapping layer when enabled', () => {
+    expect(
+      getFeatureGeometrySnappingLayerIds({
+        projectId: 88,
+        projectSnappingEnabled: false,
+        adjacentSnappingEnabled: false,
+        landOwnershipSnappingEnabled: true,
+        adjacentProjectsVisible: false,
+      }),
+    ).toEqual([LAND_OWNERSHIP_REFERENCE_LAYER_ID]);
+  });
+
+  it('returns all enabled snapping sources in a stable order', () => {
+    expect(
+      getFeatureGeometrySnappingLayerIds({
+        projectId: 88,
+        projectSnappingEnabled: true,
+        adjacentSnappingEnabled: true,
+        landOwnershipSnappingEnabled: true,
+        adjacentProjectsVisible: true,
+      }),
+    ).toEqual([
+      'project-88-feature-poly',
+      'project-88-feature-line',
+      'project-88-feature-point',
+      'feature-poly',
+      'feature-line',
+      'feature-point',
+      LAND_OWNERSHIP_REFERENCE_LAYER_ID,
+    ]);
   });
 });

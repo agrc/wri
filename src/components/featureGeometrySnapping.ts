@@ -1,11 +1,13 @@
 const FEATURE_GEOMETRY_LAYER_KINDS = ['poly', 'line', 'point'] as const;
 
 export const ADJACENT_PROJECT_FEATURE_LAYER_IDS = FEATURE_GEOMETRY_LAYER_KINDS.map((kind) => `feature-${kind}`);
+export const LAND_OWNERSHIP_REFERENCE_LAYER_ID = 'reference-land-ownership';
 
 type FeatureGeometrySnappingOptions = {
   projectId: number;
   projectSnappingEnabled: boolean;
   adjacentSnappingEnabled: boolean;
+  landOwnershipSnappingEnabled: boolean;
   adjacentProjectsVisible: boolean;
 };
 
@@ -22,6 +24,7 @@ export const getFeatureGeometrySnappingLayerIds = ({
   projectId,
   projectSnappingEnabled,
   adjacentSnappingEnabled,
+  landOwnershipSnappingEnabled,
   adjacentProjectsVisible,
 }: FeatureGeometrySnappingOptions) => {
   const layerIds: string[] = [];
@@ -32,6 +35,10 @@ export const getFeatureGeometrySnappingLayerIds = ({
 
   if (getEffectiveAdjacentSnappingEnabled({ adjacentSnappingEnabled, adjacentProjectsVisible })) {
     layerIds.push(...ADJACENT_PROJECT_FEATURE_LAYER_IDS);
+  }
+
+  if (landOwnershipSnappingEnabled) {
+    layerIds.push(LAND_OWNERSHIP_REFERENCE_LAYER_ID);
   }
 
   return layerIds;

@@ -25,10 +25,10 @@ const black = [0, 0, 0, 255];
 export const POLY_OPACITY = 0.7;
 const baseUrl = import.meta.env.VITE_GIS_BASE_URL;
 
-export const landOwnership = new VectorTileLayer({
+export const landOwnership = new FeatureLayer({
   title: 'Land Ownership',
   id: 'reference-land-ownership',
-  url: 'https://gis.trustlands.utah.gov/hosting/rest/services/Hosted/Land_Ownership_WM_VectorTile/VectorTileServer',
+  url: 'https://gis.trustlands.utah.gov/mapping/rest/services/Land_Ownership_WM/FeatureServer/0',
   visible: false,
   opacity: 0.6,
   legendDescription: 'Owner',

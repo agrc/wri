@@ -19,6 +19,7 @@ type UseShapefileUploadOptions = {
 };
 
 type UseShapefileUploadResult = {
+  clear: (notify?: boolean) => void;
   error: string | null;
   handleFileChange: (files: File[] | null) => void;
   isLoading: boolean;
@@ -114,6 +115,18 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
   const [isLoading, setIsLoading] = useState(false);
   const [files, setFiles] = useState<File[] | null>(null);
 
+  const clear = useCallback(
+    (notify = false) => {
+      setFiles(null);
+      setError(null);
+
+      if (notify) {
+        onClear?.();
+      }
+    },
+    [onClear],
+  );
+
   const handleFileChange = useCallback(
     async (files: File[] | null) => {
       setFiles(files);
@@ -121,7 +134,7 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
       setError(null);
 
       if (!file) {
-        onClear?.();
+        clear(true);
 
         return;
       }
@@ -206,10 +219,11 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
         setIsLoading(false);
       }
     },
-    [allowedGeometryTypes, onClear, onSuccess],
+    [allowedGeometryTypes, clear, onSuccess],
   );
 
   return {
+    clear,
     error,
     handleFileChange,
     isLoading,
@@ -219,3 +233,4 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
 };
 
 export { useShapefileUpload };
+export type { AllowedGeometryType };

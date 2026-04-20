@@ -2,7 +2,16 @@ import Graphic from '@arcgis/core/Graphic.js';
 import { watch } from '@arcgis/core/core/reactiveUtils';
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
 import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
-import { Button, Checkbox, Popover, Select, SelectItem, ToggleButton, Tooltip } from '@ugrc/utah-design-system';
+import {
+  Button,
+  Checkbox,
+  FileInput,
+  Popover,
+  Select,
+  SelectItem,
+  ToggleButton,
+  Tooltip,
+} from '@ugrc/utah-design-system';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
 import {
   CheckIcon,
@@ -18,6 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DialogTrigger, Toolbar, TooltipTrigger } from 'react-aria-components';
 import { getDraftPointSymbol, getDraftPolygonSymbol, getDraftPolylineSymbol } from '../config';
+import { useShapefileUpload } from '../hooks/useShapefileUpload';
 import {
   BUFFER_DRAFT_DISTANCES,
   bufferDraftGeometries,
@@ -31,6 +41,11 @@ import {
   getFeatureGeometrySnappingLayerIds,
   LAND_OWNERSHIP_REFERENCE_LAYER_ID,
 } from './featureGeometrySnapping';
+import {
+  getAllowedUploadGeometryTypes,
+  getPolyDraftModeForUploadedGeometry,
+  type PolyDraftMode,
+} from './featureGeometryUpload';
 import { useMap } from './hooks';
 
 const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
@@ -39,7 +54,6 @@ const DRAW_TOOL: Record<FeatureTable, 'polygon' | 'polyline' | 'multipoint'> = {
   POINT: 'multipoint',
 };
 
-type PolyDraftMode = 'polygon' | 'buffered-line';
 type DrawingState = 'idle' | 'drawing' | 'cutting' | 'editing' | 'complete';
 type SerializedGeometry = object | object[];
 type SnappingOptionKey = 'project' | 'adjacent' | 'landOwnership';
@@ -122,7 +136,21 @@ export default function FeatureGeometryEditor({
     adjacent: false,
     landOwnership: false,
   });
+  const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
   const [landOwnershipReferenceLayerVisible, setLandOwnershipReferenceLayerVisible] = useState(false);
+  const allowedUploadGeometryTypes = useMemo(() => (table ? getAllowedUploadGeometryTypes(table) : []), [table]);
+  const uploadDescription = useMemo(() => {
+    switch (table) {
+      case 'POLY':
+        return 'Upload a .zip shapefile with polygons or lines to buffer. Include *.shp, *.dbf, and *.prj.';
+      case 'LINE':
+        return 'Upload a .zip shapefile with lines. Include *.shp, *.dbf, and *.prj.';
+      case 'POINT':
+        return 'Upload a .zip shapefile with points. Include *.shp, *.dbf, and *.prj.';
+      default:
+        return 'Upload a .zip shapefile. Include *.shp, *.dbf, and *.prj.';
+    }
+  }, [table]);
 
   const hasDraftLines = table === 'POLY' && geometries.some((geometry) => geometry.type === 'polyline');
   const isBufferEnabled = canBufferDraftGeometries(table, geometries);
@@ -273,6 +301,69 @@ export default function FeatureGeometryEditor({
     setDraftGeometries(layerGraphics.flatMap((graphic) => (graphic.geometry ? [graphic.geometry] : [])));
   }, [setDraftGeometries]);
 
+  const handleUploadSuccess = useCallback(
+    ({ geometry }: { geometry: __esri.Geometry; wkt3857: string }) => {
+      if (!table) {
+        return;
+      }
+
+      stopSketch();
+      setGeometryError(null);
+      setBufferDistance('');
+      setSelectedDraftCount(0);
+
+      if (table === 'POLY') {
+        const nextPolyDraftMode = getPolyDraftModeForUploadedGeometry(table, geometry.type);
+
+        polyDraftModeRef.current = nextPolyDraftMode;
+        setPolyDraftMode(nextPolyDraftMode);
+      }
+
+      setDraftGeometries([geometry]);
+      setDrawingState('complete');
+
+      if (mapView) {
+        const targetExtent = geometry.extent;
+        const target =
+          geometry.type === 'point' || (targetExtent != null && targetExtent.width === 0 && targetExtent.height === 0)
+            ? { target: geometry, zoom: 14 }
+            : (targetExtent?.clone().expand(1.2) ?? geometry);
+
+        Promise.resolve(mapView.goTo(target)).catch(() => {});
+      }
+    },
+    [mapView, setDraftGeometries, stopSketch, table],
+  );
+
+  const handleUploadClear = useCallback(() => {
+    stopSketch();
+    setDraftGeometries([]);
+    setBufferDistance('');
+    setSelectedDraftCount(0);
+    setGeometryError(null);
+    setPolyDraftMode('polygon');
+    polyDraftModeRef.current = 'polygon';
+    setDrawingState('idle');
+  }, [setDraftGeometries, stopSketch]);
+
+  const {
+    clear: clearUploadedFiles,
+    error: shapefileError,
+    files: uploadedFiles,
+    handleFileChange,
+    isLoading: isUploadingShapefile,
+  } = useShapefileUpload({
+    allowedGeometryTypes: allowedUploadGeometryTypes,
+    onSuccess: handleUploadSuccess,
+    onClear: handleUploadClear,
+  });
+
+  useEffect(() => {
+    if (isUploadingShapefile || !!shapefileError || (uploadedFiles?.length ?? 0) > 0) {
+      setIsUploadPanelOpen(true);
+    }
+  }, [isUploadingShapefile, shapefileError, uploadedFiles]);
+
   useEffect(() => {
     const landOwnershipLayer = mapView?.map?.findLayerById(LAND_OWNERSHIP_REFERENCE_LAYER_ID);
 
@@ -318,6 +409,7 @@ export default function FeatureGeometryEditor({
 
   useEffect(() => {
     if (!mapView || !featureType || !table) {
+      clearUploadedFiles();
       onChange(null);
 
       return;
@@ -342,6 +434,7 @@ export default function FeatureGeometryEditor({
     polyDraftModeRef.current = 'polygon';
     activeToolRef.current = 'draw';
     initialGeometriesRef.current = cloneGeometries(normalizedInitialGeometries);
+    clearUploadedFiles();
     onChange(null);
 
     const graphicsLayer = new GraphicsLayer({ id: 'feature-geometry-editor-sketch' });
@@ -495,6 +588,7 @@ export default function FeatureGeometryEditor({
     syncSnappingOptions,
     syncSketchLayerGeometries,
     table,
+    clearUploadedFiles,
   ]);
 
   useEffect(() => {
@@ -646,6 +740,7 @@ export default function FeatureGeometryEditor({
     }
 
     stopSketch();
+    clearUploadedFiles();
     setDraftGeometries(cloneGeometries(initialGeometriesRef.current));
     setBufferDistance('');
     setPolyDraftMode('polygon');
@@ -659,7 +754,40 @@ export default function FeatureGeometryEditor({
 
   return (
     <div className="flex flex-col gap-1">
-      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Drawing tools</p>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <Button
+          variant="secondary"
+          onPress={() => setIsUploadPanelOpen((isOpen) => !isOpen)}
+          aria-controls="feature-geometry-upload-panel"
+          aria-expanded={isUploadPanelOpen}
+          isDisabled={disabled}
+          size="extraSmall"
+        >
+          <span>Shapefile</span>
+          <ChevronDownIcon className={`size-4 transition-transform ${isUploadPanelOpen ? 'rotate-180' : ''}`} />
+        </Button>
+      </div>
+      {isUploadPanelOpen && (
+        <div
+          id="feature-geometry-upload-panel"
+          className="flex flex-col gap-1 rounded border border-zinc-200 p-2 dark:border-zinc-700"
+        >
+          <FileInput
+            acceptedFileTypes={['application/zip']}
+            description={uploadDescription}
+            errorMessage={shapefileError || undefined}
+            isDisabled={disabled || isUploadingShapefile}
+            isInvalid={!!shapefileError}
+            label="Upload a shapefile"
+            onChange={handleFileChange}
+            value={uploadedFiles}
+            showFileSize={false}
+          />
+          {isUploadingShapefile && !shapefileError && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Processing shapefile…</p>
+          )}
+        </div>
+      )}
       <Toolbar aria-label="Drawing tools" className="flex flex-wrap items-center gap-0.5">
         {table === 'POLY' && (
           <TooltipTrigger>

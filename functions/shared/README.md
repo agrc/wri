@@ -28,5 +28,6 @@ Do not add a barrel export for this package.
 
 - Root build: `npm run build:shared`
 - Root watch: `npm run build:shared:watch`
+- Functions-local build: `cd functions && npm run build:shared`
 
 Tests for shared helpers should live in this package so code and test ownership stay aligned.

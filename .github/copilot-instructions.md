@@ -6,7 +6,7 @@
 
 - Frontend is a Vite + React 19 app in `src/`, served by Firebase Hosting, with multiple HTML entry points: `map.html`, `index.html`, and `search.html` (see `vite.config.ts`).
 - Backend is Firebase Cloud Functions in `functions/src/` using callable endpoints (`project`, `feature`) and Knex for data access (see `functions/src/index.ts`, `functions/src/database.ts`).
-- Shared frontend/backend DTOs and pure domain helpers live in `packages/shared/src/`; consume them via `@ugrc/wri-shared/types` and `@ugrc/wri-shared/feature-rules` rather than redefining shapes in app code.
+- Shared frontend/backend DTOs and pure domain helpers live in `functions/shared/src/`; consume them via `@ugrc/wri-shared/types` and `@ugrc/wri-shared/feature-rules` rather than redefining shapes in app code.
 - ArcGIS JS SDK is central: map UI lives in `src/components/` and `src/App.tsx`, and assets are served from `/js/ugrc/assets` in dev and `/wri/js/ugrc/assets` in prod (see `src/App.tsx`).
 
 ## Local dev workflows
@@ -14,7 +14,7 @@
 - Root dev: `npm run start` runs shared package watch, functions build-watch, Firebase emulators, then Vite after `healthCheck` is up (see `package.json` and `firebase.json`).
 - Frontend-only: `npm run dev:vite` or `npm run dev:extractions-test` (see `package.json`).
 - Functions: `cd functions && npm run build:watch` and `npm run serve` for emulators; deploy with `npm run deploy`.
-- Shared package: `npm run build:shared` builds `packages/shared`, and `npm run build:shared:watch` keeps shared outputs fresh during local development.
+- Shared package: `npm run build:shared` builds `functions/shared`, and `npm run build:shared:watch` keeps shared outputs fresh during local development.
 - DB workflow: local functions connect to the shared dev SQL Server through a developer-managed Cloud SQL proxy; the repo does not manage schema migrations or seed data (see `functions/README.md`).
 - Run tests with `npm run test` (see `vite.config.ts` for test config).
 - Run linting with `npm run lint` (see `package.json`).

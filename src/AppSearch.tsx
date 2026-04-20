@@ -87,15 +87,15 @@ export default function App() {
       areaOfInterestRef.current.value = '';
     }
     setClearBtnDisabled(true);
-    setFiles(null);
+    clearUploadedFiles();
   };
 
   const {
+    clear: clearUploadedFiles,
     error: shapefileError,
     handleFileChange,
     isLoading,
     files,
-    setFiles,
   } = useShapefileUpload({
     allowedGeometryTypes: ['polygon'],
     onSuccess: handleUploadSuccess,

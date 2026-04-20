@@ -43,6 +43,7 @@ type PolyDraftMode = 'polygon' | 'buffered-line';
 type DrawingState = 'idle' | 'drawing' | 'cutting' | 'editing' | 'complete';
 type SerializedGeometry = object | object[];
 type SnappingOptionKey = 'project' | 'adjacent' | 'landOwnership';
+type SnappingState = Record<SnappingOptionKey, boolean>;
 
 const getDrawTool = (table: FeatureTable, polyDraftMode: PolyDraftMode): 'polygon' | 'polyline' | 'multipoint' => {
   if (table === 'POLY' && polyDraftMode === 'buffered-line') {
@@ -116,41 +117,49 @@ export default function FeatureGeometryEditor({
   const [geometryError, setGeometryError] = useState<string | null>(null);
   const [polyDraftMode, setPolyDraftMode] = useState<PolyDraftMode>('polygon');
   const [bufferDistance, setBufferDistance] = useState('');
-  const [projectSnappingEnabled, setProjectSnappingEnabled] = useState(false);
-  const [adjacentSnappingEnabled, setAdjacentSnappingEnabled] = useState(false);
-  const [landOwnershipSnappingEnabled, setLandOwnershipSnappingEnabled] = useState(false);
-  const [landOwnershipReferenceVisible, setLandOwnershipReferenceVisible] = useState(false);
+  const [snappingState, setSnappingState] = useState<SnappingState>({
+    project: false,
+    adjacent: false,
+    landOwnership: false,
+  });
+  const [landOwnershipReferenceLayerVisible, setLandOwnershipReferenceLayerVisible] = useState(false);
 
   const hasDraftLines = table === 'POLY' && geometries.some((geometry) => geometry.type === 'polyline');
   const isBufferEnabled = canBufferDraftGeometries(table, geometries);
   const isCutEnabled = canCutDraftGeometries(table, geometries);
   const canFinishSketch = drawingState === 'drawing' || drawingState === 'cutting';
   const hasInitialGeometry = normalizedInitialGeometries.length > 0;
+  const setSnappingOption = useCallback((option: SnappingOptionKey, selected: boolean) => {
+    setSnappingState((currentState) => {
+      if (currentState[option] === selected) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        [option]: selected,
+      };
+    });
+  }, []);
   const effectiveAdjacentSnappingEnabled = getEffectiveAdjacentSnappingEnabled({
-    adjacentSnappingEnabled,
+    adjacentSnappingEnabled: snappingState.adjacent,
     adjacentProjectsVisible,
   });
-  const effectiveLandOwnershipSnappingEnabled = landOwnershipSnappingEnabled && landOwnershipReferenceVisible;
+  const effectiveLandOwnershipSnappingEnabled = snappingState.landOwnership && landOwnershipReferenceLayerVisible;
   const snappingLayerIds = useMemo(
     () =>
       getFeatureGeometrySnappingLayerIds({
         projectId,
-        projectSnappingEnabled,
-        adjacentSnappingEnabled,
+        projectSnappingEnabled: snappingState.project,
+        adjacentSnappingEnabled: snappingState.adjacent,
         landOwnershipSnappingEnabled: effectiveLandOwnershipSnappingEnabled,
         adjacentProjectsVisible,
       }),
-    [
-      adjacentProjectsVisible,
-      adjacentSnappingEnabled,
-      effectiveLandOwnershipSnappingEnabled,
-      projectId,
-      projectSnappingEnabled,
-    ],
+    [adjacentProjectsVisible, effectiveLandOwnershipSnappingEnabled, projectId, snappingState],
   );
-  const adjacentSnappingPending = adjacentSnappingEnabled && !adjacentProjectsVisible;
+  const adjacentSnappingPending = snappingState.adjacent && !adjacentProjectsVisible;
   const enabledSnappingLabels = [
-    projectSnappingEnabled ? 'current project features' : null,
+    snappingState.project ? 'current project features' : null,
     effectiveAdjacentSnappingEnabled ? 'visible adjacent project features' : null,
     effectiveLandOwnershipSnappingEnabled ? 'land ownership boundaries' : null,
   ].filter((label): label is string => label !== null);
@@ -158,29 +167,25 @@ export default function FeatureGeometryEditor({
     {
       key: 'project',
       label: 'Project Features',
-      isSelected: projectSnappingEnabled,
-      setSelected: setProjectSnappingEnabled,
+      isSelected: snappingState.project,
       isDisabled: disabled,
     },
     {
       key: 'adjacent',
       label: 'Adjacent Project Features',
-      isSelected: adjacentSnappingEnabled,
-      setSelected: setAdjacentSnappingEnabled,
-      isDisabled: disabled || (!adjacentProjectsVisible && !adjacentSnappingEnabled),
+      isSelected: snappingState.adjacent,
+      isDisabled: disabled || (!adjacentProjectsVisible && !snappingState.adjacent),
     },
     {
       key: 'landOwnership',
       label: 'Land Ownership',
-      isSelected: landOwnershipSnappingEnabled,
-      setSelected: setLandOwnershipSnappingEnabled,
-      isDisabled: disabled || !landOwnershipReferenceVisible,
+      isSelected: snappingState.landOwnership,
+      isDisabled: disabled || !landOwnershipReferenceLayerVisible,
     },
   ] satisfies Array<{
     key: SnappingOptionKey;
     label: string;
     isSelected: boolean;
-    setSelected: (selected: boolean) => void;
     isDisabled: boolean;
   }>;
 
@@ -272,18 +277,18 @@ export default function FeatureGeometryEditor({
     const landOwnershipLayer = mapView?.map?.findLayerById(LAND_OWNERSHIP_REFERENCE_LAYER_ID);
 
     if (!landOwnershipLayer || landOwnershipLayer.type !== 'feature') {
-      setLandOwnershipReferenceVisible(false);
+      setLandOwnershipReferenceLayerVisible(false);
 
       return;
     }
 
     const featureLayer = landOwnershipLayer as __esri.FeatureLayer;
-    setLandOwnershipReferenceVisible(featureLayer.visible);
+    setLandOwnershipReferenceLayerVisible(featureLayer.visible);
 
     const handle = watch(
       () => featureLayer.visible,
       (visible) => {
-        setLandOwnershipReferenceVisible(visible);
+        setLandOwnershipReferenceLayerVisible(visible);
       },
     );
 
@@ -752,13 +757,13 @@ export default function FeatureGeometryEditor({
                 <Checkbox
                   key={option.key}
                   isSelected={option.isSelected}
-                  onChange={option.setSelected}
+                  onChange={(selected) => setSnappingOption(option.key, selected)}
                   isDisabled={option.isDisabled}
                 >
                   <span className="text-sm">{option.label}</span>
                 </Checkbox>
               ))}
-              {!landOwnershipReferenceVisible && (
+              {!landOwnershipReferenceLayerVisible && (
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Turn on Land Ownership in the Reference tab to enable land ownership snapping.
                 </p>

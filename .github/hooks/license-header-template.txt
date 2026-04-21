@@ -1,3 +1,0 @@
-// Copyright (C) @YEAR@ State of Utah
-// Licensed under Expat / MIT. This program is distributed on an “AS IS” BASIS, WITHOUT ANY WARRANTY OR CONDITIONS OF ANY KIND, either express or implied. See the Expat / MIT for more details.
-

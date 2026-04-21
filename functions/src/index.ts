@@ -88,6 +88,16 @@ export const createFeature = onCall({ ...createFeatureOptions, secrets: [databas
 });
 
 /**
+ * Callable function for updating an existing feature
+ * Dynamically imports the handler to improve cold start performance
+ */
+export const updateFeature = onCall({ ...createFeatureOptions, secrets: [databaseInformation] }, async (request) => {
+  const { updateFeatureHandler } = await import('./handlers/updateFeature.js');
+
+  return updateFeatureHandler(request);
+});
+
+/**
  * Health check endpoint for monitoring
  */
 const health = onRequest({ ...options, memory: '128MiB', maxInstances: 1 }, async (_, res) => {

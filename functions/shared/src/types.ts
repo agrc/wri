@@ -48,8 +48,23 @@ export type CreateFeatureData = {
   actions: FormPolyAction[] | FormPointLineAction[] | null;
 };
 
+export type UpdateFeatureData = CreateFeatureData & {
+  featureId: number;
+};
+
 export type CreateFeatureRequest = {
   projectId?: number;
+  featureType?: string;
+  key?: string | null;
+  token?: string | null;
+  retreatment?: boolean | null;
+  actions?: PolyAction[] | PointLineAction[] | null;
+  geometry?: object | object[] | null;
+};
+
+export type UpdateFeatureRequest = {
+  projectId?: number;
+  featureId?: number;
   featureType?: string;
   key?: string | null;
   token?: string | null;
@@ -93,6 +108,11 @@ export type UpdateProjectStatsRequest = CallableCredentials & {
 export type UpdateProjectStatsResponse = MessageResponse;
 
 export type CreateFeatureResponse = MessageResponse & {
+  featureId: number;
+  statusDescription: string | null;
+};
+
+export type UpdateFeatureResponse = MessageResponse & {
   featureId: number;
   statusDescription: string | null;
 };

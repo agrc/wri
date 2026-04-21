@@ -146,6 +146,37 @@ export const validateRetreatment = (featureType: string, retreatment: Retreatmen
   }
 };
 
+type OverlapRow = { overlap_count: number };
+
+export const assertNoPolygonOverlap = async (
+  trx: import('knex').Knex.Transaction,
+  projectId: number,
+  featureType: string,
+  wkt: string,
+  excludeFeatureId?: number,
+) => {
+  const overlapSql =
+    excludeFeatureId == null
+      ? `SELECT COUNT(*) as overlap_count
+         FROM [dbo].[POLY] p
+         WHERE LOWER(p.TypeDescription) = LOWER(?) AND p.Project_ID = ?
+           AND p.Shape.MakeValid().STRelate(geometry::STGeomFromText(?, 3857).MakeValid(), '2********') = 1`
+      : `SELECT COUNT(*) as overlap_count
+         FROM [dbo].[POLY] p
+         WHERE LOWER(p.TypeDescription) = LOWER(?) AND p.Project_ID = ? AND p.FeatureID <> ?
+           AND p.Shape.MakeValid().STRelate(geometry::STGeomFromText(?, 3857).MakeValid(), '2********') = 1`;
+
+  const overlapParams =
+    excludeFeatureId == null ? [featureType, projectId, wkt] : [featureType, projectId, excludeFeatureId, wkt];
+
+  const overlapResult = await trx.raw<OverlapRow[]>(overlapSql, overlapParams);
+  const overlapCount: number = (overlapResult as unknown as OverlapRow[])?.[0]?.overlap_count ?? 0;
+
+  if (overlapCount > 0) {
+    throw new HttpsError('already-exists', `Feature overlaps with an existing ${featureType} in this project`);
+  }
+};
+
 // Tag for SQL syntax highlighting (zero runtime cost — alias for String.raw)
 const sql = String.raw;
 

@@ -9,7 +9,7 @@ import { canEditProject, tableLookup, throwIfNoFormData, updateProjectStats } fr
  * Deletes all related rows for a polygon feature in a transaction:
  * AREAHERBICIDE → AREATREATMENT → AREAACTION
  */
-const deletePolyActions = async (trx: Knex.Transaction, featureId: number) => {
+export const deletePolyActions = async (trx: Knex.Transaction, featureId: number) => {
   const actions = await trx.select('AreaActionId').from('AREAACTION').where('FeatureID', featureId);
   const actionIds = actions.map((a: { AreaActionId: number }) => a.AreaActionId);
 
@@ -31,7 +31,7 @@ const deletePolyActions = async (trx: Knex.Transaction, featureId: number) => {
 /**
  * Deletes all GIS rollup rows (COUNTY, LANDOWNER, SGMA, STREAM) for a feature.
  */
-const deleteExtractedGis = async (trx: Knex.Transaction, featureId: number, table: FeatureTable) => {
+export const deleteExtractedGis = async (trx: Knex.Transaction, featureId: number, table: FeatureTable) => {
   for (const rollupTable of ['COUNTY', 'LANDOWNER', 'SGMA']) {
     await trx(rollupTable).where('FeatureID', featureId).andWhere('FeatureClass', table).delete();
   }

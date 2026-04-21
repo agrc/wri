@@ -16,7 +16,7 @@ import type {
   FormPolyTreatment,
   PolyFeatureAttributes,
 } from '@ugrc/wri-shared/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { titleCase } from './';
 import FeatureGeometryEditor from './FeatureGeometryEditor';
 
@@ -26,35 +26,99 @@ const createEmptyPolyTreatment = (): FormPolyTreatment => ({ treatment: '', herb
 
 const createEmptyPolyAction = (): FormPolyAction => ({ action: '', treatments: [createEmptyPolyTreatment()] });
 
+const createEmptyPointLineAction = (): FormPointLineAction => ({
+  type: '',
+  action: '',
+  description: '',
+});
+
+const clonePolyActions = (actions: FormPolyAction[]): FormPolyAction[] =>
+  actions.map((action) => ({
+    action: action.action,
+    treatments: action.treatments.map((treatment) => ({
+      treatment: treatment.treatment,
+      herbicides: [...treatment.herbicides],
+    })),
+  }));
+
+const clonePointLineAction = (action: FormPointLineAction): FormPointLineAction => ({
+  type: action.type,
+  action: action.action,
+  description: action.description,
+});
+
+const isPolyActionArray = (
+  actions: FormPolyAction[] | FormPointLineAction[] | null | undefined,
+): actions is FormPolyAction[] => {
+  return Array.isArray(actions) && actions.every((action) => 'treatments' in action);
+};
+
+const isPointLineActionArray = (
+  actions: FormPolyAction[] | FormPointLineAction[] | null | undefined,
+): actions is FormPointLineAction[] => {
+  return Array.isArray(actions) && actions.every((action) => 'description' in action && 'type' in action);
+};
+
+export type FeatureFormInitialValues = {
+  featureType: string;
+  retreatment: boolean;
+  actions: FormPolyAction[] | FormPointLineAction[] | null;
+  initialGeometry: __esri.Geometry | __esri.Geometry[] | null;
+};
+
+type FeatureFormMode = 'create' | 'edit';
+
+const buildInitialState = (initialValues?: FeatureFormInitialValues | null) => {
+  const featureType = initialValues?.featureType ?? '';
+  const actions = initialValues?.actions ?? null;
+  const polyActions = isPolyActionArray(actions) ? clonePolyActions(actions) : [createEmptyPolyAction()];
+  const pointLineAction = isPointLineActionArray(actions)
+    ? clonePointLineAction(actions[0] ?? createEmptyPointLineAction())
+    : createEmptyPointLineAction();
+  const affectedAreaAction =
+    isAffectedAreaCategory(featureType) && isPolyActionArray(actions) ? (actions[0]?.action ?? '') : '';
+
+  return {
+    category: featureType,
+    retreatment: initialValues?.retreatment ?? false,
+    affectedAreaAction,
+    polyActions,
+    pointLineAction,
+  };
+};
+
 type Props = {
   projectId: number;
   adjacentProjectsVisible: boolean;
   domains: EditingDomainsResponse | undefined;
+  mode?: FeatureFormMode;
+  initialValues?: FeatureFormInitialValues | null;
+  disableCategorySelection?: boolean;
   isSaving: boolean;
   saveError: string | null;
   onCancel: () => void;
   onSave: (data: CreateFeatureData) => void;
 };
 
-export default function AddFeatureForm({
+export default function FeatureForm({
   projectId,
   adjacentProjectsVisible,
   domains,
+  mode = 'create',
+  initialValues = null,
+  disableCategorySelection = false,
   isSaving,
   saveError,
   onCancel,
   onSave,
 }: Props) {
+  const initialState = useMemo(() => buildInitialState(initialValues), [initialValues]);
   const [category, setCategory] = useState<string>('');
   const [serializedGeometry, setSerializedGeometry] = useState<object | object[] | null>(null);
   const [retreatment, setRetreatment] = useState(false);
   const [affectedAreaAction, setAffectedAreaAction] = useState('');
   const [polyActions, setPolyActions] = useState<FormPolyAction[]>([createEmptyPolyAction()]);
-  const [pointLineAction, setPointLineAction] = useState<FormPointLineAction>({
-    type: '',
-    action: '',
-    description: '',
-  });
+  const [pointLineAction, setPointLineAction] = useState<FormPointLineAction>(createEmptyPointLineAction());
 
   const table = category && domains ? domains.featureTypes[category] : undefined;
   const categoryAttrs = category && domains ? domains.featureAttributes[category] : undefined;
@@ -66,6 +130,15 @@ export default function AddFeatureForm({
       setRetreatment(false);
     }
   }, [showsRetreatment]);
+
+  useEffect(() => {
+    setCategory(initialState.category);
+    setSerializedGeometry(null);
+    setRetreatment(initialState.retreatment);
+    setAffectedAreaAction(initialState.affectedAreaAction);
+    setPolyActions(initialState.polyActions);
+    setPointLineAction(initialState.pointLineAction);
+  }, [initialState]);
 
   // Poly action helpers
   const addPolyAction = () => setPolyActions((prev) => [...prev, createEmptyPolyAction()]);
@@ -219,21 +292,23 @@ export default function AddFeatureForm({
   };
 
   const categories = Object.keys(domains?.featureTypes ?? {});
+  const isEditMode = mode === 'edit';
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-lg font-semibold">Add Feature</h3>
+      <h3 className="text-lg font-semibold">{isEditMode ? 'Edit Feature' : 'Add Feature'}</h3>
 
       <Select
         label="Category"
         selectedKey={category}
+        isDisabled={isSaving || disableCategorySelection}
         onSelectionChange={(key) => {
           setCategory(key as string);
           setSerializedGeometry(null);
           setAffectedAreaAction('');
           setRetreatment(false);
           setPolyActions([createEmptyPolyAction()]);
-          setPointLineAction({ type: '', action: '', description: '' });
+          setPointLineAction(createEmptyPointLineAction());
         }}
       >
         {categories.map((cat) => (
@@ -251,6 +326,7 @@ export default function AddFeatureForm({
           adjacentProjectsVisible={adjacentProjectsVisible}
           disabled={isSaving}
           onChange={setSerializedGeometry}
+          initialGeometry={initialValues?.initialGeometry ?? null}
         />
       )}
 
@@ -285,19 +361,18 @@ export default function AddFeatureForm({
                 className="flex flex-col gap-2 rounded border border-zinc-200 p-2 dark:border-zinc-700"
               >
                 <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <Select
-                      label={`Action ${actionIdx + 1}`}
-                      selectedKey={polyAction.action || null}
-                      onSelectionChange={(key) => updatePolyActionField(actionIdx, key as string)}
-                    >
-                      {actionOptions.map((opt) => (
-                        <SelectItem key={opt} id={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  </div>
+                  <Select
+                    className="flex-1"
+                    label={`Action ${actionIdx + 1}`}
+                    selectedKey={polyAction.action || null}
+                    onSelectionChange={(key) => updatePolyActionField(actionIdx, key as string)}
+                  >
+                    {actionOptions.map((opt) => (
+                      <SelectItem key={opt} id={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </Select>
                   {polyActions.length > 1 && (
                     <Button variant="destructive" size="extraSmall" onPress={() => removePolyAction(actionIdx)}>
                       Remove
@@ -319,21 +394,20 @@ export default function AddFeatureForm({
                           return (
                             <>
                               <div className="flex items-end gap-2">
-                                <div className="flex-1">
-                                  <Select
-                                    label={`Treatment ${treatmentIdx + 1}`}
-                                    selectedKey={treatment.treatment || null}
-                                    onSelectionChange={(key) =>
-                                      updateTreatmentField(actionIdx, treatmentIdx, key as string)
-                                    }
-                                  >
-                                    {treatmentOptions.map((opt) => (
-                                      <SelectItem key={opt} id={opt}>
-                                        {opt}
-                                      </SelectItem>
-                                    ))}
-                                  </Select>
-                                </div>
+                                <Select
+                                  className="flex-1"
+                                  label={`Treatment ${treatmentIdx + 1}`}
+                                  selectedKey={treatment.treatment || null}
+                                  onSelectionChange={(key) =>
+                                    updateTreatmentField(actionIdx, treatmentIdx, key as string)
+                                  }
+                                >
+                                  {treatmentOptions.map((opt) => (
+                                    <SelectItem key={opt} id={opt}>
+                                      {opt}
+                                    </SelectItem>
+                                  ))}
+                                </Select>
                                 {polyAction.treatments.length > 1 && (
                                   <Button
                                     variant="destructive"
@@ -357,29 +431,28 @@ export default function AddFeatureForm({
                                         key={`${treatmentIdx}-herbicide-${herbicideIdx}`}
                                         className="flex items-end gap-2"
                                       >
-                                        <div className="flex-1">
-                                          <Select
-                                            label={`Herbicide ${herbicideIdx + 1}`}
-                                            selectedKey={herbicide.trim() ? herbicide : HERBICIDE_PLACEHOLDER_KEY}
-                                            onSelectionChange={(key) =>
-                                              updateHerbicide(
-                                                actionIdx,
-                                                treatmentIdx,
-                                                herbicideIdx,
-                                                key === HERBICIDE_PLACEHOLDER_KEY ? null : ((key as string) ?? null),
-                                              )
-                                            }
-                                          >
-                                            <SelectItem id={HERBICIDE_PLACEHOLDER_KEY} key={HERBICIDE_PLACEHOLDER_KEY}>
-                                              please select a herbicide
+                                        <Select
+                                          className="flex-1"
+                                          label={`Herbicide ${herbicideIdx + 1}`}
+                                          selectedKey={herbicide.trim() ? herbicide : HERBICIDE_PLACEHOLDER_KEY}
+                                          onSelectionChange={(key) =>
+                                            updateHerbicide(
+                                              actionIdx,
+                                              treatmentIdx,
+                                              herbicideIdx,
+                                              key === HERBICIDE_PLACEHOLDER_KEY ? null : ((key as string) ?? null),
+                                            )
+                                          }
+                                        >
+                                          <SelectItem id={HERBICIDE_PLACEHOLDER_KEY} key={HERBICIDE_PLACEHOLDER_KEY}>
+                                            please select a herbicide
+                                          </SelectItem>
+                                          {domains.herbicides.map((herbicideOption) => (
+                                            <SelectItem key={herbicideOption} id={herbicideOption}>
+                                              {herbicideOption}
                                             </SelectItem>
-                                            {domains.herbicides.map((herbicideOption) => (
-                                              <SelectItem key={herbicideOption} id={herbicideOption}>
-                                                {herbicideOption}
-                                              </SelectItem>
-                                            ))}
-                                          </Select>
-                                        </div>
+                                          ))}
+                                        </Select>
                                         {herbicideSelections.length > 1 && (
                                           <Button
                                             variant="destructive"
@@ -473,7 +546,11 @@ export default function AddFeatureForm({
           Cancel
         </Button>
         <Button variant="primary" onPress={handleSubmit} isDisabled={!isValid() || isSaving} isPending={isSaving}>
-          {isSaving ? <span className="ml-2">Saving…</span> : <span>Save Feature</span>}
+          {isSaving ? (
+            <span className="ml-2">Saving…</span>
+          ) : (
+            <span>{isEditMode ? 'Update Feature' : 'Save Feature'}</span>
+          )}
         </Button>
       </div>
     </div>

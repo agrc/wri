@@ -10,6 +10,7 @@ type FeatureSelectionContextType = {
   selectedFeature: SelectedFeature | null;
   selectionOrigin: FeatureSelectionOrigin | null;
   selectFeature: (selection: FeatureSelectionIdentity, origin?: FeatureSelectionOrigin) => SelectedFeature | null;
+  refreshSelection: () => SelectedFeature | null;
   clearSelection: () => void;
   registerResolver: (resolver: FeatureSelectionResolver | null) => void;
   isMapSelectionEnabled: boolean;
@@ -81,6 +82,26 @@ export const FeatureSelectionProvider = ({ children }: FeatureSelectionProviderP
     [clearSelection],
   );
 
+  const refreshSelection = useCallback(() => {
+    const currentSelection = selectedFeatureIdentityRef.current;
+
+    if (!currentSelection) {
+      return null;
+    }
+
+    const resolved = resolverRef.current?.(currentSelection) ?? null;
+
+    if (!resolved) {
+      clearSelection();
+
+      return null;
+    }
+
+    setSelectedFeature(resolved);
+
+    return resolved;
+  }, [clearSelection]);
+
   return (
     <FeatureSelectionContext.Provider
       value={{
@@ -91,6 +112,7 @@ export const FeatureSelectionProvider = ({ children }: FeatureSelectionProviderP
         selectedFeature,
         selectionOrigin,
         selectFeature,
+        refreshSelection,
         clearSelection,
         registerResolver,
         isMapSelectionEnabled,

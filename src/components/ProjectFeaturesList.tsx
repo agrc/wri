@@ -50,6 +50,7 @@ type Props = {
   lines: Feature[];
   points: Feature[];
   isVisible?: boolean;
+  onEdit?: (featureId: number, featureType: string, featureKind: FeatureKind) => void | Promise<void>;
   onDelete?: (featureId: number, featureType: string, featureKind: FeatureKind) => void | Promise<void>;
   onViewDetails?: () => void;
   renderOpacity?: (layerId: string, oid?: number) => JSX.Element | null;
@@ -64,6 +65,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   lines,
   points,
   isVisible = true,
+  onEdit,
   onDelete,
   onViewDetails,
   renderOpacity,
@@ -105,9 +107,7 @@ export const ProjectFeaturesList: React.FC<Props> = ({
                 <Button
                   variant="icon"
                   className="h-8 min-w-8 rounded border border-zinc-400"
-                  onPress={() => {
-                    alert('Feature editing not yet implemented');
-                  }}
+                  onPress={() => onEdit?.(featureId, featureType ?? '', kind)}
                   aria-label="Edit feature"
                 >
                   <Pencil className="size-4" />

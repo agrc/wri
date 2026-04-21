@@ -16,6 +16,7 @@ import type { Knex } from 'knex';
 import { getDb } from '../database.js';
 import {
   canEditProject,
+  assertNoPolygonOverlap,
   convertMetersToAcres,
   convertMetersToMiles,
   parseRetreatmentInput,
@@ -273,19 +274,7 @@ export const createFeatureTransaction = async (
 ): Promise<{ featureId: number; statusDescription: string | null }> => {
   // Overlap check for POLY features
   if (table === 'POLY') {
-    const overlapResult = await trx.raw<{ overlap_count: number }[]>(
-      `SELECT COUNT(*) as overlap_count
-       FROM [dbo].[POLY] p
-       WHERE LOWER(p.TypeDescription) = LOWER(?) AND p.Project_ID = ?
-         AND p.Shape.MakeValid().STRelate(geometry::STGeomFromText(?, 3857).MakeValid(), '2********') = 1`,
-      [featureType, projectId, wkt],
-    );
-
-    const overlapCount: number = (overlapResult as unknown as { overlap_count: number }[])?.[0]?.overlap_count ?? 0;
-
-    if (overlapCount > 0) {
-      throw new HttpsError('already-exists', `Feature overlaps with an existing ${featureType} in this project`);
-    }
+    await assertNoPolygonOverlap(trx, projectId, featureType, wkt);
   }
 
   // Look up project status for StatusDescription and StatusCode

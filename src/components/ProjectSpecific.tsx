@@ -414,7 +414,10 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const editMutation = useMutation({
     mutationFn: async (formData: UpdateFeatureData & { featureKind: FeatureKind }) => {
       setEditError(null);
-      return updateFeatureFn(formData);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { featureKind: _featureKind, ...request } = formData;
+
+      return updateFeatureFn(request);
     },
     onSuccess: (_data, variables) => {
       closeEditMode();
@@ -568,7 +571,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     }
 
     refreshSelection();
-  }, [projectId, refreshSelection, selectedFeatureIdentity, status]);
+  }, [data, projectId, refreshSelection, selectedFeatureIdentity, status]);
 
   useEffect(() => {
     if (selectedFeatureIdentity?.projectId === projectId && selectionOrigin === 'map') {

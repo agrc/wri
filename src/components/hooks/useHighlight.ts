@@ -13,6 +13,7 @@ type ZoomDetails = {
 
 const MUTED_EFFECT = 'grayscale(70%) opacity(70%) invert(10%)';
 const HIGHLIGHT_EFFECT = 'drop-shadow(0px 0px 10px white) saturate(150%) opacity(100%)';
+const FEATURE_ID_FIELD = 'FeatureID';
 
 const isProjectFeatureLayerId = (id?: string | null): boolean =>
   typeof id === 'string' && id.startsWith('project-') && id.includes('-feature-');
@@ -37,7 +38,7 @@ const muteAllFeatures = (map: __esri.Map | nullish) => {
   });
 };
 
-const queryAndPrepareZoomGeometry = async (
+export const queryAndPrepareZoomGeometry = async (
   layer: __esri.FeatureLayer,
   featureId: number,
   extentScale?: number,
@@ -46,7 +47,7 @@ const queryAndPrepareZoomGeometry = async (
     throw new Error(`Invalid feature id: ${featureId}`);
   }
 
-  const result = await layer.queryFeatures({ where: `FeatureID=${featureId}`, returnGeometry: true });
+  const result = await layer.queryFeatures({ where: `${FEATURE_ID_FIELD}=${featureId}`, returnGeometry: true });
   const features = Array.isArray(result.features) ? result.features : [];
 
   if (features.length > 0 && features[0]?.geometry) {
@@ -84,20 +85,13 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
         return false;
       }
 
-      const isAlreadySelected = highlightedRef.current?.layer === layer.id && highlightedRef.current?.id === details.id;
-      if (isAlreadySelected) {
-        clear();
-
-        return false;
-      }
-
       // clear any previous explicit effects then mute others
       clearFeatureEffects(mapView.map);
       muteAllFeatures(mapView.map);
 
       // apply the featureEffect to visually highlight the requested featureId
       layer.featureEffect = {
-        filter: { where: `FeatureID=${details.id}` },
+        filter: { where: `${FEATURE_ID_FIELD}=${details.id}` },
         includedEffect: HIGHLIGHT_EFFECT,
         excludedEffect: MUTED_EFFECT,
       };
@@ -142,7 +136,7 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
 
       return true;
     },
-    [mapView, clear],
+    [mapView],
   );
 
   useEffect(() => {

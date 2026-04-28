@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       assetsDir: 'js/ugrc',
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           main: resolve(__dirname, 'map.html'),
           dev: resolve(__dirname, 'index.html'),

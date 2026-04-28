@@ -138,6 +138,7 @@ dist
 .DS_Store
 
 *storybook.log
+storybook-static
 
 /maps/Index
 /maps/.backups

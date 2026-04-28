@@ -10,9 +10,16 @@ type LegendMetadata = __esri.FeatureLayerProperties & {
   legendDescription?: string;
 };
 
+const ReferenceDataStory = ({
+  currentMapScale,
+  color = 'gray',
+}: Pick<React.ComponentProps<typeof ReferenceData>, 'currentMapScale' | 'color'>) => {
+  return <ReferenceData layers={createLayers()} currentMapScale={currentMapScale} color={color} />;
+};
+
 const meta = {
-  title: 'Example/ReferenceData',
-  component: ReferenceData,
+  title: 'Components/ReferenceData',
+  component: ReferenceDataStory,
   parameters: {
     layout: 'centered',
   },
@@ -26,68 +33,70 @@ const meta = {
       defaultValue: 11,
     },
   },
-} satisfies Meta<typeof ReferenceData>;
+} satisfies Meta<typeof ReferenceDataStory>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const layers = new Collection<ReferenceLayer>();
-layers.addMany([
-  new FeatureLayer({
-    title: 'Land Ownership',
-    url: '',
-    id: 'reference-land-ownership',
-    legendDescription: 'A legend description',
-  } as LegendMetadata),
-  new FeatureLayer({
-    title: 'Utah PLSS',
-    url: '',
-    id: 'reference-plss',
-  }),
-  new FeatureLayer({
-    title: 'NHD Streams',
-    id: 'reference-streams',
-    url: '',
-    fields: ['name'],
-    minScale: 10,
-    maxScale: 0,
-    renderer: new SimpleRenderer({
-      symbol: new SimpleLineSymbol({
-        style: 'solid',
-        color: [115, 223, 255, 255],
-        cap: 'round',
-        width: 2,
-      }),
+const createLayers = () => {
+  const layers = new Collection<ReferenceLayer>();
+
+  layers.addMany([
+    new FeatureLayer({
+      title: 'Land Ownership',
+      url: '',
+      id: 'reference-land-ownership',
+      legendDescription: 'A legend description',
+    } as LegendMetadata),
+    new FeatureLayer({
+      title: 'Utah PLSS',
+      url: '',
+      id: 'reference-plss',
     }),
-  }),
-  new FeatureLayer({
-    title: 'HUC 10 Watersheds',
-    url: '',
-    fields: ['area'],
-    id: 'reference-watershed-areas',
-    minScale: 20,
-    maxScale: 0,
-    renderer: new SimpleRenderer({
-      symbol: new SimpleFillSymbol({
-        style: 'none',
-        outline: {
-          type: 'simple-line',
+    new FeatureLayer({
+      title: 'NHD Streams',
+      id: 'reference-streams',
+      url: '',
+      minScale: 10,
+      maxScale: 0,
+      renderer: new SimpleRenderer({
+        symbol: new SimpleLineSymbol({
           style: 'solid',
-          width: 3,
-        },
+          color: [115, 223, 255, 255],
+          cap: 'round',
+          width: 2,
+        }),
       }),
     }),
-  }),
-  new FeatureLayer({
-    title: 'Visible bug',
-    id: 'not-a-reference-layer',
-  }),
-]);
+    new FeatureLayer({
+      title: 'HUC 10 Watersheds',
+      url: '',
+      id: 'reference-watershed-areas',
+      minScale: 20,
+      maxScale: 0,
+      renderer: new SimpleRenderer({
+        symbol: new SimpleFillSymbol({
+          style: 'none',
+          outline: {
+            type: 'simple-line',
+            style: 'solid',
+            width: 3,
+          },
+        }),
+      }),
+    }),
+    new FeatureLayer({
+      title: 'Visible bug',
+      id: 'not-a-reference-layer',
+    }),
+  ]);
+
+  return layers;
+};
 
 export const Example: Story = {
   args: {
-    layers,
     currentMapScale: 11,
   },
-  render: (args) => <ReferenceData {...args} />,
+  render: (args) => <ReferenceDataStory {...args} />,
 };

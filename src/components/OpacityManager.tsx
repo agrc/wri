@@ -1,56 +1,8 @@
-import Collection from '@arcgis/core/core/Collection';
 import { Button, Popover, Slider, Tooltip } from '@ugrc/utah-design-system';
 import { BlendIcon } from 'lucide-react';
 import { useState } from 'react';
 import { DialogTrigger, TooltipTrigger } from 'react-aria-components';
-
-const updateOpacity = async (
-  layer: __esri.FeatureLayer | __esri.Collection<__esri.FeatureLayer> | null,
-  value: number,
-  id?: number,
-) => {
-  if (!layer) {
-    return;
-  }
-
-  // multiple layers
-  if (layer instanceof Collection) {
-    layer.forEach((lyr) => {
-      lyr.opacity = value / 100;
-    });
-
-    return;
-  }
-
-  // single layer, no specific feature
-  if (!id) {
-    layer.opacity = value / 100;
-
-    return;
-  }
-
-  // specific feature
-  const results = await layer.queryFeatures({
-    where: `FeatureID=${id}`,
-    outFields: ['FeatureID', '_opacity'],
-    returnGeometry: false,
-  });
-
-  if (results.features.length === 0) {
-    return;
-  }
-
-  layer
-    .applyEdits({
-      updateFeatures: results.features.map((feature) => {
-        feature.attributes._opacity = value / 100;
-        return feature;
-      }),
-    })
-    .catch((error) => {
-      console.error('Failed to set opacity:', error);
-    });
-};
+import { updateOpacity } from './updateOpacity';
 
 const DEFAULT_POLY_OPACITY = 70;
 

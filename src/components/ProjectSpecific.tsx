@@ -477,7 +477,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
 
   const { data, status } = useQuery<ProjectResponse>({
-    queryKey: ['project', projectId],
+    queryKey: ['project', projectId, getProjectInfo],
     queryFn: async () => getProjectInfo({ id: projectId }),
     enabled: projectId > 0,
   });
@@ -487,7 +487,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const selectedFeatureType = selectedFeature?.type?.toLowerCase() ?? null;
 
   const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
-    queryKey: ['featureDetails', projectId, selectedFeatureId, selectedFeatureType],
+    queryKey: ['featureDetails', projectId, selectedFeatureId, selectedFeatureType, getFeatureInfo],
     queryFn: async () => {
       if (selectedFeatureId == null || !selectedFeatureType) {
         throw new Error('A feature must be selected before requesting feature details.');

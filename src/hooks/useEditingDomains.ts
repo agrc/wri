@@ -6,7 +6,7 @@ export const useEditingDomains = (enabled: boolean) => {
   const editingDomainsFn = useCallableData<void, EditingDomainsResponse>('editingDomains');
 
   return useQuery({
-    queryKey: ['editingDomains'],
+    queryKey: ['editingDomains', editingDomainsFn],
     queryFn: async () => editingDomainsFn(undefined),
     enabled,
     staleTime: Infinity,

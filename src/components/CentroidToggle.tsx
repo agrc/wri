@@ -27,8 +27,10 @@ export const CentroidToggle = () => {
   const { currentMapScale, mapView } = useMap();
 
   useEffect(() => {
-    setSelected((currentMapScale ?? 0) >= defaultSwitchScale);
-  }, [currentMapScale]);
+    if (!locked) {
+      setSelected((currentMapScale ?? 0) >= defaultSwitchScale);
+    }
+  }, [currentMapScale, locked]);
 
   useEffect(() => {
     if (!mapView || !mapView?.map) {

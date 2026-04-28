@@ -376,7 +376,7 @@ export const forestService = new FeatureLayer({
       labelExpressionInfo: {
         expression: '$feature.label_federal',
       },
-      minScale: 2000000,
+      minScale: 300_000,
       maxScale: 0,
     },
   ],

@@ -12,6 +12,7 @@ browser[0].ignores = [
   'mockups/*',
   'scripts/*',
   '!.storybook',
+  'storybook-static/*',
 ].concat(browser[0].ignores);
 
 export default browser;

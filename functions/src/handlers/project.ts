@@ -1,7 +1,6 @@
 import type { PolygonFeature, ProjectResponse } from '@ugrc/wri-shared/types';
 import * as logger from 'firebase-functions/logger';
 import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
-import type { Knex } from 'knex';
 import { getDb } from '../database.js';
 import {
   canEditProject,
@@ -33,6 +32,54 @@ export const projectHandler = async ({ data }: CallableRequest): Promise<Project
 
     const db = await getDb();
     const sizeExpression = db.raw('Shape.STNumPoints()');
+    const rollupUnion = db
+      .queryBuilder()
+      .union([
+        db
+          .select(
+            {
+              origin: db.raw(`'county'`),
+              table: db.raw(`'poly'`),
+              extra: db.raw('null'),
+            },
+            db.ref('c.County').as('name'),
+            db.ref('c.Intersection').as('space'),
+          )
+          .from({
+            c: 'COUNTY',
+          })
+          .whereIn('c.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
+          .andWhere('c.FeatureClass', 'POLY'),
+        db
+          .select(
+            {
+              origin: db.raw(`'owner'`),
+              table: db.raw(`'poly'`),
+            },
+            db.ref('l.Owner').as('name'),
+            db.ref('l.Admin').as('extra'),
+            db.ref('l.Intersection').as('space'),
+          )
+          .from({
+            l: 'LANDOWNER',
+          })
+          .whereIn('l.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
+          .andWhere('l.FeatureClass', 'POLY'),
+        db
+          .select(
+            {
+              origin: db.raw(`'sgma'`),
+              table: db.raw(`'poly'`),
+              extra: db.raw('null'),
+            },
+            db.ref('s.SGMA').as('name'),
+            db.ref('s.Intersection').as('space'),
+          )
+          .from({ s: 'SGMA' })
+          .whereIn('s.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
+          .andWhere('s.FeatureClass', 'POLY'),
+      ])
+      .as('u');
 
     logger.info('Fetching project data', { id });
 
@@ -60,53 +107,7 @@ export const projectHandler = async ({ data }: CallableRequest): Promise<Project
 
       db
         .select('origin', 'table', 'name', 'extra', db.sum('space').as('space'))
-        .from(function (this: Knex.QueryBuilder) {
-          this.union([
-            db
-              .select(
-                {
-                  origin: db.raw(`'county'`),
-                  table: db.raw(`'poly'`),
-                  extra: db.raw('null'),
-                },
-                db.ref('c.County').as('name'),
-                db.ref('c.Intersection').as('space'),
-              )
-              .from({
-                c: 'COUNTY',
-              })
-              .whereIn('c.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
-              .andWhere('c.FeatureClass', 'POLY'),
-            db
-              .select(
-                {
-                  origin: db.raw(`'owner'`),
-                  table: db.raw(`'poly'`),
-                },
-                db.ref('l.Owner').as('name'),
-                db.ref('l.Admin').as('extra'),
-                db.ref('l.Intersection').as('space'),
-              )
-              .from({
-                l: 'LANDOWNER',
-              })
-              .whereIn('l.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
-              .andWhere('l.FeatureClass', 'POLY'),
-            db
-              .select(
-                {
-                  origin: db.raw(`'sgma'`),
-                  table: db.raw(`'poly'`),
-                  extra: db.raw('null'),
-                },
-                db.ref('s.SGMA').as('name'),
-                db.ref('s.Intersection').as('space'),
-              )
-              .from({ s: 'SGMA' })
-              .whereIn('s.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
-              .andWhere('s.FeatureClass', 'POLY'),
-          ]).as('u');
-        })
+        .from(rollupUnion)
         .groupBy('u.origin', 'u.name', 'u.extra', 'u.table'),
 
       db

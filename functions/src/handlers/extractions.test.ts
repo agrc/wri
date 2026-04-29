@@ -13,6 +13,7 @@ vi.mock('ky', () => {
 });
 
 import type Polygon from '@arcgis/core/geometry/Polygon.js';
+import type SpatialReference from '@arcgis/core/geometry/SpatialReference.js';
 import { formatAcres, queryFeatureService } from './extractions.js';
 
 // Mock the ArcGIS modules before importing
@@ -45,7 +46,7 @@ vi.mock('@arcgis/core/geometry/operators/unionOperator.js', () => ({
  * - SUMMIT: 1,271.42 acres
  * - MORGAN: 582.50 acres
  */
-const testPolygon: Polygon = {
+const testPolygon = {
   type: 'polygon',
   rings: [
     [
@@ -56,8 +57,23 @@ const testPolygon: Polygon = {
       [-12445996.2817, 4996103.8417999968],
     ],
   ],
-  spatialReference: { wkid: 3857 },
-};
+  spatialReference: { wkid: 3857 } as SpatialReference,
+  toJSON() {
+    return {
+      type: 'polygon' as const,
+      rings: [
+        [
+          [-12445996.2817, 4996103.8417999968],
+          [-12423283.255800001, 4983110.6354999989],
+          [-12424733.0726, 4980576.2551999986],
+          [-12447446.0985, 4993569.4614999965],
+          [-12445996.2817, 4996103.8417999968],
+        ],
+      ],
+      spatialReference: { wkid: 3857 },
+    };
+  },
+} as unknown as Polygon;
 
 describe('extractions', () => {
   beforeEach(() => {

@@ -1,7 +1,8 @@
 import Collection from '@arcgis/core/core/Collection';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 
 export const updateOpacity = async (
-  layer: __esri.FeatureLayer | __esri.Collection<__esri.FeatureLayer> | null,
+  layer: FeatureLayer | Collection<FeatureLayer> | null,
   value: number,
   id?: number,
 ) => {

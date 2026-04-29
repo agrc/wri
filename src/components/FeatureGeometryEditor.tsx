@@ -1,17 +1,23 @@
-import Graphic from '@arcgis/core/Graphic.js';
+import Collection from '@arcgis/core/core/Collection.js';
+import type { ResourceHandle } from '@arcgis/core/core/Handles.js';
 import { watch } from '@arcgis/core/core/reactiveUtils';
+import type Geometry from '@arcgis/core/geometry/Geometry.js';
+import type Polyline from '@arcgis/core/geometry/Polyline.js';
+import Graphic from '@arcgis/core/Graphic.js';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer.js';
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer.js';
-import SketchViewModel from '@arcgis/core/widgets/Sketch/SketchViewModel.js';
-import {
-  Button,
-  Checkbox,
-  FileInput,
-  Popover,
-  Select,
-  SelectItem,
-  ToggleButton,
-  Tooltip,
-} from '@ugrc/utah-design-system';
+import FeatureSnappingLayerSource from '@arcgis/core/views/interactive/snapping/FeatureSnappingLayerSource.js';
+import SnappingOptions from '@arcgis/core/views/interactive/snapping/SnappingOptions.js';
+import type { GoToTarget2D, GraphicHit } from '@arcgis/core/views/types.js';
+import type { EventHandler } from '@arcgis/lumina';
+import '@arcgis/map-components/components/arcgis-sketch';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Checkbox } from '@ugrc/utah-design-system/src/components/Checkbox';
+import { FileInput } from '@ugrc/utah-design-system/src/components/FileInput';
+import { Popover } from '@ugrc/utah-design-system/src/components/Popover';
+import { Select, SelectItem } from '@ugrc/utah-design-system/src/components/Select';
+import { ToggleButton } from '@ugrc/utah-design-system/src/components/ToggleButton';
+import { Tooltip } from '@ugrc/utah-design-system/src/components/Tooltip';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
 import {
   CheckIcon,
@@ -26,7 +32,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DialogTrigger, Toolbar, TooltipTrigger } from 'react-aria-components';
-import { getDraftPointSymbol, getDraftPolygonSymbol, getDraftPolylineSymbol } from '../config';
+import config, { getDraftPointSymbol, getDraftPolygonSymbol, getDraftPolylineSymbol } from '../config';
 import { useShapefileUpload } from '../hooks/useShapefileUpload';
 import {
   BUFFER_DRAFT_DISTANCES,
@@ -67,7 +73,7 @@ const getDrawTool = (table: FeatureTable, polyDraftMode: PolyDraftMode): 'polygo
   return DRAW_TOOL[table];
 };
 
-const getDefaultSymbol = (geometry: __esri.Geometry) => {
+const getDefaultSymbol = (geometry: Geometry) => {
   switch (geometry.type) {
     case 'point':
     case 'multipoint':
@@ -81,9 +87,7 @@ const getDefaultSymbol = (geometry: __esri.Geometry) => {
   }
 };
 
-const normalizeInitialGeometries = (
-  initialGeometry?: __esri.Geometry | __esri.Geometry[] | null,
-): __esri.Geometry[] => {
+const normalizeInitialGeometries = (initialGeometry?: Geometry | Geometry[] | null): Geometry[] => {
   if (!initialGeometry) {
     return [];
   }
@@ -91,8 +95,8 @@ const normalizeInitialGeometries = (
   return Array.isArray(initialGeometry) ? initialGeometry : [initialGeometry];
 };
 
-const cloneGeometries = (geometries: __esri.Geometry[]): __esri.Geometry[] =>
-  geometries.map((geometry) => geometry.clone() as __esri.Geometry);
+const cloneGeometries = (geometries: Geometry[]): Geometry[] =>
+  geometries.map((geometry) => geometry.clone() as Geometry);
 
 type Props = {
   projectId: number;
@@ -100,7 +104,7 @@ type Props = {
   table: FeatureTable | undefined;
   adjacentProjectsVisible: boolean;
   onChange: (serializedGeometry: SerializedGeometry | null) => void;
-  initialGeometry?: __esri.Geometry | __esri.Geometry[] | null;
+  initialGeometry?: Geometry | Geometry[] | null;
   disabled?: boolean;
   autoStart?: boolean;
 };
@@ -116,16 +120,17 @@ export default function FeatureGeometryEditor({
   autoStart = true,
 }: Props) {
   const { mapView } = useMap();
-  const sketchVMRef = useRef<SketchViewModel | null>(null);
+  const sketchRef = useRef<HTMLArcgisSketchElement | null>(null);
   const graphicsLayerRef = useRef<GraphicsLayer | null>(null);
+  const editSelectionClickHandlerRef = useRef<ResourceHandle | null>(null);
   const activeToolRef = useRef<'draw' | 'cut'>('draw');
   const tableRef = useRef<FeatureTable | undefined>(undefined);
-  const geometriesRef = useRef<__esri.Geometry[]>([]);
-  const initialGeometriesRef = useRef<__esri.Geometry[]>([]);
+  const geometriesRef = useRef<Geometry[]>([]);
+  const initialGeometriesRef = useRef<Geometry[]>([]);
   const polyDraftModeRef = useRef<PolyDraftMode>('polygon');
   const normalizedInitialGeometries = useMemo(() => normalizeInitialGeometries(initialGeometry), [initialGeometry]);
 
-  const [geometries, setGeometries] = useState<__esri.Geometry[]>([]);
+  const [geometries, setGeometries] = useState<Geometry[]>([]);
   const [drawingState, setDrawingState] = useState<DrawingState>('idle');
   const [selectedDraftCount, setSelectedDraftCount] = useState(0);
   const [geometryError, setGeometryError] = useState<string | null>(null);
@@ -220,9 +225,9 @@ export default function FeatureGeometryEditor({
   tableRef.current = table;
 
   const syncSnappingOptions = useCallback(() => {
-    const sketchVM = sketchVMRef.current;
+    const sketch = sketchRef.current;
 
-    if (!sketchVM) {
+    if (!sketch) {
       return;
     }
 
@@ -241,19 +246,21 @@ export default function FeatureGeometryEditor({
         return [];
       }
 
-      return [layer as __esri.FeatureLayer];
+      return [layer as FeatureLayer];
     });
 
-    sketchVM.snappingOptions = {
+    sketch.snappingOptions = new SnappingOptions({
       enabled: featureLayers.length > 0,
       featureEnabled: featureLayers.length > 0,
       selfEnabled: true,
       gridEnabled: false,
-      featureSources: featureLayers.map((layer) => ({ layer, enabled: true })),
-    };
+      featureSources: new Collection(
+        featureLayers.map((layer) => new FeatureSnappingLayerSource({ layer, enabled: true })),
+      ),
+    });
   }, [mapView, snappingLayerIds]);
 
-  const syncSketchLayerGeometries = useCallback((nextGeometries: __esri.Geometry[]) => {
+  const syncSketchLayerGeometries = useCallback((nextGeometries: Geometry[]) => {
     const graphicsLayer = graphicsLayerRef.current;
 
     if (!graphicsLayer) {
@@ -276,7 +283,7 @@ export default function FeatureGeometryEditor({
   }, []);
 
   const setDraftGeometries = useCallback(
-    (nextGeometries: __esri.Geometry[]) => {
+    (nextGeometries: Geometry[]) => {
       geometriesRef.current = nextGeometries;
       setGeometries(nextGeometries);
       syncSketchLayerGeometries(nextGeometries);
@@ -284,16 +291,28 @@ export default function FeatureGeometryEditor({
     [syncSketchLayerGeometries],
   );
 
-  const stopSketch = useCallback(() => {
-    if (sketchVMRef.current) {
-      sketchVMRef.current.updateOnGraphicClick = false;
+  const getSketchElement = useCallback(async () => {
+    const sketch = sketchRef.current;
+
+    if (!sketch) {
+      return null;
     }
 
+    await sketch.componentOnReady();
+
+    return sketch;
+  }, []);
+
+  const stopSketch = useCallback(() => {
+    editSelectionClickHandlerRef.current?.remove();
+    editSelectionClickHandlerRef.current = null;
     setSelectedDraftCount(0);
     setGeometryError(null);
-    sketchVMRef.current?.cancel();
     activeToolRef.current = 'draw';
-  }, []);
+    void getSketchElement().then((sketch) => {
+      void sketch?.cancel();
+    });
+  }, [getSketchElement]);
 
   const syncGraphicsFromLayer = useCallback(() => {
     const layerGraphics = graphicsLayerRef.current?.graphics.toArray() ?? [];
@@ -302,7 +321,7 @@ export default function FeatureGeometryEditor({
   }, [setDraftGeometries]);
 
   const handleUploadSuccess = useCallback(
-    ({ geometry }: { geometry: __esri.Geometry; wkt3857: string }) => {
+    ({ geometry }: { geometry: Geometry; wkt3857: string }) => {
       if (!table) {
         return;
       }
@@ -324,16 +343,111 @@ export default function FeatureGeometryEditor({
 
       if (mapView) {
         const targetExtent = geometry.extent;
-        const target =
+        const target: GoToTarget2D =
           geometry.type === 'point' || (targetExtent != null && targetExtent.width === 0 && targetExtent.height === 0)
-            ? { target: geometry, zoom: 14 }
-            : (targetExtent?.clone().expand(1.2) ?? geometry);
+            ? ({ target: geometry, zoom: 14 } as GoToTarget2D)
+            : ((targetExtent?.clone().expand(1.2) ?? geometry.extent ?? geometry) as GoToTarget2D);
 
         Promise.resolve(mapView.goTo(target)).catch(() => {});
       }
     },
     [mapView, setDraftGeometries, stopSketch, table],
   );
+
+  const handleSketchCreate: EventHandler<HTMLArcgisSketchElement['arcgisCreate']> = useCallback(
+    (event) => {
+      const { state, graphic } = event.detail;
+
+      if (state === 'complete' && graphic?.geometry) {
+        if (activeToolRef.current === 'cut' && graphic.geometry.type === 'polyline') {
+          const currentTable = tableRef.current;
+
+          if (!currentTable || currentTable === 'POINT') {
+            syncSketchLayerGeometries(geometriesRef.current);
+            setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
+
+            return;
+          }
+
+          try {
+            const result = cutDraftGeometries({
+              geometries: geometriesRef.current,
+              cutGeometry: graphic.geometry as Polyline,
+              table: currentTable,
+            });
+
+            syncSketchLayerGeometries(result.geometries);
+
+            if (!result.changed) {
+              setGeometryError(result.error);
+              setDrawingState(result.geometries.length > 0 ? 'complete' : 'idle');
+
+              return;
+            }
+
+            setGeometryError(null);
+            setDraftGeometries(result.geometries);
+            setDrawingState('complete');
+          } catch (error) {
+            setGeometryError(error instanceof Error ? error.message : 'Failed to cut the drafted geometry.');
+            syncSketchLayerGeometries(geometriesRef.current);
+            setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
+          } finally {
+            activeToolRef.current = 'draw';
+          }
+
+          return;
+        }
+
+        const geometry = graphic.geometry as Geometry;
+        const nextGeometries = [...geometriesRef.current, geometry];
+        const isMultipart = tableRef.current === 'POLY' || tableRef.current === 'LINE';
+
+        geometriesRef.current = nextGeometries;
+        setGeometries(nextGeometries);
+        setGeometryError(null);
+
+        if (!isMultipart) {
+          setDrawingState('complete');
+        }
+      } else if (state === 'cancel') {
+        setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
+      }
+    },
+    [setDraftGeometries, syncSketchLayerGeometries],
+  );
+
+  const handleSketchUpdate: EventHandler<HTMLArcgisSketchElement['arcgisUpdate']> = useCallback(
+    (event) => {
+      if (event.detail.state === 'start') {
+        setGeometryError(null);
+        setSelectedDraftCount(event.detail.graphics.length);
+        setDrawingState('editing');
+
+        return;
+      }
+
+      if (event.detail.state === 'active') {
+        setSelectedDraftCount(event.detail.graphics.length);
+
+        return;
+      }
+
+      if (event.detail.state === 'complete') {
+        syncGraphicsFromLayer();
+        setSelectedDraftCount(0);
+        setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
+      }
+    },
+    [syncGraphicsFromLayer],
+  );
+
+  const handleSketchDelete: EventHandler<HTMLArcgisSketchElement['arcgisDelete']> = useCallback(() => {
+    syncGraphicsFromLayer();
+    setSelectedDraftCount(0);
+    setGeometryError(null);
+    setDrawingState(geometriesRef.current.length > 0 ? 'editing' : 'idle');
+  }, [syncGraphicsFromLayer]);
 
   const handleUploadClear = useCallback(() => {
     stopSketch();
@@ -373,7 +487,7 @@ export default function FeatureGeometryEditor({
       return;
     }
 
-    const featureLayer = landOwnershipLayer as __esri.FeatureLayer;
+    const featureLayer = landOwnershipLayer as FeatureLayer;
     setLandOwnershipReferenceLayerVisible(featureLayer.visible);
 
     const handle = watch(
@@ -415,9 +529,11 @@ export default function FeatureGeometryEditor({
       return;
     }
 
-    sketchVMRef.current?.cancel();
-    sketchVMRef.current?.destroy();
-    sketchVMRef.current = null;
+    editSelectionClickHandlerRef.current?.remove();
+    editSelectionClickHandlerRef.current = null;
+    void getSketchElement().then((sketch) => {
+      void sketch?.cancel();
+    });
 
     if (graphicsLayerRef.current) {
       mapView.map?.remove(graphicsLayerRef.current);
@@ -441,145 +557,49 @@ export default function FeatureGeometryEditor({
     graphicsLayerRef.current = graphicsLayer;
     mapView.map?.add(graphicsLayer);
 
-    const isMultipart = table === 'POLY' || table === 'LINE';
-    const sketchVM = new SketchViewModel({
-      view: mapView,
-      layer: graphicsLayer,
-      creationMode: isMultipart ? 'continuous' : 'single',
-      updateOnGraphicClick: false,
-      defaultUpdateOptions: {
-        tool: 'reshape',
-        toggleToolOnClick: false,
-        multipleSelectionEnabled: false,
-      },
-      pointSymbol: getDraftPointSymbol(),
-      polylineSymbol: getDraftPolylineSymbol(),
-      polygonSymbol: getDraftPolygonSymbol(),
-    });
-    sketchVMRef.current = sketchVM;
-    syncSnappingOptions();
-
-    sketchVM.on('create', (event) => {
-      if (event.state === 'complete' && event.graphic.geometry) {
-        if (activeToolRef.current === 'cut' && event.graphic.geometry.type === 'polyline') {
-          const currentTable = tableRef.current;
-
-          if (!currentTable || currentTable === 'POINT') {
-            syncSketchLayerGeometries(geometriesRef.current);
-            setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
-
-            return;
-          }
-
-          try {
-            const result = cutDraftGeometries({
-              geometries: geometriesRef.current,
-              cutGeometry: event.graphic.geometry as __esri.Polyline,
-              table: currentTable,
-            });
-
-            syncSketchLayerGeometries(result.geometries);
-
-            if (!result.changed) {
-              setGeometryError(result.error);
-              setDrawingState(result.geometries.length > 0 ? 'complete' : 'idle');
-
-              return;
-            }
-
-            setGeometryError(null);
-            setDraftGeometries(result.geometries);
-            setDrawingState('complete');
-          } catch (error) {
-            setGeometryError(error instanceof Error ? error.message : 'Failed to cut the drafted geometry.');
-            syncSketchLayerGeometries(geometriesRef.current);
-            setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
-          } finally {
-            activeToolRef.current = 'draw';
-          }
-
-          return;
-        }
-
-        const geometry = event.graphic.geometry as __esri.Geometry;
-        const nextGeometries = [...geometriesRef.current, geometry];
-
-        geometriesRef.current = nextGeometries;
-        setGeometries(nextGeometries);
-        setGeometryError(null);
-
-        if (!isMultipart) {
-          setDrawingState('complete');
-        }
-      } else if (event.state === 'cancel') {
-        setDrawingState(geometriesRef.current.length > 0 ? 'complete' : 'idle');
-      }
-    });
-
-    sketchVM.on('update', (event) => {
-      if (event.state === 'start') {
-        setGeometryError(null);
-        setSelectedDraftCount(event.graphics.length);
-        setDrawingState('editing');
-
-        return;
-      }
-
-      if (event.state === 'active') {
-        setSelectedDraftCount(event.graphics.length);
-
-        return;
-      }
-
-      if (event.state === 'complete') {
-        syncGraphicsFromLayer();
-        setSelectedDraftCount(0);
-        setDrawingState(
-          sketchVM.updateOnGraphicClick ? 'editing' : geometriesRef.current.length > 0 ? 'complete' : 'idle',
-        );
-      }
-    });
-
-    sketchVM.on('delete', () => {
-      syncGraphicsFromLayer();
-      setSelectedDraftCount(0);
-      setGeometryError(null);
-      setDrawingState(
-        sketchVM.updateOnGraphicClick && graphicsLayer.graphics.length > 0
-          ? 'editing'
-          : graphicsLayer.graphics.length > 0
-            ? 'complete'
-            : 'idle',
-      );
-    });
-
     const initialGeometries = initialGeometriesRef.current;
+    let cancelled = false;
 
-    if (initialGeometries.length > 0) {
-      setDraftGeometries(cloneGeometries(initialGeometries));
-      setDrawingState('complete');
+    const initializeSketch = async () => {
+      const sketch = await getSketchElement();
 
-      return () => {
-        sketchVM.cancel();
-        sketchVM.destroy();
-        mapView.map?.remove(graphicsLayer);
-      };
-    }
+      if (!sketch || cancelled) {
+        return;
+      }
 
-    if (!disabled && autoStart) {
-      sketchVM.create(getDrawTool(table, polyDraftModeRef.current));
-      setDrawingState('drawing');
-    }
+      sketch.layer = graphicsLayer;
+      sketch.creationMode = table === 'POINT' ? 'single' : 'continuous';
+      syncSnappingOptions();
+
+      if (initialGeometries.length > 0) {
+        setDraftGeometries(cloneGeometries(initialGeometries));
+        setDrawingState('complete');
+
+        return;
+      }
+
+      if (!disabled && autoStart) {
+        await sketch.create(getDrawTool(table, polyDraftModeRef.current));
+        setDrawingState('drawing');
+      }
+    };
+
+    void initializeSketch();
 
     return () => {
-      sketchVM.cancel();
-      sketchVM.destroy();
+      cancelled = true;
+      editSelectionClickHandlerRef.current?.remove();
+      editSelectionClickHandlerRef.current = null;
+      void getSketchElement().then((sketch) => {
+        void sketch?.cancel();
+      });
       mapView.map?.remove(graphicsLayer);
     };
   }, [
     autoStart,
     disabled,
     featureType,
+    getSketchElement,
     mapView,
     normalizedInitialGeometries,
     onChange,
@@ -594,6 +614,66 @@ export default function FeatureGeometryEditor({
   useEffect(() => {
     syncSnappingOptions();
   }, [syncSnappingOptions]);
+
+  useEffect(() => {
+    if (drawingState !== 'editing' || !mapView || !graphicsLayerRef.current) {
+      editSelectionClickHandlerRef.current?.remove();
+      editSelectionClickHandlerRef.current = null;
+
+      return;
+    }
+
+    editSelectionClickHandlerRef.current?.remove();
+    editSelectionClickHandlerRef.current = mapView.on('click', (event) => {
+      const graphicsLayer = graphicsLayerRef.current;
+
+      if (!graphicsLayer) {
+        return;
+      }
+
+      mapView
+        .hitTest(event, { include: [graphicsLayer] })
+        .then((response) => {
+          const match = response.results.find((result) => {
+            const layerId = (result as GraphicHit).graphic?.layer?.id;
+
+            return layerId === graphicsLayer.id;
+          }) as GraphicHit | undefined;
+
+          if (!match?.graphic) {
+            setSelectedDraftCount(0);
+            void getSketchElement().then((sketch) => {
+              if (!sketch) {
+                return;
+              }
+
+              void sketch.cancel().then(() => {
+                setDrawingState('editing');
+              });
+            });
+
+            return;
+          }
+
+          setGeometryError(null);
+          void getSketchElement().then((sketch) => {
+            void sketch?.triggerUpdate(match.graphic, {
+              tool: 'reshape',
+              toggleToolOnClick: false,
+              multipleSelectionEnabled: false,
+            });
+          });
+        })
+        .catch((error) => {
+          console.error('Error selecting draft geometry for editing:', error);
+        });
+    });
+
+    return () => {
+      editSelectionClickHandlerRef.current?.remove();
+      editSelectionClickHandlerRef.current = null;
+    };
+  }, [drawingState, getSketchElement, mapView]);
 
   useEffect(() => {
     if (!mapView?.map) {
@@ -619,7 +699,7 @@ export default function FeatureGeometryEditor({
   }, [disabled, stopSketch]);
 
   const startDrawing = (nextPolyDraftMode: PolyDraftMode = polyDraftMode) => {
-    if (disabled || !sketchVMRef.current || !table) {
+    if (disabled || !table) {
       return;
     }
 
@@ -635,44 +715,56 @@ export default function FeatureGeometryEditor({
       setPolyDraftMode(nextPolyDraftMode);
     }
 
-    sketchVMRef.current.cancel();
-    sketchVMRef.current.updateOnGraphicClick = false;
-    sketchVMRef.current.creationMode = table === 'POINT' ? 'single' : 'continuous';
-    sketchVMRef.current.create(nextDrawTool);
+    editSelectionClickHandlerRef.current?.remove();
+    editSelectionClickHandlerRef.current = null;
+
+    void getSketchElement().then((sketch) => {
+      if (!sketch) {
+        return;
+      }
+
+      void sketch.cancel().then(() => {
+        sketch.creationMode = table === 'POINT' ? 'single' : 'continuous';
+        void sketch.create(nextDrawTool);
+      });
+    });
     setDrawingState('drawing');
   };
 
   const startCutting = () => {
-    if (disabled || !sketchVMRef.current || !table || !isCutEnabled) {
+    if (disabled || !table || !isCutEnabled) {
       return;
     }
 
-    sketchVMRef.current.cancel();
     activeToolRef.current = 'cut';
     setSelectedDraftCount(0);
-    sketchVMRef.current.updateOnGraphicClick = false;
-    sketchVMRef.current.creationMode = 'single';
-    sketchVMRef.current.create('polyline');
+    editSelectionClickHandlerRef.current?.remove();
+    editSelectionClickHandlerRef.current = null;
+    void getSketchElement().then((sketch) => {
+      if (!sketch) {
+        return;
+      }
+
+      void sketch.cancel().then(() => {
+        sketch.creationMode = 'single';
+        void sketch.create('polyline');
+      });
+    });
     setGeometryError(null);
     setDrawingState('cutting');
   };
 
   const startEditing = () => {
-    if (disabled || !sketchVMRef.current) {
+    if (disabled || geometriesRef.current.length === 0) {
       return;
     }
 
-    const layerGraphics = graphicsLayerRef.current?.graphics.toArray() ?? [];
-
-    if (layerGraphics.length === 0) {
-      return;
-    }
-
-    sketchVMRef.current.cancel();
-    sketchVMRef.current.updateOnGraphicClick = true;
     activeToolRef.current = 'draw';
     setGeometryError(null);
     setSelectedDraftCount(0);
+    void getSketchElement().then((sketch) => {
+      void sketch?.cancel();
+    });
     setDrawingState('editing');
   };
 
@@ -691,7 +783,9 @@ export default function FeatureGeometryEditor({
       return;
     }
 
-    sketchVMRef.current?.cancel();
+    void getSketchElement().then((sketch) => {
+      void sketch?.cancel();
+    });
     activeToolRef.current = 'draw';
     setSelectedDraftCount(0);
 
@@ -718,20 +812,28 @@ export default function FeatureGeometryEditor({
   };
 
   const deleteSelectedGeometry = () => {
-    if (disabled || !sketchVMRef.current || selectedDraftCount === 0) {
+    if (disabled || selectedDraftCount === 0) {
       return;
     }
 
-    sketchVMRef.current.delete();
+    void getSketchElement().then((sketch) => {
+      void sketch?.delete();
+    });
   };
 
   const finishActiveSketch = () => {
-    if (disabled || !sketchVMRef.current || !canFinishSketch) {
+    if (disabled || !canFinishSketch) {
       return;
     }
 
-    sketchVMRef.current.creationMode = 'single';
-    sketchVMRef.current.complete();
+    void getSketchElement().then((sketch) => {
+      if (!sketch) {
+        return;
+      }
+
+      sketch.creationMode = 'single';
+      void sketch.complete();
+    });
   };
 
   const resetDraftGeometries = () => {
@@ -1031,6 +1133,40 @@ export default function FeatureGeometryEditor({
           Buffer drafted lines before saving this polygon feature.
         </p>
       )}
+      <div className="h-0 overflow-hidden" aria-hidden="true">
+        <arcgis-sketch
+          ref={sketchRef}
+          referenceElement={config.MAIN_MAP_COMPONENT_ID}
+          defaultUpdateOptions={{
+            tool: 'reshape',
+            toggleToolOnClick: false,
+            multipleSelectionEnabled: false,
+          }}
+          pointSymbol={getDraftPointSymbol()}
+          polylineSymbol={getDraftPolylineSymbol()}
+          polygonSymbol={getDraftPolygonSymbol()}
+          hideCreateToolsCircle
+          hideCreateToolsMultipoint
+          hideCreateToolsPoint
+          hideCreateToolsPolygon
+          hideCreateToolsPolyline
+          hideCreateToolsRectangle
+          hideDeleteButton
+          hideDuplicateButton
+          hideLabelsToggle
+          hideSelectionCountLabel
+          hideSelectionToolsLassoSelection
+          hideSelectionToolsRectangleSelection
+          hideSettingsMenu
+          hideSnappingControls
+          hideTooltipsToggle
+          hideUndoRedoMenu
+          toolbarKind="docked"
+          onarcgisCreate={handleSketchCreate}
+          onarcgisDelete={handleSketchDelete}
+          onarcgisUpdate={handleSketchUpdate}
+        ></arcgis-sketch>
+      </div>
       {geometryError && <p className="text-xs text-red-600 dark:text-red-400">{geometryError}</p>}
     </div>
   );

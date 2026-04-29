@@ -1,13 +1,18 @@
 import Basemap from '@arcgis/core/Basemap';
 import esriConfig from '@arcgis/core/config.js';
+import type Geometry from '@arcgis/core/geometry/Geometry';
 import Graphic from '@arcgis/core/Graphic';
+import type GraphicsLayer from '@arcgis/core/layers/GraphicsLayer';
 import WebTileLayer from '@arcgis/core/layers/WebTileLayer';
+import type View2DConstraints from '@arcgis/core/views/2d/MapViewConstraints';
+import type Navigation from '@arcgis/core/views/navigation/Navigation';
 import type { EventHandler } from '@arcgis/lumina';
 import '@arcgis/map-components/components/arcgis-map';
 import '@arcgis/map-components/components/arcgis-sketch';
 import '@arcgis/map-components/components/arcgis-zoom';
 import { arcgisToGeoJSON } from '@terraformer/arcgis';
-import { Button, FileInput } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { FileInput } from '@ugrc/utah-design-system/src/components/FileInput';
 import { utahMercatorExtent } from '@ugrc/utilities/hooks';
 import { geoJSONToWkt } from 'betterknown';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -39,9 +44,9 @@ const basemap = new Basemap({
 });
 
 // @ts-expect-error the types are wrong, you can pass a partial constraints object
-const constraints: __esri.View2DConstraints = { snapToZoom: false };
+const constraints: View2DConstraints = { snapToZoom: false };
 
-const mapNavigation: __esri.Navigation = {
+const mapNavigation: Navigation = {
   // @ts-expect-error the types are wrong, you can pass a partial constraints object
   actionMap: {
     mouseWheel: 'none',
@@ -58,8 +63,8 @@ export default function App() {
     areaOfInterestRef.current = document.getElementById('aoiGeometry') as HTMLInputElement;
   }, []);
 
-  const handleUploadSuccess = useCallback(({ geometry, wkt3857 }: { geometry: __esri.Geometry; wkt3857: string }) => {
-    const graphicsLayer = searchRef.current?.layer as __esri.GraphicsLayer | undefined;
+  const handleUploadSuccess = useCallback(({ geometry, wkt3857 }: { geometry: Geometry; wkt3857: string }) => {
+    const graphicsLayer = searchRef.current?.layer as GraphicsLayer | undefined;
 
     if (!graphicsLayer) {
       throw new Error('Search graphics layer not found');
@@ -75,14 +80,16 @@ export default function App() {
 
     areaOfInterestRef.current.value = wkt3857;
 
-    if (mapRef.current?.view) {
-      void mapRef.current.view.goTo(geometry.extent?.clone().expand(1.2));
+    const targetExtent = geometry.extent?.clone().expand(1.2);
+
+    if (mapRef.current?.view && targetExtent) {
+      void mapRef.current.view.goTo(targetExtent);
     }
     setClearBtnDisabled(false);
   }, []);
 
   const clear = () => {
-    (searchRef.current?.layer as __esri.GraphicsLayer)?.removeAll();
+    (searchRef.current?.layer as GraphicsLayer)?.removeAll();
     if (areaOfInterestRef.current) {
       areaOfInterestRef.current.value = '';
     }
@@ -117,21 +124,19 @@ export default function App() {
   const onSketchCreate: EventHandler<HTMLArcgisSketchElement['arcgisCreate']> = (event) => {
     const { state, graphic } = event.detail;
 
-    if (state === 'complete') {
+    if (state === 'complete' && graphic?.geometry) {
       const geometry = graphic.geometry;
-      if (geometry) {
-        const esriJson = geometry.toJSON();
-        const geoJson = arcgisToGeoJSON(esriJson);
-        const wkt = geoJSONToWkt(geoJson);
+      const esriJson = geometry.toJSON();
+      const geoJson = arcgisToGeoJSON(esriJson);
+      const wkt = geoJSONToWkt(geoJson);
 
-        if (!areaOfInterestRef.current) {
-          throw new Error('Area of interest input node not found');
-        }
-
-        areaOfInterestRef.current.value = wkt;
-
-        setClearBtnDisabled(false);
+      if (!areaOfInterestRef.current) {
+        throw new Error('Area of interest input node not found');
       }
+
+      areaOfInterestRef.current.value = wkt;
+
+      setClearBtnDisabled(false);
     }
   };
 

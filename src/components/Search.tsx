@@ -1,18 +1,23 @@
 import Collection from '@arcgis/core/core/Collection';
 import { whenOnce } from '@arcgis/core/core/reactiveUtils';
+import type GraphicsLayer from '@arcgis/core/layers/GraphicsLayer';
+import type MapView from '@arcgis/core/views/MapView';
+import type LayerSearchSource from '@arcgis/core/widgets/Search/LayerSearchSource';
+import type LocatorSearchSource from '@arcgis/core/widgets/Search/LocatorSearchSource';
+import type SearchSource from '@arcgis/core/widgets/Search/SearchSource';
 import '@arcgis/map-components/components/arcgis-search';
 import { useRef } from 'react';
 import { blmDistricts, centroids, forestService, regions } from '../mapLayers';
 import './Search.css';
 
 type SearchProps = {
-  view: __esri.MapView;
+  view: MapView;
 };
 
 const clonedCentroids = centroids.clone();
 clonedCentroids.definitionExpression = null;
 
-const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearchSource>)[] = [
+const sources: (Partial<LayerSearchSource> | Partial<LocatorSearchSource>)[] = [
   {
     // We clone the layers so that the search component will put a graphic in the default graphics layer
     // rather than highlight the feature in the original layer, which would require the layer to be turned on.
@@ -70,7 +75,7 @@ const sources: (Partial<__esri.LayerSearchSource> | Partial<__esri.LocatorSearch
     url: 'https://masquerade.ugrc.utah.gov/arcgis/rest/services/UtahLocator/GeocodeServer',
   },
 ];
-const sourcesCollection = new Collection(sources);
+const sourcesCollection = new Collection(sources as unknown as SearchSource[]);
 
 export function Search({ view }: SearchProps) {
   const searchElementRef = useRef<HTMLArcgisSearchElement>(null);
@@ -79,7 +84,7 @@ export function Search({ view }: SearchProps) {
     const graphic = searchElementRef.current?.resultGraphic;
     if (graphic) {
       whenOnce(() => view.interacting).then(() => {
-        (graphic.layer as __esri.GraphicsLayer)?.graphics.remove(graphic);
+        (graphic.layer as GraphicsLayer)?.graphics.remove(graphic);
       });
     }
   };
@@ -92,7 +97,7 @@ export function Search({ view }: SearchProps) {
       includeDefaultSourcesDisabled
       locationDisabled={true}
       popupDisabled={true}
-      sources={sourcesCollection}
+      sources={sourcesCollection as unknown as HTMLArcgisSearchElement['sources']}
       view={view}
     ></arcgis-search>
   );

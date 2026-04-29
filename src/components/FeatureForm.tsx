@@ -1,4 +1,8 @@
-import { Button, Checkbox, Select, SelectItem, TextArea } from '@ugrc/utah-design-system';
+import type Geometry from '@arcgis/core/geometry/Geometry';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Checkbox } from '@ugrc/utah-design-system/src/components/Checkbox';
+import { Select, SelectItem } from '@ugrc/utah-design-system/src/components/Select';
+import { TextArea } from '@ugrc/utah-design-system/src/components/TextArea';
 import {
   hasRequiredHerbicideSelections,
   isAffectedAreaCategory,
@@ -63,7 +67,7 @@ export type FeatureFormInitialValues = {
   featureType: string;
   retreatment: boolean;
   actions: FormPolyAction[] | FormPointLineAction[] | null;
-  initialGeometry: __esri.Geometry | __esri.Geometry[] | null;
+  initialGeometry: Geometry | Geometry[] | null;
 };
 
 type FeatureFormMode = 'create' | 'edit';

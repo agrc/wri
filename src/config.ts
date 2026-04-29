@@ -6,6 +6,7 @@ import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
 import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol';
 
 const config = {
+  MAIN_MAP_COMPONENT_ID: 'wri-map',
   MIN_DESKTOP_WIDTH: 768,
   WEB_MERCATOR_WKID: 3857,
   MARKER_FILL_COLOR: [234, 202, 0, 0.5],

@@ -1,4 +1,5 @@
 import Collection from '@arcgis/core/core/Collection';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { type Key } from 'react-aria';
 import { useImmerReducer } from 'use-immer';
@@ -85,7 +86,7 @@ const reducer = (draft: typeof initialState, action: FilterAction) => {
 };
 
 const setDefinitionExpression = (
-  layers: Collection<__esri.FeatureLayer>,
+  layers: Collection<FeatureLayer>,
   expressions: {
     centroids: string;
     point: string;
@@ -115,7 +116,7 @@ export const FilterProvider = ({
   featureLayers,
 }: {
   children: React.ReactNode;
-  featureLayers: __esri.Collection<__esri.FeatureLayer>;
+  featureLayers: Collection<FeatureLayer>;
 }) => {
   const [state, dispatch] = useImmerReducer(reducer, initialState);
   const editingDomainsQuery = useEditingDomains(true);

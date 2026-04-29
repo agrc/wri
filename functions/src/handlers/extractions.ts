@@ -12,8 +12,8 @@ import type Polygon from '@arcgis/core/geometry/Polygon.js';
 import type Polyline from '@arcgis/core/geometry/Polyline.js';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference.js';
 import { fromJSON as geometryFromJSON, getJsonType } from '@arcgis/core/geometry/support/jsonUtils.js';
+import type { GeometryUnion } from '@arcgis/core/geometry/types.js';
 import Graphic from '@arcgis/core/Graphic.js';
-import type { GeometryUnion } from '@arcgis/core/unionTypes.js';
 import type { IQueryFeaturesOptions, IQueryFeaturesResponse } from '@esri/arcgis-rest-feature-service';
 import { queryFeatures } from '@esri/arcgis-rest-feature-service';
 import type { IFeature, IGeometry } from '@esri/arcgis-rest-request';
@@ -22,6 +22,7 @@ import ky from 'ky';
 
 // Use a params shape that matches the query options except `url` (we add the URL later)
 type QueryParams = Omit<IQueryFeaturesOptions, 'url'>;
+type ProjectableGeometry = Polygon | Polyline | Multipoint;
 
 const FEATURE_QUERY_TIMEOUT_MS = 60000;
 
@@ -74,8 +75,19 @@ function appendArcGISQueryParam(searchParams: URLSearchParams, key: string, valu
     return;
   }
 
-  if (key === 'outSR' && value instanceof SpatialReference) {
-    searchParams.set(key, String(value.wkid));
+  if (key === 'outSR') {
+    const wkid =
+      value instanceof SpatialReference
+        ? value.wkid
+        : typeof value === 'object' && value !== null && 'wkid' in value
+          ? (value as { wkid?: unknown }).wkid
+          : undefined;
+
+    if (typeof wkid === 'number') {
+      searchParams.set(key, String(wkid));
+
+      return;
+    }
 
     return;
   }
@@ -95,6 +107,32 @@ function appendArcGISQueryParam(searchParams: URLSearchParams, key: string, valu
   }
 
   searchParams.set(key, String(value));
+}
+
+function isProjectableGeometry(geometry: GeometryUnion | null | undefined): geometry is ProjectableGeometry {
+  return geometry?.type === 'polygon' || geometry?.type === 'polyline' || geometry?.type === 'multipoint';
+}
+
+function getRequiredGeometryType(geometry: ProjectableGeometry): NonNullable<QueryParams['geometryType']> {
+  const geometryType = getJsonType(geometry);
+
+  if (!geometryType) {
+    throw new Error('Unable to determine geometry type for ArcGIS query.');
+  }
+
+  return geometryType;
+}
+
+function getRequiredWkid(spatialReference: SpatialReference): number {
+  if (typeof spatialReference.wkid !== 'number') {
+    throw new Error('Expected a spatial reference with a numeric WKID.');
+  }
+
+  return spatialReference.wkid;
+}
+
+function toRestGeometry(geometry: ProjectableGeometry): IGeometry {
+  return geometry.toJSON() as unknown as IGeometry;
 }
 
 function buildArcGISQueryBody(params?: Record<string, SerializableParam>): URLSearchParams {
@@ -135,7 +173,7 @@ function summarizeGeometry(geometry: Polygon | Polyline | Multipoint) {
   const geometryJson =
     typeof geometry.toJSON === 'function'
       ? (geometry.toJSON() as Record<string, unknown>)
-      : (geometry as Record<string, unknown>);
+      : (geometry as unknown as Record<string, unknown>);
   const serializedGeometry = JSON.stringify(geometryJson);
 
   return {
@@ -231,12 +269,12 @@ export async function queryFeatureService(
   const geometrySummary = summarizeGeometry(intersectionGeometry);
   const baseParams = {
     f: 'json',
-    geometry: intersectionGeometry,
-    geometryType: getJsonType(intersectionGeometry),
+    geometry: toRestGeometry(intersectionGeometry),
+    geometryType: getRequiredGeometryType(intersectionGeometry),
     spatialRel: 'esriSpatialRelIntersects',
     outFields: outFields,
     returnGeometry: true,
-    outSR: SPATIAL_REFERENCES.UTM_ZONE_12N,
+    outSR: { wkid: getRequiredWkid(SPATIAL_REFERENCES.UTM_ZONE_12N) },
   } satisfies QueryParams;
 
   let allFeatures: IFeature[] = [];
@@ -308,11 +346,21 @@ export async function queryFeatureService(
 
   logger.debug(`Retrieved ${allFeatures.length} total features from ${serviceUrl}`);
 
-  const converted = allFeatures.map((feature) => {
+  const converted = allFeatures.flatMap((feature) => {
     const geometry = geometryFromJSON(feature.geometry as IFeature['geometry'] | IGeometry);
+
+    if (!isProjectableGeometry(geometry)) {
+      logger.warn('Skipping feature with unsupported geometry returned from feature service', {
+        geometryType: geometry?.type,
+        serviceUrl,
+      });
+
+      return [];
+    }
+
     geometry.spatialReference = SPATIAL_REFERENCES.UTM_ZONE_12N;
 
-    return new Graphic({ ...feature, geometry });
+    return [new Graphic({ attributes: feature.attributes, geometry })];
   });
 
   return { features: converted } as IQueryFeaturesResponse;
@@ -325,9 +373,9 @@ export async function queryFeatureService(
  * @returns Projected geometries
  */
 export async function projectGeometries(
-  geometries: Array<GeometryUnion>,
+  geometries: ProjectableGeometry[],
   toSR: SpatialReference,
-): Promise<Array<GeometryUnion>> {
+): Promise<ProjectableGeometry[]> {
   logger.debug('Projecting geometries', { toSR });
 
   if (!projectIsLoaded()) {
@@ -336,7 +384,7 @@ export async function projectGeometries(
 
   const result = (await projectMany(geometries, toSR)) as Array<GeometryUnion | null | undefined>;
 
-  return result;
+  return result.filter(isProjectableGeometry);
 }
 
 /**
@@ -344,7 +392,7 @@ export async function projectGeometries(
  * @param geometries - Array of geometries to union
  * @returns Unioned geometry
  */
-export async function unionGeometries(geometries: Array<GeometryUnion>): Promise<GeometryUnion | null> {
+export async function unionGeometries(geometries: ProjectableGeometry[]): Promise<ProjectableGeometry | null> {
   if (geometries.length === 0) {
     return null;
   }
@@ -370,10 +418,14 @@ export async function unionGeometries(geometries: Array<GeometryUnion>): Promise
       return null;
     }
 
+    if (!isProjectableGeometry(result)) {
+      return null;
+    }
+
     unioned = result;
   }
 
-  return unioned;
+  return isProjectableGeometry(unioned) ? unioned : null;
 }
 
 /**
@@ -383,9 +435,9 @@ export async function unionGeometries(geometries: Array<GeometryUnion>): Promise
  * @returns Array of intersection geometries
  */
 export async function calculateIntersection(
-  clipGeometry: GeometryUnion,
-  inputGeometry: GeometryUnion,
-): Promise<Array<GeometryUnion>> {
+  clipGeometry: ProjectableGeometry,
+  inputGeometry: ProjectableGeometry,
+): Promise<ProjectableGeometry[]> {
   if (!clipGeometry || !inputGeometry) {
     throw new Error('Missing input geometry for intersection');
   }
@@ -398,7 +450,7 @@ export async function calculateIntersection(
     return [];
   }
 
-  return [intersection];
+  return isProjectableGeometry(intersection) ? [intersection] : [];
 }
 
 /**
@@ -408,7 +460,7 @@ export async function calculateIntersection(
  * @returns Areas (for polygons) and lengths (for polylines) in UTM meters
  */
 export async function calculateAreasAndLengths(
-  geometries: Array<IFeature['geometry'] | IGeometry>,
+  geometries: ProjectableGeometry[],
   geometryType: string,
 ): Promise<AreasAndLengthsResponse> {
   logger.debug('Calculating areas and lengths');
@@ -476,7 +528,7 @@ export async function extractIntersections(
     throw new Error('No input geometry provided');
   }
 
-  let clipGeometry: Array<Polygon | Polyline | Multipoint>;
+  let clipGeometry: ProjectableGeometry[];
   if (inputClipGeometry.spatialReference?.wkid !== SPATIAL_REFERENCES.UTM_ZONE_12N.wkid) {
     // Project clip geometry to UTM Zone 12N (26912)
     clipGeometry = await projectGeometries([inputClipGeometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
@@ -488,7 +540,13 @@ export async function extractIntersections(
     clipGeometry = [inputClipGeometry];
   }
 
-  await accelerateGeometry(clipGeometry[0]);
+  const clip = clipGeometry[0];
+
+  if (!clip) {
+    throw new Error('Failed to prepare input geometry for extraction.');
+  }
+
+  await accelerateGeometry(clip);
 
   // Process each layer in the criteria
   for (const [layerName, layerCriteria] of Object.entries(criteria)) {
@@ -505,7 +563,7 @@ export async function extractIntersections(
 
     try {
       // Response features are returned in UTM Zone 12N (26912) as specified by outSR parameter
-      const featureSet = await queryFeatureService(config.url, clipGeometry[0], layerCriteria.attributes);
+      const featureSet = await queryFeatureService(config.url, clip, layerCriteria.attributes);
       const graphics = (featureSet && (featureSet.features as Graphic[])) || [];
 
       if (graphics.length === 0) {
@@ -518,7 +576,7 @@ export async function extractIntersections(
 
       // Process each feature - calculate intersections in UTM Zone 12N
       const layerResults: Array<{
-        geometry: GeometryUnion;
+        geometry: ProjectableGeometry;
         attributes: Record<string, string | number>;
       }> = [];
 
@@ -530,7 +588,16 @@ export async function extractIntersections(
         }
 
         // Calculate intersection geometry (both geometries are in UTM 26912)
-        const intersections = await calculateIntersection(clipGeometry[0], feature.geometry);
+        if (!isProjectableGeometry(feature.geometry)) {
+          logger.warn('Skipping feature with unsupported geometry during intersection calculation', {
+            featureAttributes: feature.attributes,
+            layer,
+          });
+
+          continue;
+        }
+
+        const intersections = await calculateIntersection(clip, feature.geometry);
 
         if (intersections.length === 0 || !intersections[0]) {
           logger.debug(`No intersection geometry returned for feature`, {
@@ -566,7 +633,7 @@ export async function extractIntersections(
       // Group intersection geometries by their attribute values
       const groupedByAttributes = new Map<
         string,
-        { geometries: Array<GeometryUnion>; attributes: Record<string, string | number> }
+        { geometries: ProjectableGeometry[]; attributes: Record<string, string | number> }
       >();
 
       for (const result of layerResults) {
@@ -594,7 +661,7 @@ export async function extractIntersections(
       const measureGeometryType = isPolylineLayer ? 'esriGeometryPolyline' : 'esriGeometryPolygon';
 
       for (const [, group] of groupedByAttributes) {
-        let finalGeometry: GeometryUnion | null = null;
+        let finalGeometry: ProjectableGeometry | null = null;
 
         if (group.geometries.length === 1 && group.geometries[0]) {
           // Single geometry, no need to union

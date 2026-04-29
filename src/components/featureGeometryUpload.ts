@@ -1,3 +1,4 @@
+import type Geometry from '@arcgis/core/geometry/Geometry';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
 import type { AllowedGeometryType } from '../hooks/useShapefileUpload';
 
@@ -18,7 +19,7 @@ export const getAllowedUploadGeometryTypes = (table: FeatureTable): AllowedGeome
 
 export const getPolyDraftModeForUploadedGeometry = (
   table: FeatureTable,
-  geometryType: __esri.Geometry['type'],
+  geometryType: Geometry['type'],
 ): PolyDraftMode => {
   if (table === 'POLY' && geometryType === 'polyline') {
     return 'buffered-line';

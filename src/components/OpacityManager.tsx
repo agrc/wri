@@ -1,4 +1,9 @@
-import { Button, Popover, Slider, Tooltip } from '@ugrc/utah-design-system';
+import type Collection from '@arcgis/core/core/Collection';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Popover } from '@ugrc/utah-design-system/src/components/Popover';
+import { Slider } from '@ugrc/utah-design-system/src/components/Slider';
+import { Tooltip } from '@ugrc/utah-design-system/src/components/Tooltip';
 import { BlendIcon } from 'lucide-react';
 import { useState } from 'react';
 import { DialogTrigger, TooltipTrigger } from 'react-aria-components';
@@ -8,12 +13,12 @@ const DEFAULT_POLY_OPACITY = 70;
 
 type OpacityManagerProps =
   | {
-      layer: __esri.FeatureLayer;
+      layer: FeatureLayer;
       oid?: number;
       disabled?: boolean;
     }
   | {
-      layers: __esri.Collection<__esri.FeatureLayer> | null;
+      layers: Collection<FeatureLayer> | null;
       disabled?: boolean;
     };
 

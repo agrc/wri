@@ -1,8 +1,13 @@
 import Collection from '@arcgis/core/core/Collection';
+import type { EditsResult } from '@arcgis/core/editing/types';
+import type Geometry from '@arcgis/core/geometry/Geometry';
 import { fromJSON } from '@arcgis/core/geometry/support/jsonUtils';
 import Graphic from '@arcgis/core/Graphic';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Switch, Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Switch } from '@ugrc/utah-design-system/src/components/Switch';
+import { Tab, TabList, TabPanel, Tabs } from '@ugrc/utah-design-system/src/components/Tabs';
 import type {
   CreateFeatureData,
   CreateFeatureRequest,
@@ -109,7 +114,7 @@ const buildPolygonActions = (polyGroup: PolygonFeature[]): FormPolyAction[] => {
 const buildFeatureFormInitialValues = (
   project: ProjectResponse,
   selection: FeatureSelectionIdentity,
-  initialGeometry: __esri.Geometry,
+  initialGeometry: Geometry,
 ): FeatureFormInitialValues | null => {
   if (selection.kind === 'poly') {
     const polyGroup = Object.values(project.polygons ?? {}).find((group) => group[0]?.id === selection.id);
@@ -156,15 +161,15 @@ const buildFeatureFormInitialValues = (
   };
 };
 
-const buildDisplayGeometry = (geometry: CreateFeatureData['geometry']): __esri.Geometry => {
-  const parseGeometry = (value: object): __esri.Geometry => {
+const buildDisplayGeometry = (geometry: CreateFeatureData['geometry']): Geometry => {
+  const parseGeometry = (value: object): Geometry => {
     const parsedGeometry = fromJSON(value);
 
     if (!parsedGeometry) {
       throw new Error('Failed to parse display geometry.');
     }
 
-    return parsedGeometry as __esri.Geometry;
+    return parsedGeometry as Geometry;
   };
 
   if (!Array.isArray(geometry)) {
@@ -251,7 +256,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
 
   const queryClient = useQueryClient();
 
-  const logDeleteFeatureResult = (results: __esri.EditsResult, featureId: number) => {
+  const logDeleteFeatureResult = (results: EditsResult, featureId: number) => {
     const deleteResult = results.deleteFeatureResults?.[0];
 
     if (!deleteResult) {
@@ -305,7 +310,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
 
   const getFeatureLayer = useCallback(
     (kind: FeatureKind) =>
-      mapView?.map?.findLayerById(`project-${projectId}-feature-${kind}`) as __esri.FeatureLayer | undefined | null,
+      mapView?.map?.findLayerById(`project-${projectId}-feature-${kind}`) as FeatureLayer | undefined | null,
     [mapView, projectId],
   );
 
@@ -316,7 +321,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     setIsEditing(false);
   }, []);
 
-  const logAddFeatureResult = (results: __esri.EditsResult, featureId: number) => {
+  const logAddFeatureResult = (results: EditsResult, featureId: number) => {
     console.log('Add feature results from applyEdits:', results);
     const addResult = results.addFeatureResults?.[0];
 
@@ -333,7 +338,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     console.log(`Feature added to map layer: ${featureId}`);
   };
 
-  const logUpdateFeatureResult = (results: __esri.EditsResult, featureId: number) => {
+  const logUpdateFeatureResult = (results: EditsResult, featureId: number) => {
     const updateResult = results.updateFeatureResults?.[0];
 
     if (!updateResult) {
@@ -377,7 +382,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
       const layer = getFeatureLayer(kind);
 
       if (layer) {
-        let geom: __esri.Geometry;
+        let geom: Geometry;
 
         try {
           geom = buildDisplayGeometry(variables.geometry);
@@ -433,7 +438,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
         return;
       }
 
-      let geom: __esri.Geometry;
+      let geom: Geometry;
 
       try {
         geom = buildDisplayGeometry(variables.geometry);
@@ -605,7 +610,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
           outFields: ['FeatureID'],
           returnGeometry: true,
         });
-        const geometry = results.features[0]?.geometry?.clone() as __esri.Geometry | undefined;
+        const geometry = results.features[0]?.geometry?.clone() as Geometry | undefined;
 
         if (!geometry) {
           throw new Error('Failed to load the selected feature geometry.');
@@ -864,10 +869,10 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                         }
                         onViewDetails={() => setSelectedTab('featureDetails')}
                         renderOpacity={(layerId, oid) => {
-                          const layer = mapView?.map?.findLayerById(layerId) as __esri.FeatureLayer | undefined | null;
+                          const layer = mapView?.map?.findLayerById(layerId) as FeatureLayer | undefined | null;
                           if (!mapView?.ready || !layer) return null;
 
-                          return <OpacityManager layer={layer as __esri.FeatureLayer} oid={oid} />;
+                          return <OpacityManager layer={layer as FeatureLayer} oid={oid} />;
                         }}
                       />
                     </div>

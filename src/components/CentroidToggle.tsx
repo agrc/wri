@@ -1,11 +1,13 @@
-import { Button, Switch } from '@ugrc/utah-design-system';
+import type MapView from '@arcgis/core/views/MapView';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Switch } from '@ugrc/utah-design-system/src/components/Switch';
 import { LockIcon, UnlockIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useMap } from './hooks';
 
 const defaultSwitchScale = 75000; // level 13
 
-const toggle = (mapView: __esri.MapView, layerId: string, selected: boolean) => {
+const toggle = (mapView: MapView, layerId: string, selected: boolean) => {
   if (!layerId) {
     return;
   }

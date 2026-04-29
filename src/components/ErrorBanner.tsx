@@ -1,4 +1,5 @@
-import { Banner, Button } from '@ugrc/utah-design-system';
+import { Banner } from '@ugrc/utah-design-system/src/components/Banner';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
 import { X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 

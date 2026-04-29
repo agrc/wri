@@ -1,13 +1,19 @@
+import type { ResourceHandle } from '@arcgis/core/core/Handles';
+import type Extent from '@arcgis/core/geometry/Extent';
 import Graphic from '@arcgis/core/Graphic';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import Field from '@arcgis/core/layers/support/Field';
-import EsriMap from '@arcgis/core/Map';
+import type UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer';
 import OpacityVariable from '@arcgis/core/renderers/visualVariables/OpacityVariable';
 import MapView from '@arcgis/core/views/MapView';
-import type { LayerSelectorProps } from '@ugrc/utah-design-system';
-import { BusyBar, HomeButton, LayerSelector } from '@ugrc/utah-design-system';
+import type { GraphicHit } from '@arcgis/core/views/types';
+import '@arcgis/map-components/components/arcgis-map';
+import { LayerSelector } from '@ugrc/utah-design-system/src/components/LayerSelector';
+import { BusyBar } from '@ugrc/utah-design-system/src/components/Spinner';
 import { useMapReady, useViewLoading, utahMercatorExtent } from '@ugrc/utilities/hooks';
+import { HouseIcon } from 'lucide-react';
 import { useContext, useEffect, useRef, useState } from 'react';
+import config from '../config';
 import {
   blmDistricts,
   centroids,
@@ -29,27 +35,26 @@ import {
 import { ProjectContext, useFeatureSelection } from './contexts';
 import { getFeatureKindFromLayerId } from './featureSelection';
 import { useMap, useProjectNavigation } from './hooks';
+import { MapButton } from './MapButton';
 import { NavigationHistory } from './NavigationHistory';
 import { PrintMap } from './PrintMap.tsx';
 import { Tooltip } from './Tooltip.tsx';
 
 type ExtentQueryResult = {
-  extent: __esri.Extent;
+  extent: Extent | null;
   count: number;
 };
 
 export const MapContainer = () => {
-  const mapNode = useRef<HTMLDivElement | null>(null);
-  const mapComponent = useRef<EsriMap | null>(null);
+  const mapNode = useRef<HTMLArcgisMapElement | null>(null);
   const mapView = useRef<MapView | null>(null);
-  const [selectorOptions, setSelectorOptions] = useState<LayerSelectorProps['options'] | null>(null);
-  const { setMapView, addLayers } = useMap();
+  const { setMapView } = useMap();
   const isReady = useMapReady(mapView.current);
   const isLoading = useViewLoading(mapView.current);
-  const operationalLayers = useRef<__esri.FeatureLayer[]>([]);
+  const operationalLayers = useRef<FeatureLayer[]>([]);
   const [layersReady, setLayersReady] = useState(false);
   const hasAddedLayers = useRef(false);
-  const projectFeatureClickHandler = useRef<__esri.Handle | null>(null);
+  const projectFeatureClickHandler = useRef<ResourceHandle | null>(null);
   const projectContext = useContext(ProjectContext);
   const { clearSelection, isMapSelectionEnabled, selectFeature } = useFeatureSelection();
   let currentProject = 0;
@@ -64,51 +69,46 @@ export const MapContainer = () => {
       return;
     }
 
-    mapComponent.current = new EsriMap();
+    const mapElement = mapNode.current;
+    let cancelled = false;
 
-    mapView.current = new MapView({
-      container: mapNode.current,
-      map: mapComponent.current,
-      extent: utahMercatorExtent,
-      popup: {
-        dockEnabled: true,
-        visibleElements: {
-          collapseButton: false,
-        },
-        dockOptions: {
+    void mapElement.viewOnReady().then(() => {
+      if (cancelled) {
+        return;
+      }
+
+      const view = mapElement.view;
+
+      if (!view || view.type !== '2d') {
+        return;
+      }
+
+      mapView.current = view as MapView;
+      mapView.current.constraints.snapToZoom = false;
+      if (mapElement.popupElement) {
+        mapElement.popupElement.dockEnabled = true;
+        mapElement.popupElement.dockOptions = {
           position: 'top-right',
           buttonEnabled: false,
           breakpoint: false,
-        },
-      },
-      constraints: {
-        snapToZoom: false,
-      },
-      ui: {
-        components: ['zoom'],
-      },
+        };
+      }
+      setMapView(mapView.current);
     });
 
-    setMapView(mapView.current);
-
-    const selectorOptions: LayerSelectorProps['options'] = {
-      view: mapView.current,
-      quadWord: import.meta.env.VITE_DISCOVER,
-      basemaps: ['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR', 'High Contrast'],
-      position: 'top-right',
-    };
-
-    setSelectorOptions(selectorOptions);
-
     return () => {
-      mapView.current?.destroy();
-      mapComponent.current?.destroy();
+      cancelled = true;
+      projectFeatureClickHandler.current?.remove();
+      projectFeatureClickHandler.current = null;
+      mapView.current = null;
     };
   }, [setMapView]);
 
   // add the map layers (only once)
   useEffect(() => {
-    if (!isReady || hasAddedLayers.current) {
+    const activeMap = mapNode.current?.map;
+
+    if (!isReady || hasAddedLayers.current || !activeMap) {
       if (!isReady) {
         setLayersReady(false);
         hasAddedLayers.current = false;
@@ -135,14 +135,20 @@ export const MapContainer = () => {
     ];
     operationalLayers.current = [polygons, lines, points, centroids];
 
-    addLayers(referenceLayers.concat(operationalLayers.current));
+    activeMap.addMany(referenceLayers.concat(operationalLayers.current));
     hasAddedLayers.current = true;
     setLayersReady(true);
-  }, [isReady, addLayers]);
+  }, [isReady]);
 
   // creating in memory feature layers and zooming to the extent of the current project
   useEffect(() => {
     if (!isReady || !layersReady || currentProject === 0) {
+      return;
+    }
+
+    const activeMap = mapNode.current?.map;
+
+    if (!activeMap) {
       return;
     }
 
@@ -166,7 +172,7 @@ export const MapContainer = () => {
         const featureSet = await layer.queryFeatures({ where, outFields, returnGeometry: true });
 
         const virtualFieldName = '_opacity';
-        const renderer = layer.renderer!.clone() as __esri.UniqueValueRenderer;
+        const renderer = layer.renderer!.clone() as UniqueValueRenderer;
         renderer.visualVariables = [
           new OpacityVariable({
             field: virtualFieldName,
@@ -213,16 +219,16 @@ export const MapContainer = () => {
           spatialReference: layer.spatialReference,
         });
 
-        mapView.current?.map!.add(featureLayer);
+        activeMap.add(featureLayer);
       }
     };
 
     getFeatures()
       .then(() => {
         const promises: Promise<ExtentQueryResult>[] = [];
-        mapComponent.current!.layers.forEach((layer) => {
+        activeMap.layers.forEach((layer) => {
           if (layer.id.startsWith(`project-${currentProject}-`)) {
-            const featureLayer = layer as __esri.FeatureLayer;
+            const featureLayer = layer as FeatureLayer;
 
             const query = featureLayer.createQuery();
             query.where = featureLayer.definitionExpression;
@@ -232,9 +238,9 @@ export const MapContainer = () => {
         });
 
         Promise.all(promises).then((results) => {
-          let combinedExtent: __esri.Extent | null = null;
+          let combinedExtent: Extent | null = null;
           results
-            .filter((x) => x.count > 0)
+            .filter((x): x is ExtentQueryResult & { extent: Extent } => x.count > 0 && x.extent != null)
             .forEach((x) => {
               if (combinedExtent) {
                 combinedExtent = combinedExtent.union(x.extent);
@@ -255,13 +261,15 @@ export const MapContainer = () => {
 
   // remove project specific layers when the project changes
   useEffect(() => {
-    if (!isReady || !layersReady) {
+    const activeMap = mapNode.current?.map;
+
+    if (!isReady || !layersReady || !activeMap) {
       return;
     }
 
-    mapComponent.current!.layers.forEach((layer) => {
+    activeMap.layers.forEach((layer) => {
       if (layer.id.startsWith('project-') && !layer.id.startsWith(`project-${currentProject}-`)) {
-        mapComponent.current!.remove(layer);
+        activeMap.remove(layer);
         layer.destroy();
       }
     });
@@ -290,9 +298,9 @@ export const MapContainer = () => {
 
     if (!projectFeatureClickHandler.current) {
       projectFeatureClickHandler.current = mapView.current.on('click', (event) => {
-        const include = mapComponent.current?.layers
+        const include = mapNode.current?.map?.layers
           .filter((layer) => layer.id.startsWith(`project-${currentProject}-feature-`))
-          .toArray() as __esri.FeatureLayer[] | undefined;
+          .toArray() as FeatureLayer[] | undefined;
 
         if (!include || include.length === 0) {
           return;
@@ -302,10 +310,10 @@ export const MapContainer = () => {
           .current!.hitTest(event, { include })
           .then((response) => {
             const match = response.results.find((result) => {
-              const layerId = (result as __esri.MapViewGraphicHit).graphic?.layer?.id;
+              const layerId = (result as GraphicHit).graphic?.layer?.id;
 
               return typeof layerId === 'string' && layerId.startsWith(`project-${currentProject}-feature-`);
-            }) as __esri.MapViewGraphicHit | undefined;
+            }) as GraphicHit | undefined;
 
             if (!match) {
               clearSelection();
@@ -345,18 +353,6 @@ export const MapContainer = () => {
     <>
       {mapView.current && (
         <>
-          <HomeButton
-            view={mapView.current}
-            actions={[
-              () => {
-                if (projectContext?.projectId) {
-                  window.location.hash = '';
-                }
-              },
-            ]}
-          />
-          <NavigationHistory view={mapView.current} />
-          <PrintMap view={mapView.current} position="top-right" />
           <BusyBar busy={isLoading} />
           {layersReady && (
             <Tooltip
@@ -368,9 +364,37 @@ export const MapContainer = () => {
           )}
         </>
       )}
-      <div ref={mapNode} className="size-full fill-black">
-        {selectorOptions?.view && <LayerSelector options={selectorOptions}></LayerSelector>}
-      </div>
+      <arcgis-map
+        ref={mapNode}
+        id={config.MAIN_MAP_COMPONENT_ID}
+        className="size-full fill-black"
+        basemap="streets"
+        extent={utahMercatorExtent}
+      >
+        {mapView.current && (
+          <MapButton
+            slot="top-left"
+            IconComponent={HouseIcon}
+            label="Go to default map extent"
+            className="border-b border-b-[#6e6e64]"
+            onPress={() => {
+              if (projectContext?.projectId) {
+                window.location.hash = '';
+              }
+
+              clearSelection();
+              void mapView.current?.goTo(utahMercatorExtent);
+            }}
+          />
+        )}
+        {mapView.current && <NavigationHistory view={mapView.current} />}
+        {mapView.current && <PrintMap view={mapView.current} position="top-right" />}
+        <LayerSelector
+          basemaps={['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR', 'High Contrast']}
+          quadWord={import.meta.env.VITE_DISCOVER}
+          slot="top-right"
+        />
+      </arcgis-map>
     </>
   );
 };

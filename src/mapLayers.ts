@@ -1,5 +1,8 @@
+import type { FeatureLayerProperties } from '@arcgis/core/layers/FeatureLayer.js';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer.js';
+import type { VectorTileLayerProperties } from '@arcgis/core/layers/VectorTileLayer.js';
 import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer.js';
+import type { WebTileLayerProperties } from '@arcgis/core/layers/WebTileLayer.js';
 import WebTileLayer from '@arcgis/core/layers/WebTileLayer.js';
 import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer.js';
 import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer.js';
@@ -13,11 +16,7 @@ import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol.js';
 import SimpleMarkerSymbol from '@arcgis/core/symbols/SimpleMarkerSymbol.js';
 import config from './config';
 
-type LegendMetadata = (
-  | __esri.VectorTileLayerProperties
-  | __esri.FeatureLayerProperties
-  | __esri.WebTileLayerProperties
-) & {
+type LegendMetadata = (VectorTileLayerProperties | FeatureLayerProperties | WebTileLayerProperties) & {
   legendDescription?: string;
 };
 

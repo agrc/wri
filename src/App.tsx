@@ -1,6 +1,7 @@
 import esriConfig from '@arcgis/core/config.js';
 import Collection from '@arcgis/core/core/Collection.js';
-import { Drawer } from '@ugrc/utah-design-system';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer.js';
+import { Drawer } from '@ugrc/utah-design-system/src/components/Drawer';
 import { useOverlayTrigger } from 'react-aria';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useOverlayTriggerState } from 'react-stately';
@@ -30,7 +31,7 @@ export default function App() {
 
   const { mapView } = useMap();
   const allLayers = mapView?.map?.layers ?? new Collection();
-  const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<__esri.FeatureLayer>;
+  const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<FeatureLayer>;
 
   return (
     <main className="flex h-full flex-1 flex-col md:gap-2">

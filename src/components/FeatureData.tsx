@@ -1,4 +1,6 @@
-import { Button, Radio, RadioGroup, Tag, TagGroup } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Radio, RadioGroup } from '@ugrc/utah-design-system/src/components/Radio';
+import { Tag, TagGroup } from '@ugrc/utah-design-system/src/components/TagGroup';
 import { type Dispatch, useContext } from 'react';
 import { type Key } from 'react-stately';
 import { type FilterAction, FilterContext } from './contexts';

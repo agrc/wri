@@ -1,3 +1,4 @@
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import { describe, expect, it, vi } from 'vitest';
 import { updateOpacity } from './updateOpacity';
 
@@ -20,7 +21,7 @@ describe('updateOpacity', () => {
       objectIdField: 'OBJECTID',
       queryFeatures,
       applyEdits,
-    } as unknown as __esri.FeatureLayer;
+    } as unknown as FeatureLayer;
 
     await updateOpacity(layer, 35, 42);
 
@@ -54,7 +55,7 @@ describe('updateOpacity', () => {
       objectIdField: 'OBJECTID',
       queryFeatures,
       applyEdits,
-    } as unknown as __esri.FeatureLayer;
+    } as unknown as FeatureLayer;
 
     await updateOpacity(layer, 35, 42);
 

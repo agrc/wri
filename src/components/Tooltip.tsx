@@ -1,3 +1,9 @@
+import type { ResourceHandle } from '@arcgis/core/core/Handles';
+import type { ScreenPoint } from '@arcgis/core/core/types';
+import type Point from '@arcgis/core/geometry/Point';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import type MapView from '@arcgis/core/views/MapView';
+import type { GraphicHit } from '@arcgis/core/views/types';
 import { useMapReady } from '@ugrc/utilities/hooks';
 import { useEffect, useRef, useState } from 'react';
 import { ProjectStatusTag } from './ProjectStatusTag';
@@ -14,13 +20,13 @@ export const Tooltip = ({
   layersRef,
   enabled,
 }: {
-  view: __esri.MapView;
-  layersRef: React.RefObject<__esri.FeatureLayer[]>;
+  view: MapView;
+  layersRef: React.RefObject<FeatureLayer[]>;
   enabled: boolean;
 }) => {
   const tooltipNode = useRef<HTMLDivElement | null>(null);
   const currentVisibleTooltipId = useRef<number | null>(null);
-  const pointerHandler = useRef<__esri.Handle | null>(null);
+  const pointerHandler = useRef<ResourceHandle | null>(null);
   const [hoverProject, setHoverProject] = useState<GraphicAttributes | null>(null);
   const isReady = useMapReady(view);
 
@@ -85,7 +91,7 @@ export const Tooltip = ({
       const localToken = ++token;
       const include = layersRef.current ?? [];
 
-      const screenPoint: __esri.MapViewScreenPoint = { x: lastEvent.x, y: lastEvent.y } as __esri.MapViewScreenPoint;
+      const screenPoint: ScreenPoint = { x: lastEvent.x, y: lastEvent.y } as ScreenPoint;
       view
         .hitTest(screenPoint, { include })
         .then((response) => {
@@ -98,7 +104,7 @@ export const Tooltip = ({
           }
 
           if (response.results.length) {
-            const result = (response.results[0] as __esri.MapViewGraphicHit).graphic;
+            const result = (response.results[0] as GraphicHit).graphic;
             const newId = result.attributes?.Project_ID as number | undefined;
             const visible = isVisible();
 
@@ -109,9 +115,9 @@ export const Tooltip = ({
               newId != null &&
               newId !== currentVisibleTooltipId.current
             ) {
-              let sp: __esri.MapViewScreenPoint | null | undefined = { x: lastEvent.x, y: lastEvent.y };
+              let sp: ScreenPoint | null | undefined = { x: lastEvent.x, y: lastEvent.y };
               if (result.geometry?.type === 'point') {
-                sp = view.toScreen(result.geometry as __esri.Point);
+                sp = view.toScreen(result.geometry as Point);
               }
 
               if (!sp) {
@@ -154,9 +160,9 @@ export const Tooltip = ({
             currentVisibleTooltipId.current = newId ?? null;
             setHoverProject(result.attributes as GraphicAttributes);
 
-            let sp: __esri.MapViewScreenPoint | null | undefined = { x: lastEvent.x, y: lastEvent.y };
+            let sp: ScreenPoint | null | undefined = { x: lastEvent.x, y: lastEvent.y };
             if (result.geometry?.type === 'point') {
-              sp = view.toScreen(result.geometry as __esri.Point);
+              sp = view.toScreen(result.geometry as Point);
             }
 
             if (!sp) {

@@ -1,4 +1,5 @@
 import Collection from '@arcgis/core/core/Collection';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import { useContext } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { CentroidToggle, ErrorFallback, FeatureData, ProjectStatus, Search, TagGroupLoader } from './';
@@ -16,7 +17,7 @@ export const GeneralView = () => {
   const { featureTypes, filtersError, filtersLoading, projectStatus } = useContext(FilterContext);
 
   const allLayers = mapView?.map?.layers ?? new Collection();
-  const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<__esri.FeatureLayer>;
+  const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<FeatureLayer>;
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
 
   return (

@@ -1,3 +1,7 @@
+import type { ResourceHandle } from '@arcgis/core/core/Handles';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import type MapView from '@arcgis/core/views/MapView';
+import type { GraphicHit } from '@arcgis/core/views/types';
 import { useMapReady } from '@ugrc/utilities/hooks';
 import { useCallback, useContext, useEffect, useRef, type RefObject } from 'react';
 import { ProjectContext } from '../contexts';
@@ -18,13 +22,13 @@ const handleHashChange = (hash: string) => {
 };
 
 export const useProjectNavigation = (
-  viewRef: RefObject<__esri.MapView | null>,
-  layersRef: RefObject<__esri.FeatureLayer[]>,
+  viewRef: RefObject<MapView | null>,
+  layersRef: RefObject<FeatureLayer[]>,
   enabled: boolean,
 ) => {
   const isReady = useMapReady(viewRef.current);
   const context = useContext(ProjectContext);
-  const clickHandler = useRef<__esri.Handle | null>(null);
+  const clickHandler = useRef<ResourceHandle | null>(null);
 
   if (context === null) {
     throw new Error('useProjectNavigation must be used within a ProjectContext');
@@ -70,7 +74,7 @@ export const useProjectNavigation = (
 
         viewRef.current!.hitTest(event, opts).then((response) => {
           if (response.results.length) {
-            const result = (response.results[0] as __esri.MapViewGraphicHit).graphic;
+            const result = (response.results[0] as GraphicHit).graphic;
 
             const id = handleHashChange(`id=${result.attributes?.Project_ID}`);
 

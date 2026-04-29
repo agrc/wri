@@ -1,7 +1,7 @@
 import { submitJob } from '@arcgis/core/rest/geoprocessor.js';
 import DataFile from '@arcgis/core/rest/support/DataFile';
 import { useMutation } from '@tanstack/react-query';
-import { Button } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
 import { Download } from 'lucide-react';
 import { ErrorBanner } from './ErrorBanner';
 

@@ -1,4 +1,7 @@
-import { AlertDialog, Button, Modal, Tooltip } from '@ugrc/utah-design-system';
+import { AlertDialog } from '@ugrc/utah-design-system/src/components/AlertDialog';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Modal } from '@ugrc/utah-design-system/src/components/Modal';
+import { Tooltip } from '@ugrc/utah-design-system/src/components/Tooltip';
 import type { Feature, FeatureKind, PolygonFeatures } from '@ugrc/wri-shared/types';
 import { BookOpenText, Pencil, Trash2 } from 'lucide-react';
 import React, { type JSX } from 'react';

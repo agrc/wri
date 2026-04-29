@@ -1,7 +1,10 @@
+import type Geometry from '@arcgis/core/geometry/Geometry.js';
 import * as areaOperator from '@arcgis/core/geometry/operators/areaOperator.js';
 import * as cutOperator from '@arcgis/core/geometry/operators/cutOperator.js';
 import * as geodesicBufferOperator from '@arcgis/core/geometry/operators/geodesicBufferOperator.js';
 import * as lengthOperator from '@arcgis/core/geometry/operators/lengthOperator.js';
+import type Polygon from '@arcgis/core/geometry/Polygon.js';
+import type Polyline from '@arcgis/core/geometry/Polyline.js';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
 
 export const CUT_DRAFT_NOOP_ERROR = 'The cut line did not split any drafted geometry.';
@@ -11,35 +14,35 @@ export const BUFFER_DRAFT_DISTANCES = [5, 10, 15] as const;
 
 type CuttableFeatureTable = Extract<FeatureTable, 'POLY' | 'LINE'>;
 type BufferableFeatureTable = Extract<FeatureTable, 'POLY'>;
-type SupportedDraftGeometry = __esri.Polygon | __esri.Polyline;
+type SupportedDraftGeometry = Polygon | Polyline;
 
 type CutDraftGeometriesParams = {
-  geometries: __esri.Geometry[];
-  cutGeometry: __esri.Polyline;
+  geometries: Geometry[];
+  cutGeometry: Polyline;
   table: CuttableFeatureTable;
 };
 
 type CutDraftGeometriesResult = {
-  geometries: __esri.Geometry[];
+  geometries: Geometry[];
   changed: boolean;
   error: string | null;
 };
 
 type BufferDraftGeometriesParams = {
-  geometries: __esri.Geometry[];
+  geometries: Geometry[];
   distance: number;
   table: BufferableFeatureTable;
 };
 
-const isPolygonGeometry = (geometry: __esri.Geometry): geometry is __esri.Polygon => geometry.type === 'polygon';
+const isPolygonGeometry = (geometry: Geometry): geometry is Polygon => geometry.type === 'polygon';
 
-const isPolylineGeometry = (geometry: __esri.Geometry): geometry is __esri.Polyline => geometry.type === 'polyline';
+const isPolylineGeometry = (geometry: Geometry): geometry is Polyline => geometry.type === 'polyline';
 
 const isSupportedBufferDistance = (distance: number): distance is (typeof BUFFER_DRAFT_DISTANCES)[number] => {
   return BUFFER_DRAFT_DISTANCES.includes(distance as (typeof BUFFER_DRAFT_DISTANCES)[number]);
 };
 
-export const canCutDraftGeometries = (table: FeatureTable | undefined, geometries: __esri.Geometry[]): boolean => {
+export const canCutDraftGeometries = (table: FeatureTable | undefined, geometries: Geometry[]): boolean => {
   if (geometries.length === 0) {
     return false;
   }
@@ -55,7 +58,7 @@ export const canCutDraftGeometries = (table: FeatureTable | undefined, geometrie
   return false;
 };
 
-export const canBufferDraftGeometries = (table: FeatureTable | undefined, geometries: __esri.Geometry[]): boolean => {
+export const canBufferDraftGeometries = (table: FeatureTable | undefined, geometries: Geometry[]): boolean => {
   return table === 'POLY' && geometries.some(isPolylineGeometry);
 };
 
@@ -67,10 +70,7 @@ const chooseDominantGeometry = (
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const piece of pieces) {
-    const score =
-      table === 'POLY'
-        ? areaOperator.execute(piece as __esri.Polygon)
-        : lengthOperator.execute(piece as __esri.Polyline);
+    const score = table === 'POLY' ? areaOperator.execute(piece as Polygon) : lengthOperator.execute(piece as Polyline);
 
     if (score > bestScore) {
       bestScore = score;

@@ -1,4 +1,8 @@
+import type Geometry from '@arcgis/core/geometry/Geometry';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import type EsriMap from '@arcgis/core/Map';
 import Viewpoint from '@arcgis/core/Viewpoint';
+import type MapView from '@arcgis/core/views/MapView';
 import { useCallback, useEffect, useRef } from 'react';
 
 type HighlightDetails = {
@@ -18,19 +22,19 @@ const FEATURE_ID_FIELD = 'FeatureID';
 const isProjectFeatureLayerId = (id?: string | null): boolean =>
   typeof id === 'string' && id.startsWith('project-') && id.includes('-feature-');
 
-const clearFeatureEffects = (map: __esri.Map | nullish) => {
+const clearFeatureEffects = (map: EsriMap | nullish) => {
   map?.allLayers.forEach((layer) => {
     if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
-      const featureLayer = layer as __esri.FeatureLayer;
+      const featureLayer = layer as FeatureLayer;
       featureLayer.featureEffect = null;
     }
   });
 };
 
-const muteAllFeatures = (map: __esri.Map | nullish) => {
+const muteAllFeatures = (map: EsriMap | nullish) => {
   map?.allLayers.forEach((layer) => {
     if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
-      const featureLayer = layer as __esri.FeatureLayer;
+      const featureLayer = layer as FeatureLayer;
       featureLayer.featureEffect = {
         excludedEffect: MUTED_EFFECT,
       };
@@ -39,10 +43,10 @@ const muteAllFeatures = (map: __esri.Map | nullish) => {
 };
 
 export const queryAndPrepareZoomGeometry = async (
-  layer: __esri.FeatureLayer,
+  layer: FeatureLayer,
   featureId: number,
   extentScale?: number,
-): Promise<__esri.Geometry | null> => {
+): Promise<Geometry | null> => {
   if (!Number.isFinite(featureId)) {
     throw new Error(`Invalid feature id: ${featureId}`);
   }
@@ -52,16 +56,16 @@ export const queryAndPrepareZoomGeometry = async (
 
   if (features.length > 0 && features[0]?.geometry) {
     const geometry = features[0].geometry;
-    return extentScale && geometry.extent ? (geometry.extent.expand(extentScale) as __esri.Geometry) : geometry;
+    return extentScale && geometry.extent ? (geometry.extent.expand(extentScale) as Geometry) : geometry;
   }
 
   return null;
 };
 
-export const useHighlight = (mapView: __esri.MapView | nullish) => {
+export const useHighlight = (mapView: MapView | nullish) => {
   const highlightedRef = useRef<HighlightDetails | null>(null);
   const zoomRequestIdRef = useRef(0);
-  const initialViewpointRef = useRef<__esri.Viewpoint | null>(null);
+  const initialViewpointRef = useRef<Viewpoint | null>(null);
 
   const clear = useCallback(() => {
     highlightedRef.current = null;
@@ -80,7 +84,7 @@ export const useHighlight = (mapView: __esri.MapView | nullish) => {
         return false;
       }
 
-      const layer = mapView.map?.findLayerById(details.layer) as __esri.FeatureLayer | nullish;
+      const layer = mapView.map?.findLayerById(details.layer) as FeatureLayer | nullish;
       if (!layer) {
         return false;
       }

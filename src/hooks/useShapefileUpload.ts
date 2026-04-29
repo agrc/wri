@@ -1,9 +1,11 @@
+import type Geometry from '@arcgis/core/geometry/Geometry';
 import Multipoint from '@arcgis/core/geometry/Multipoint';
 import Point from '@arcgis/core/geometry/Point';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference';
 import * as projectOperator from '@arcgis/core/geometry/operators/projectOperator';
 import * as unionOperator from '@arcgis/core/geometry/operators/unionOperator';
 import { fromJSON as geometryFromJSON } from '@arcgis/core/geometry/support/jsonUtils';
+import type { GeometryUnion } from '@arcgis/core/geometry/types';
 import { arcgisToGeoJSON, geojsonToArcGIS } from '@terraformer/arcgis';
 import { geoJSONToWkt } from 'betterknown';
 import type { FeatureCollection } from 'geojson';
@@ -14,7 +16,7 @@ type AllowedGeometryType = 'point' | 'multipoint' | 'polyline' | 'polygon';
 
 type UseShapefileUploadOptions = {
   allowedGeometryTypes?: AllowedGeometryType[];
-  onSuccess: (payload: { geometry: __esri.Geometry; wkt3857: string }) => void;
+  onSuccess: (payload: { geometry: Geometry; wkt3857: string }) => void;
   onClear?: () => void;
 };
 
@@ -57,18 +59,18 @@ const getSpatialReferenceFromGeoJSON = (geojson: FeatureCollectionWithCrs): Spat
   return SpatialReference.WGS84;
 };
 
-const ensureSpatialReference = (geometry: __esri.Geometry, fallback: SpatialReference) => {
+const ensureSpatialReference = (geometry: Geometry, fallback: SpatialReference) => {
   if (!geometry.spatialReference) {
     geometry.spatialReference = fallback;
   }
 };
 
-const combinePoints = (geometries: __esri.Geometry[]): Multipoint => {
+const combinePoints = (geometries: Geometry[]): Multipoint => {
   const points: number[][] = [];
 
   geometries.forEach((geometry) => {
     if (geometry.type === 'multipoint') {
-      const multipoint = geometry as unknown as __esri.Multipoint;
+      const multipoint = geometry as unknown as Multipoint;
       points.push(...multipoint.points);
     } else {
       const point = geometry as Point;
@@ -87,7 +89,7 @@ const combinePoints = (geometries: __esri.Geometry[]): Multipoint => {
  *
  * @param {UseShapefileUploadOptions} options - Configuration options for the hook.
  * @param {AllowedGeometryType[]} [options.allowedGeometryTypes] - Array of allowed geometry types ('point', 'multipoint', 'polyline', 'polygon'). Defaults to all.
- * @param {(payload: { geometry: __esri.Geometry; wkt3857: string }) => void} options.onSuccess - Callback invoked when a shapefile is successfully parsed.
+ * @param {(payload: { geometry: Geometry; wkt3857: string }) => void} options.onSuccess - Callback invoked when a shapefile is successfully parsed.
  *   - `geometry`: The parsed geometry in ArcGIS format, projected to Web Mercator (EPSG:3857).
  *   - `wkt3857`: The geometry as a WKT string in EPSG:3857.
  *
@@ -155,12 +157,12 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
         }
 
         const sourceSpatialReference = getSpatialReferenceFromGeoJSON(geojson);
-        const arcgisFeatures = geojsonToArcGIS(geojson) as Array<{ geometry: ReturnType<__esri.Geometry['toJSON']> }>;
+        const arcgisFeatures = geojsonToArcGIS(geojson) as Array<{ geometry: ReturnType<Geometry['toJSON']> }>;
 
         if (!projectOperator.isLoaded()) {
           await projectOperator.load();
         }
-        const esriGeometries = arcgisFeatures.reduce<__esri.Geometry[]>((acc, feature) => {
+        const esriGeometries = arcgisFeatures.reduce<Geometry[]>((acc, feature) => {
           const geometry = geometryFromJSON(feature.geometry);
           if (geometry) {
             ensureSpatialReference(geometry, sourceSpatialReference);
@@ -192,7 +194,7 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
           throw new Error(UNSUPPORTED_GEOMETRY_ERROR);
         }
 
-        let unionedGeometry: __esri.Geometry | nullish = null;
+        let unionedGeometry: Geometry | nullish = null;
         const firstProjectedGeometry = esriGeometries[0];
 
         if (geometryType === 'point' || geometryType === 'multipoint') {
@@ -201,7 +203,7 @@ const useShapefileUpload = (options: UseShapefileUploadOptions): UseShapefileUpl
           unionedGeometry =
             esriGeometries.length === 1
               ? firstProjectedGeometry
-              : (unionOperator.executeMany(esriGeometries as __esri.GeometryUnion[]) as __esri.Geometry);
+              : (unionOperator.executeMany(esriGeometries as GeometryUnion[]) as Geometry);
         }
 
         if (!unionedGeometry) {

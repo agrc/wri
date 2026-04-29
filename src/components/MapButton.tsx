@@ -1,5 +1,6 @@
-import { Button } from '@ugrc/utah-design-system';
+import '@esri/calcite-components/components/calcite-button';
 import { clsx } from 'clsx';
+import { forwardRef, useEffect, useRef } from 'react';
 
 type MapButtonProps = {
   IconComponent: React.ElementType;
@@ -7,29 +8,67 @@ type MapButtonProps = {
   isDisabled?: boolean;
   className?: string;
   onPress?: () => void;
-  ref?: React.Ref<HTMLDivElement>;
+  slot?: string;
 };
 
-const iconClasses =
-  'dark:text-[#9e9e9e] size-5 stroke-[1.5] transition-colors duration-150 ease-in-out will-change-transform group-enabled/button:[#6e6e6e] group-enabled/button:group-hover/button:text-[#151515] dark:group-enabled/button:group-hover/button:text-white group-disabled/button:[#cfcfcf] group-disabled/button:opacity-50';
+const iconClasses = 'pointer-events-none size-5 stroke-[1.75]';
 const buttonContainerClasses =
-  'group/icon flex size-[32px] items-center justify-center bg-white dark:bg-zinc-800 dark:ring-white/10 shadow-[0_1px_2px_#0000004d]';
-const buttonClasses =
-  'group/button size-full stroke-[4] p-0 transition-colors duration-150 ease-in-out will-change-transform focus:min-h-0 focus:outline-offset-[-2px] group/icon-hover:bg-[#f3f3f3]';
+  'flex size-8 items-center justify-center overflow-hidden bg-white shadow-[0_1px_2px_#0000004d]';
+const buttonClasses = 'size-full';
 
-export function MapButton({ IconComponent, label, isDisabled, className, onPress, ref }: MapButtonProps) {
+const buttonStyle = {
+  '--calcite-button-background-color': '#ffffff',
+  '--calcite-button-border-color': 'transparent',
+  '--calcite-button-corner-radius': '0',
+  '--calcite-button-shadow': 'none',
+  '--calcite-button-text-color': '#4a4a4a',
+  '--calcite-button-text-color-hover': '#151515',
+} as React.CSSProperties;
+
+export const MapButton = forwardRef<HTMLDivElement, MapButtonProps>(function MapButton(
+  { IconComponent, label, isDisabled, className, onPress, slot },
+  ref,
+) {
+  const buttonRef = useRef<HTMLCalciteButtonElement | null>(null);
+
+  useEffect(() => {
+    const button = buttonRef.current;
+
+    if (!button || !onPress) {
+      return;
+    }
+
+    const handleClick = () => {
+      if (!button.disabled) {
+        onPress();
+      }
+    };
+
+    button.addEventListener('click', handleClick);
+
+    return () => {
+      button.removeEventListener('click', handleClick);
+    };
+  }, [onPress]);
+
   return (
-    <div className={clsx(buttonContainerClasses, className)} ref={ref}>
-      <Button
-        variant="icon"
+    <div className={clsx(buttonContainerClasses, className)} ref={ref} slot={slot}>
+      <calcite-button
+        ref={buttonRef}
+        appearance="solid"
+        kind="neutral"
+        scale="s"
+        width="auto"
         className={buttonClasses}
-        aria-label={label}
-        onPress={() => onPress && onPress()}
-        isDisabled={isDisabled}
+        disabled={isDisabled}
+        label={label}
+        title={label}
+        style={buttonStyle}
       >
-        <IconComponent className={iconClasses} aria-hidden />
-        <span className="sr-only">{label}</span>
-      </Button>
+        <span className="flex size-full items-center justify-center">
+          <IconComponent className={clsx(iconClasses, isDisabled ? 'text-zinc-400' : 'text-zinc-700')} aria-hidden />
+        </span>
+      </calcite-button>
     </div>
   );
-}
+});

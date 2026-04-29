@@ -1,17 +1,19 @@
 import { execute } from '@arcgis/core/rest/print';
 import PrintParameters from '@arcgis/core/rest/support/PrintParameters';
 import PrintTemplate from '@arcgis/core/rest/support/PrintTemplate';
+import type MapView from '@arcgis/core/views/MapView';
+import type { ComponentOptions } from '@arcgis/core/views/ui/types';
 import { useMutation } from '@tanstack/react-query';
-import { Button, Dialog, Popover, Spinner, TextField } from '@ugrc/utah-design-system';
-import { useViewUiPosition } from '@ugrc/utilities/hooks';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Spinner } from '@ugrc/utah-design-system/src/components/Spinner';
+import { TextField } from '@ugrc/utah-design-system/src/components/TextField';
 import { PrinterIcon } from 'lucide-react';
-import { useState } from 'react';
-import { DialogTrigger } from 'react-aria-components';
+import { useEffect, useRef, useState } from 'react';
 import { MapButton } from './MapButton';
 
 type PrintMapProps = {
-  view: __esri.MapView;
-  position?: __esri.UIAddComponent['position'];
+  view: MapView;
+  position?: ComponentOptions['position'];
 };
 
 const URL = `https://print.ugrc.utah.gov/v2/${import.meta.env.VITE_PRINT_PROXY_ACCOUNT}/arcgis/rest/services/WRI/ExportWebMap/GPServer/Export%20Web%20Map`;
@@ -21,7 +23,7 @@ type ArcGISServerError = {
   messages?: { description: string }[];
 };
 
-async function executePrint({ view, title }: { view: __esri.MapView; title: string }) {
+async function executePrint({ view, title }: { view: MapView; title: string }) {
   const template = new PrintTemplate({
     exportOptions: {
       dpi: 300,
@@ -55,12 +57,40 @@ async function executePrint({ view, title }: { view: __esri.MapView; title: stri
 }
 
 export function PrintMap({ view, position }: PrintMapProps) {
-  const uiPosition = useViewUiPosition(view, position ?? 'top-left');
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [title, setTitle] = useState<string>('');
+  const [isOpen, setIsOpen] = useState(false);
+  const slot = position ?? 'top-left';
 
   const { data, error, mutate, isPending } = useMutation({
     mutationFn: executePrint,
   });
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,10 +98,10 @@ export function PrintMap({ view, position }: PrintMapProps) {
   };
 
   return (
-    <DialogTrigger>
-      <MapButton ref={uiPosition} IconComponent={PrinterIcon} label="Export Map to PDF" />
-      <Popover showArrow>
-        <Dialog>
+    <div ref={containerRef} className="relative" slot={slot}>
+      <MapButton IconComponent={PrinterIcon} label="Export Map to PDF" onPress={() => setIsOpen((open) => !open)} />
+      {isOpen && (
+        <div className="absolute right-full top-0 z-10 mr-2 w-72 rounded-xl border border-black/10 bg-white p-4 text-slate-700 shadow-2xl">
           <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
             <TextField inputProps={{ placeholder: 'optional' }} label="Map title" value={title} onChange={setTitle} />
             <Button type="submit" className="w-full" variant="primary" isDisabled={isPending}>
@@ -90,8 +120,8 @@ export function PrintMap({ view, position }: PrintMapProps) {
             )}
             {error && <div className="text-red-500">{error.message}</div>}
           </form>
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+        </div>
+      )}
+    </div>
   );
 }

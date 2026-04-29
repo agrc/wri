@@ -1,13 +1,29 @@
+import Collection from '@arcgis/core/core/Collection';
+import type { FeatureLayerProperties } from '@arcgis/core/layers/FeatureLayer';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import type Layer from '@arcgis/core/layers/Layer';
+import type { ScaleRangeLayer } from '@arcgis/core/layers/mixins/ScaleRangeLayer';
+import type Field from '@arcgis/core/layers/support/Field';
+import type ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer';
+import type SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
+import type ClassBreakInfo from '@arcgis/core/renderers/support/ClassBreakInfo';
+import type UniqueValueGroup from '@arcgis/core/renderers/support/UniqueValueGroup';
+import type { RendererUnion } from '@arcgis/core/renderers/types';
+import type UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer';
 import { renderPreviewHTML } from '@arcgis/core/symbols/support/symbolUtils';
-import { Button, Dialog, Popover, Switch, Tag, TagGroup } from '@ugrc/utah-design-system';
+import type { SymbolUnion } from '@arcgis/core/symbols/types';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Dialog } from '@ugrc/utah-design-system/src/components/Dialog';
+import { Popover } from '@ugrc/utah-design-system/src/components/Popover';
+import { Switch } from '@ugrc/utah-design-system/src/components/Switch';
+import { Tag, TagGroup } from '@ugrc/utah-design-system/src/components/TagGroup';
 import { PaletteIcon } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { DialogTrigger, type Selection } from 'react-aria-components';
 import config from '../config';
 import { isVisible } from './utils';
 
-export type ReferenceLayer = __esri.Layer & __esri.ScaleRangeLayer;
+export type ReferenceLayer = Layer & ScaleRangeLayer;
 export type ReferenceLayerWithMetadata = ReferenceLayer & { legendDescription?: string };
 
 export const ReferenceData = ({
@@ -15,7 +31,7 @@ export const ReferenceData = ({
   currentMapScale,
   color = 'gray',
 }: {
-  layers: __esri.Collection<ReferenceLayer>;
+  layers: Collection<ReferenceLayer>;
   currentMapScale: number;
   color?: 'gray' | 'primary' | 'secondary' | 'accent';
 }) => {
@@ -59,7 +75,7 @@ export const ReferenceLabelSwitch = ({
   layers,
   children,
 }: {
-  layers: __esri.Collection<__esri.FeatureLayerProperties>;
+  layers: Collection<FeatureLayerProperties>;
   children: ReactNode;
 }) => {
   const toggleLabelVisibility = useCallback(
@@ -74,7 +90,7 @@ export const ReferenceLabelSwitch = ({
   return <Switch onChange={toggleLabelVisibility}>{children}</Switch>;
 };
 
-const Swatch = ({ symbol }: { symbol: __esri.SymbolUnion | nullish }) => {
+const Swatch = ({ symbol }: { symbol: SymbolUnion | nullish }) => {
   const divRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,7 +111,7 @@ const Swatch = ({ symbol }: { symbol: __esri.SymbolUnion | nullish }) => {
   return <div className="size-6 content-center" ref={divRef}></div>;
 };
 
-const SwatchWithLabel = ({ symbol, label }: { symbol: __esri.SymbolUnion | nullish; label: string | nullish }) => {
+const SwatchWithLabel = ({ symbol, label }: { symbol: SymbolUnion | nullish; label: string | nullish }) => {
   return (
     <div className="flex items-end space-x-2" key={label}>
       <Swatch symbol={symbol} />
@@ -104,7 +120,7 @@ const SwatchWithLabel = ({ symbol, label }: { symbol: __esri.SymbolUnion | nulli
   );
 };
 
-const UniqueValueSwatches = ({ groups }: { groups: __esri.UniqueValueGroup[] | nullish }) => {
+const UniqueValueSwatches = ({ groups }: { groups: UniqueValueGroup[] | nullish }) => {
   if (!groups) {
     return null;
   }
@@ -122,7 +138,7 @@ const UniqueValueSwatches = ({ groups }: { groups: __esri.UniqueValueGroup[] | n
   );
 };
 
-const ClassBreakSwatches = ({ infos }: { infos: __esri.ClassBreakInfo[] }) => {
+const ClassBreakSwatches = ({ infos }: { infos: ClassBreakInfo[] }) => {
   return (
     <>
       {infos.map(({ label, symbol }) => (
@@ -132,18 +148,18 @@ const ClassBreakSwatches = ({ infos }: { infos: __esri.ClassBreakInfo[] }) => {
   );
 };
 
-const Swatches = ({ renderer }: { renderer: __esri.RendererUnion }) => {
+const Swatches = ({ renderer }: { renderer: RendererUnion }) => {
   switch (renderer.type) {
     case 'simple': {
-      return <Swatch symbol={(renderer as __esri.SimpleRenderer).symbol} />;
+      return <Swatch symbol={(renderer as SimpleRenderer).symbol} />;
     }
     case 'unique-value': {
-      const uniqueValueRenderer = renderer as __esri.UniqueValueRenderer;
+      const uniqueValueRenderer = renderer as UniqueValueRenderer;
 
       return <UniqueValueSwatches groups={uniqueValueRenderer.uniqueValueGroups} />;
     }
     case 'class-breaks': {
-      const classBreaksRenderer = renderer as __esri.ClassBreaksRenderer;
+      const classBreaksRenderer = renderer as ClassBreaksRenderer;
 
       return <ClassBreakSwatches infos={classBreaksRenderer.classBreakInfos} />;
     }
@@ -153,8 +169,8 @@ const Swatches = ({ renderer }: { renderer: __esri.RendererUnion }) => {
 };
 
 export const ReferenceDataLegend = ({ layer }: { layer: ReferenceLayerWithMetadata }) => {
-  let renderer: __esri.RendererUnion | nullish;
-  let fields: __esri.Field[] | nullish;
+  let renderer: RendererUnion | nullish;
+  let fields: Field[] | nullish;
 
   const legendInfo = config.LEGEND_DATA.find((info) => info.id === layer.id);
   if (!legendInfo && layer instanceof FeatureLayer) {

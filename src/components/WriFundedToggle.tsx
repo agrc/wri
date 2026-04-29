@@ -1,4 +1,4 @@
-import { Switch } from '@ugrc/utah-design-system';
+import { Switch } from '@ugrc/utah-design-system/src/components/Switch';
 import { useContext } from 'react';
 import { FilterContext } from './contexts';
 

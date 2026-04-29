@@ -1,4 +1,5 @@
 import Collection from '@arcgis/core/core/Collection';
+import type FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import { createContext, type Dispatch } from 'react';
 import { type Key } from 'react-aria';
 import { type Selection } from 'react-stately';
@@ -9,7 +10,7 @@ const defaultProjectState = new Set<Key>();
 const defaultFeatureState = new Set<Key>();
 
 export const FilterContext = createContext<{
-  featureLayers: __esri.Collection<__esri.FeatureLayer>;
+  featureLayers: Collection<FeatureLayer>;
   dispatch: Dispatch<FilterAction>;
   defaultProjectState: Selection;
   defaultFeatureState: Selection;

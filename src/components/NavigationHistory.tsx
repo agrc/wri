@@ -1,5 +1,7 @@
 import { watch } from '@arcgis/core/core/reactiveUtils';
-import { useViewUiPosition } from '@ugrc/utilities/hooks';
+import type Extent from '@arcgis/core/geometry/Extent';
+import type MapView from '@arcgis/core/views/MapView';
+import type { ComponentOptions } from '@arcgis/core/views/ui/types';
 import { Redo2Icon, Undo2Icon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { ImmerReducer } from 'use-immer';
@@ -32,7 +34,7 @@ const extentsEqual = (a?: MinimalExtent, b?: MinimalExtent) => {
 };
 
 type State = {
-  history: __esri.Extent[];
+  history: Extent[];
   index: number;
 };
 
@@ -42,7 +44,7 @@ type Action =
     }
   | {
       type: 'history';
-      payload: __esri.Extent;
+      payload: Extent;
     };
 
 const initialState: State = {
@@ -83,14 +85,7 @@ const reducer: ImmerReducer<State, Action> = (draft, action) => {
   }
 };
 
-export const NavigationHistory = ({
-  view,
-  position,
-}: {
-  view: __esri.MapView;
-  position?: __esri.UIAddComponent['position'];
-}) => {
-  const uiPosition = useViewUiPosition(view, position ?? 'top-left');
+export const NavigationHistory = ({ view, position }: { view: MapView; position?: ComponentOptions['position'] }) => {
   const [state, dispatch] = useImmerReducer(reducer, initialState);
   const isButtonExtentChange = useRef<boolean>(false);
 
@@ -142,9 +137,10 @@ export const NavigationHistory = ({
 
   const backwardIsDisabled = state.index === 0;
   const forwardIsDisabled = state.index >= state.history.length - 1;
+  const slot = position ?? 'top-left';
 
   return (
-    <div ref={uiPosition}>
+    <div slot={slot}>
       <MapButton
         IconComponent={Undo2Icon}
         label="Go to previous map extent"

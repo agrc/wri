@@ -1,4 +1,5 @@
 import Collection from '@arcgis/core/core/Collection';
+import type { FeatureLayerProperties } from '@arcgis/core/layers/FeatureLayer';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
@@ -6,7 +7,7 @@ import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
 import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol';
 import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol';
 import { ReferenceData, type ReferenceLayer } from './ReferenceData';
-type LegendMetadata = __esri.FeatureLayerProperties & {
+type LegendMetadata = FeatureLayerProperties & {
   legendDescription?: string;
 };
 

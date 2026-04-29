@@ -1,4 +1,5 @@
-import { Button, Tag, TagGroup } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
+import { Tag, TagGroup } from '@ugrc/utah-design-system/src/components/TagGroup';
 import { useContext } from 'react';
 import type { Key } from 'react-aria-components';
 import { tv } from 'tailwind-variants';

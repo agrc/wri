@@ -3,9 +3,7 @@ import type { CallableCredentials } from '@ugrc/wri-shared/types';
 import { httpsCallable, type HttpsCallable } from 'firebase/functions';
 import { getUserCredentials } from '../utils/userCredentials';
 
-export const useTypedCallable = <RequestData, ResponseData>(
-  name: string,
-): HttpsCallable<RequestData, ResponseData> => {
+export const useTypedCallable = <RequestData, ResponseData>(name: string): HttpsCallable<RequestData, ResponseData> => {
   const { functions } = useFirebaseFunctions();
   functions.region = 'us-west3';
 

@@ -1,6 +1,8 @@
 import { watch } from '@arcgis/core/core/reactiveUtils';
 import Graphic from '@arcgis/core/Graphic';
+import type Layer from '@arcgis/core/layers/Layer';
 import MapView from '@arcgis/core/views/MapView';
+import type { GoToTarget2D } from '@arcgis/core/views/types';
 import { useGraphicManager } from '@ugrc/utilities/hooks';
 import { createContext, type ReactNode, useCallback, useState } from 'react';
 
@@ -8,8 +10,8 @@ export const MapContext = createContext<{
   mapView: MapView | null;
   setMapView: (mapView: MapView) => void;
   placeGraphic: (graphic: Graphic | Graphic[] | null) => void;
-  zoom: (geometry: __esri.GoToTarget2D) => void;
-  addLayers: (layers: __esri.Layer[]) => void;
+  zoom: (geometry: GoToTarget2D) => void;
+  addLayers: (layers: Layer[]) => void;
   currentMapScale: number | undefined;
 } | null>(null);
 
@@ -18,7 +20,7 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
   const { setGraphic } = useGraphicManager(mapView);
   const [currentMapScale, setCurrentMapScale] = useState<number | undefined>(undefined);
 
-  const zoom = (geometry: __esri.GoToTarget2D): void => {
+  const zoom = (geometry: GoToTarget2D): void => {
     if (!mapView) {
       console.warn('attempting to zoom before the mapView is set');
 
@@ -33,7 +35,7 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addLayers = useCallback(
-    (layers: __esri.Layer[]): void => {
+    (layers: Layer[]): void => {
       if (!mapView) {
         console.warn('attempting to add a layer before the mapView is set');
 

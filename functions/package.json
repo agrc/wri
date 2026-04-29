@@ -5,8 +5,8 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "npm run build:shared && npm run clean && tsc",
-    "build:shared": "npm run clean:shared && tsc -p shared/tsconfig.json",
-    "build:shared:watch": "npm run clean:shared && tsc -p shared/tsconfig.json --watch",
+    "build:shared": "tsc -p shared/tsconfig.json",
+    "build:shared:watch": "tsc -p shared/tsconfig.json --watch",
     "build:watch": "npm run build:shared:watch && tsc --watch",
     "build:watch:only": "tsc --watch",
     "check": "npm run build:shared && tsc -b && tsc -p tsconfig.tools.json --noEmit",
@@ -26,7 +26,7 @@
     "start:local": "node --import tsx/esm scripts/start-local-dev.ts"
   },
   "dependencies": {
-    "@arcgis/core": "^4.34.8",
+    "@arcgis/core": "^5.0.18",
     "@esri/arcgis-rest-feature-service": "^4.10.2",
     "@esri/arcgis-rest-request": "^4.10.2",
     "@google-cloud/cloud-sql-connector": "^1.10.0",

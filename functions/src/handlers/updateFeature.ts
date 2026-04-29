@@ -16,8 +16,8 @@ import { HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import type { Knex } from 'knex';
 import { getDb } from '../database.js';
 import {
-  canEditProject,
   assertNoPolygonOverlap,
+  canEditProject,
   convertMetersToAcres,
   convertMetersToMiles,
   parseRetreatmentInput,
@@ -267,9 +267,19 @@ export const updateFeatureHandler = async ({ data }: CallableRequest): Promise<U
     let intersectionGeometry: Polygon | Polyline | Multipoint;
 
     if (Array.isArray(geometryData)) {
-      const geoms = geometryData.map((datum) => fromJSON(datum as object)) as (Polygon | Polyline | Multipoint)[];
-      const projectedGeometries = await projectGeometries(geoms, SPATIAL_REFERENCES.UTM_ZONE_12N);
-      const validProjected = projectedGeometries.filter((geometry) => geometry?.spatialReference);
+      const parsedGeometries = geometryData.map(
+        (datum) => fromJSON(datum as object) as Polygon | Polyline | Multipoint | null | undefined,
+      );
+
+      if (parsedGeometries.some((geometry) => !geometry)) {
+        throw new HttpsError('invalid-argument', 'Failed to parse one or more submitted geometries.');
+      }
+
+      const filteredGeometries = parsedGeometries.filter((geometry): geometry is Polygon | Polyline | Multipoint =>
+        Boolean(geometry),
+      );
+      const projectedGeometries = await projectGeometries(filteredGeometries, SPATIAL_REFERENCES.UTM_ZONE_12N);
+      const validProjected = projectedGeometries.filter((geometry) => geometry.spatialReference);
 
       if (validProjected.length === 0) {
         throw new HttpsError(
@@ -285,15 +295,20 @@ export const updateFeatureHandler = async ({ data }: CallableRequest): Promise<U
       }
 
       const areasLengths = await (table !== 'POINT'
-        ? calculateAreasAndLengths([unioned as object], geometryType)
+        ? calculateAreasAndLengths([unioned], geometryType)
         : Promise.resolve({ areas: null, lengths: null }));
 
       areaSqMeters = areasLengths.areas?.[0] ?? null;
       lengthLnMeters = areasLengths.lengths?.[0] ?? null;
       intersectionGeometry = unioned as Polygon | Polyline | Multipoint;
-      wkt = geometriesArrayToWkt(geoms);
+      wkt = geometriesArrayToWkt(filteredGeometries);
     } else {
-      const geometry = fromJSON(geometryData);
+      const geometry = fromJSON(geometryData) as Polygon | Polyline | Multipoint | null | undefined;
+
+      if (!geometry) {
+        throw new HttpsError('invalid-argument', 'Failed to parse the submitted geometry.');
+      }
+
       const [projectedGeometry] = await projectGeometries([geometry], SPATIAL_REFERENCES.UTM_ZONE_12N);
 
       if (!projectedGeometry || !projectedGeometry.spatialReference) {
@@ -304,7 +319,7 @@ export const updateFeatureHandler = async ({ data }: CallableRequest): Promise<U
       }
 
       const areasLengths = await (table !== 'POINT'
-        ? calculateAreasAndLengths([projectedGeometry as object], geometryType)
+        ? calculateAreasAndLengths([projectedGeometry], geometryType)
         : Promise.resolve({ areas: null, lengths: null }));
 
       areaSqMeters = areasLengths.areas?.[0] ?? null;

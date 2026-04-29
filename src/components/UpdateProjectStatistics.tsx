@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@ugrc/utah-design-system';
+import { Button } from '@ugrc/utah-design-system/src/components/Button';
 import type { UpdateProjectStatsRequest, UpdateProjectStatsResponse } from '@ugrc/wri-shared/types';
 import { useState } from 'react';
 import { useAuthedCallable } from '../hooks/useTypedCallable';

@@ -83,7 +83,7 @@ describe('addFeatureDraftGeometry helpers', () => {
       table: 'POLY',
     });
 
-    const survivingPolygon = result.geometries[0] as __esri.Polygon;
+    const survivingPolygon = result.geometries[0] as Polygon;
     const [ring] = survivingPolygon.rings;
     const xValues = (ring?.map(([x]) => x) ?? []).filter((value): value is number => value != null);
 
@@ -103,7 +103,7 @@ describe('addFeatureDraftGeometry helpers', () => {
       table: 'LINE',
     });
 
-    const survivingLine = result.geometries[0] as __esri.Polyline;
+    const survivingLine = result.geometries[0] as Polyline;
     const [path] = survivingLine.paths;
     const xValues = (path?.map(([x]) => x) ?? []).filter((value): value is number => value != null);
 
@@ -125,7 +125,7 @@ describe('addFeatureDraftGeometry helpers', () => {
     });
 
     expect(result.changed).toBe(true);
-    expect((result.geometries[1] as __esri.Polygon).toJSON()).toEqual(untouchedPolygon.toJSON());
+    expect((result.geometries[1] as Polygon).toJSON()).toEqual(untouchedPolygon.toJSON());
   });
 
   it('returns a no-op result when the cut does not split any draft geometry', async () => {
@@ -148,7 +148,7 @@ describe('addFeatureDraftGeometry helpers', () => {
 
     expect(result.changed).toBe(false);
     expect(result.error).toBe(CUT_DRAFT_NOOP_ERROR);
-    expect((result.geometries[0] as __esri.Polygon).toJSON()).toEqual(polygon.toJSON());
+    expect((result.geometries[0] as Polygon).toJSON()).toEqual(polygon.toJSON());
   });
 
   it('buffers drafted lines into polygon geometry for POLY features', async () => {
@@ -160,7 +160,7 @@ describe('addFeatureDraftGeometry helpers', () => {
       table: 'POLY',
     });
 
-    const bufferedPolygon = result.geometries[0] as __esri.Polygon;
+    const bufferedPolygon = result.geometries[0] as Polygon;
     const extent = bufferedPolygon.extent;
 
     expect(result.changed).toBe(true);
@@ -201,7 +201,7 @@ describe('addFeatureDraftGeometry helpers', () => {
     expect(result.changed).toBe(true);
     expect(result.error).toBeNull();
     expect(result.geometries).toHaveLength(2);
-    expect((result.geometries[0] as __esri.Polygon).toJSON()).toEqual(existingPolygon.toJSON());
+    expect((result.geometries[0] as Polygon).toJSON()).toEqual(existingPolygon.toJSON());
     expect(result.geometries[1]?.type).toBe('polygon');
   });
 
@@ -216,7 +216,7 @@ describe('addFeatureDraftGeometry helpers', () => {
 
     expect(result.changed).toBe(false);
     expect(result.error).toBe(INVALID_BUFFER_DISTANCE_ERROR);
-    expect((result.geometries[0] as __esri.Polyline).toJSON()).toEqual(draftedLine.toJSON());
+    expect((result.geometries[0] as Polyline).toJSON()).toEqual(draftedLine.toJSON());
   });
 
   it('returns a no-op result when there are no drafted lines to buffer', async () => {
@@ -230,6 +230,6 @@ describe('addFeatureDraftGeometry helpers', () => {
 
     expect(result.changed).toBe(false);
     expect(result.error).toBe(BUFFER_DRAFT_NOOP_ERROR);
-    expect((result.geometries[0] as __esri.Polygon).toJSON()).toEqual(polygon.toJSON());
+    expect((result.geometries[0] as Polygon).toJSON()).toEqual(polygon.toJSON());
   });
 });

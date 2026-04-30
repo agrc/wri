@@ -20,7 +20,7 @@ export const updateOpacity = async (
   }
 
   // single layer, no specific feature
-  if (!id) {
+  if (id == null) {
     layer.opacity = value / 100;
 
     return;

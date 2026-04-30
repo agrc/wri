@@ -480,29 +480,31 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
 
   const allLayers = mapView?.map?.layers ?? new Collection();
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
+  const loadProjectInfo = useCallback(async () => getProjectInfo({ id: projectId }), [getProjectInfo, projectId]);
 
   const { data, status } = useQuery<ProjectResponse>({
-    queryKey: ['project', projectId, getProjectInfo],
-    queryFn: async () => getProjectInfo({ id: projectId }),
+    queryKey: ['project', projectId],
+    queryFn: loadProjectInfo,
     enabled: projectId > 0,
   });
 
   const editingDomainsQuery = useEditingDomains(data?.allowEdits ?? false);
   const selectedFeatureId = selectedFeature?.id ?? null;
   const selectedFeatureType = selectedFeature?.type?.toLowerCase() ?? null;
+  const loadFeatureInfo = useCallback(async () => {
+    if (selectedFeatureId == null || !selectedFeatureType) {
+      throw new Error('A feature must be selected before requesting feature details.');
+    }
+
+    return getFeatureInfo({
+      type: selectedFeatureType,
+      featureId: selectedFeatureId,
+    });
+  }, [getFeatureInfo, selectedFeatureId, selectedFeatureType]);
 
   const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
-    queryKey: ['featureDetails', projectId, selectedFeatureId, selectedFeatureType, getFeatureInfo],
-    queryFn: async () => {
-      if (selectedFeatureId == null || !selectedFeatureType) {
-        throw new Error('A feature must be selected before requesting feature details.');
-      }
-
-      return getFeatureInfo({
-        type: selectedFeatureType,
-        featureId: selectedFeatureId,
-      });
-    },
+    queryKey: ['featureDetails', projectId, selectedFeatureId, selectedFeatureType],
+    queryFn: loadFeatureInfo,
     enabled: selectedFeatureId != null,
   });
 

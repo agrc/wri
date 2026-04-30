@@ -360,10 +360,10 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const createMutation = useMutation({
     mutationFn: async (formData: CreateFeatureData) => {
       setCreateError(null);
+      setFeatureError(null);
       return createFeatureFn(formData);
     },
-    onSuccess: (_data, variables) => {
-      setIsCreating(false);
+    onSuccess: async (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
 
       const featureTable = editingDomainsQuery.data?.featureTypes[variables.featureType];
@@ -374,44 +374,56 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
           featureType: variables.featureType,
           featureId: _data.featureId,
         });
-        setCreateError(errorMessage);
+        setFeatureError(errorMessage);
+        setIsCreating(false);
         return;
       }
 
       const kind: FeatureKind = featureTable.toLowerCase() as FeatureKind;
       const layer = getFeatureLayer(kind);
 
-      if (layer) {
-        let geom: Geometry;
-
-        try {
-          geom = buildDisplayGeometry(variables.geometry);
-        } catch (error) {
-          const failure = error instanceof Error ? error : new Error('Failed to build display geometry.');
-          console.error('Failed to build feature geometry for map layer:', failure, {
-            featureType: variables.featureType,
-            featureId: _data.featureId,
-          });
-          setCreateError(failure.message);
-          return;
-        }
-
-        const graphic = new Graphic({
-          geometry: geom,
-          attributes: {
-            FeatureID: _data.featureId,
-            Project_ID: variables.projectId,
-            TypeDescription: variables.featureType,
-            StatusDescription: _data.statusDescription,
-            Title: null,
-            _opacity: kind === 'poly' ? POLY_OPACITY : 1,
-          },
-        });
-        layer
-          .applyEdits({ addFeatures: [graphic] })
-          .then((results) => logAddFeatureResult(results, _data.featureId))
-          .catch((error) => console.error('Failed to add feature to map layer:', error));
+      if (!layer) {
+        setFeatureError('Feature saved, but the map layer could not be found to display it.');
+        setIsCreating(false);
+        return;
       }
+
+      let geom: Geometry;
+
+      try {
+        geom = buildDisplayGeometry(variables.geometry);
+      } catch (error) {
+        const failure = error instanceof Error ? error : new Error('Failed to build display geometry.');
+        console.error('Failed to build feature geometry for map layer:', failure, {
+          featureType: variables.featureType,
+          featureId: _data.featureId,
+        });
+        setFeatureError(`Feature saved, but failed to draw it on the map: ${failure.message}`);
+        setIsCreating(false);
+        return;
+      }
+
+      const graphic = new Graphic({
+        geometry: geom,
+        attributes: {
+          FeatureID: _data.featureId,
+          Project_ID: variables.projectId,
+          TypeDescription: variables.featureType,
+          StatusDescription: _data.statusDescription,
+          Title: null,
+          _opacity: kind === 'poly' ? POLY_OPACITY : 1,
+        },
+      });
+
+      try {
+        const results = await layer.applyEdits({ addFeatures: [graphic] });
+        logAddFeatureResult(results, _data.featureId);
+      } catch (error) {
+        console.error('Failed to add feature to map layer:', error);
+        setFeatureError(error instanceof Error ? error.message : 'Feature saved, but failed to draw it on the map.');
+      }
+
+      setIsCreating(false);
     },
     onError: (error) => setCreateError(error.message ?? 'Failed to create feature'),
   });
@@ -419,22 +431,24 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const editMutation = useMutation({
     mutationFn: async (formData: UpdateFeatureData & { featureKind: FeatureKind }) => {
       setEditError(null);
+      setFeatureError(null);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { featureKind: _featureKind, ...request } = formData;
 
       return updateFeatureFn(request);
     },
-    onSuccess: (_data, variables) => {
-      closeEditMode();
+    onSuccess: async (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       queryClient.invalidateQueries({
         queryKey: ['featureDetails', projectId, variables.featureId, variables.featureType.toLowerCase()],
       });
-      setSelectedTab('features');
 
       const layer = getFeatureLayer(variables.featureKind);
 
       if (!layer) {
+        setFeatureError('Feature updated, but the map layer could not be found to display it.');
+        closeEditMode();
+        setSelectedTab('features');
         return;
       }
 
@@ -448,32 +462,39 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
           featureType: variables.featureType,
           featureId: _data.featureId,
         });
-        setFeatureError(failure.message);
+        setFeatureError(`Feature updated, but failed to draw it on the map: ${failure.message}`);
+        closeEditMode();
+        setSelectedTab('features');
         return;
       }
 
-      layer
-        .queryFeatures({ where: `FeatureID=${variables.featureId}`, outFields: ['*'], returnGeometry: false })
-        .then((results) => {
-          const feature = results.features[0];
-
-          if (!feature) {
-            throw new Error(`Feature ${variables.featureId} not found in map layer.`);
-          }
-
-          feature.geometry = geom;
-          feature.attributes.FeatureID = variables.featureId;
-          feature.attributes.Project_ID = variables.projectId;
-          feature.attributes.TypeDescription = variables.featureType;
-          feature.attributes.StatusDescription = _data.statusDescription;
-
-          return layer.applyEdits({ updateFeatures: [feature] });
-        })
-        .then((results) => logUpdateFeatureResult(results, variables.featureId))
-        .catch((error) => {
-          console.error('Failed to update feature in map layer:', error);
-          setFeatureError(error instanceof Error ? error.message : 'Failed to update feature in map layer.');
+      try {
+        const results = await layer.queryFeatures({
+          where: `FeatureID=${variables.featureId}`,
+          outFields: ['*'],
+          returnGeometry: false,
         });
+        const feature = results.features[0];
+
+        if (!feature) {
+          throw new Error(`Feature ${variables.featureId} not found in map layer.`);
+        }
+
+        feature.geometry = geom;
+        feature.attributes.FeatureID = variables.featureId;
+        feature.attributes.Project_ID = variables.projectId;
+        feature.attributes.TypeDescription = variables.featureType;
+        feature.attributes.StatusDescription = _data.statusDescription;
+
+        const editResults = await layer.applyEdits({ updateFeatures: [feature] });
+        logUpdateFeatureResult(editResults, variables.featureId);
+      } catch (error) {
+        console.error('Failed to update feature in map layer:', error);
+        setFeatureError(error instanceof Error ? error.message : 'Feature updated, but failed to draw it on the map.');
+      }
+
+      closeEditMode();
+      setSelectedTab('features');
     },
     onError: (error) => setEditError(error.message ?? 'Failed to update feature'),
   });

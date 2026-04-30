@@ -36,45 +36,39 @@ export const projectHandler = async ({ data }: CallableRequest): Promise<Project
       .queryBuilder()
       .union([
         db
-          .select(
-            {
-              origin: db.raw(`'county'`),
-              table: db.raw(`'poly'`),
-              extra: db.raw('null'),
-            },
-            db.ref('c.County').as('name'),
-            db.ref('c.Intersection').as('space'),
-          )
+          .select({
+            origin: db.raw(`'county'`),
+            table: db.raw(`'poly'`),
+            extra: db.raw('null'),
+            name: db.ref('c.County'),
+            space: db.ref('c.Intersection'),
+          })
           .from({
             c: 'COUNTY',
           })
           .whereIn('c.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
           .andWhere('c.FeatureClass', 'POLY'),
         db
-          .select(
-            {
-              origin: db.raw(`'owner'`),
-              table: db.raw(`'poly'`),
-            },
-            db.ref('l.Owner').as('name'),
-            db.ref('l.Admin').as('extra'),
-            db.ref('l.Intersection').as('space'),
-          )
+          .select({
+            origin: db.raw(`'owner'`),
+            table: db.raw(`'poly'`),
+            extra: db.ref('l.Admin'),
+            name: db.ref('l.Owner'),
+            space: db.ref('l.Intersection'),
+          })
           .from({
             l: 'LANDOWNER',
           })
           .whereIn('l.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
           .andWhere('l.FeatureClass', 'POLY'),
         db
-          .select(
-            {
-              origin: db.raw(`'sgma'`),
-              table: db.raw(`'poly'`),
-              extra: db.raw('null'),
-            },
-            db.ref('s.SGMA').as('name'),
-            db.ref('s.Intersection').as('space'),
-          )
+          .select({
+            origin: db.raw(`'sgma'`),
+            table: db.raw(`'poly'`),
+            extra: db.raw('null'),
+            name: db.ref('s.SGMA'),
+            space: db.ref('s.Intersection'),
+          })
           .from({ s: 'SGMA' })
           .whereIn('s.FeatureID', db.select('POLY.FeatureID').from('POLY').where('POLY.Project_ID', id))
           .andWhere('s.FeatureClass', 'POLY'),

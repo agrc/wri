@@ -126,6 +126,7 @@ export default function FeatureGeometryEditor({
   const { mapView } = useMap();
   const sketchRef = useRef<HTMLArcgisSketchElement | null>(null);
   const graphicsLayerRef = useRef<GraphicsLayer | null>(null);
+  const disabledRef = useRef(disabled);
   const editSelectionClickHandlerRef = useRef<ResourceHandle | null>(null);
   const activeToolRef = useRef<'draw' | 'cut'>('draw');
   const tableRef = useRef<FeatureTable | undefined>(undefined);
@@ -228,6 +229,7 @@ export default function FeatureGeometryEditor({
   }>;
 
   tableRef.current = table;
+  disabledRef.current = disabled;
   snappingLayerIdsRef.current = snappingLayerIds;
 
   const syncSnappingOptions = useCallback(() => {
@@ -577,7 +579,7 @@ export default function FeatureGeometryEditor({
         return;
       }
 
-      if (!disabled && autoStart) {
+      if (!disabledRef.current && autoStart) {
         await sketch.create(getDrawTool(table, polyDraftModeRef.current));
         setDrawingState('drawing');
       }
@@ -596,14 +598,12 @@ export default function FeatureGeometryEditor({
     };
   }, [
     autoStart,
-    disabled,
     featureType,
     getSketchElement,
     mapView,
     normalizedInitialGeometries,
     onChange,
     replaceDraftGeometries,
-    syncGraphicsFromLayer,
     syncSnappingOptions,
     table,
     clearUploadedFiles,

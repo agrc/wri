@@ -131,6 +131,7 @@ export default function FeatureGeometryEditor({
   const tableRef = useRef<FeatureTable | undefined>(undefined);
   const geometriesRef = useRef<Geometry[]>([]);
   const initialGeometriesRef = useRef<Geometry[]>([]);
+  const snappingLayerIdsRef = useRef<string[]>([]);
   const polyDraftModeRef = useRef<PolyDraftMode>('polygon');
   const normalizedInitialGeometries = useMemo(() => normalizeInitialGeometries(initialGeometry), [initialGeometry]);
 
@@ -227,6 +228,7 @@ export default function FeatureGeometryEditor({
   }>;
 
   tableRef.current = table;
+  snappingLayerIdsRef.current = snappingLayerIds;
 
   const syncSnappingOptions = useCallback(() => {
     const sketch = sketchRef.current;
@@ -235,7 +237,7 @@ export default function FeatureGeometryEditor({
       return;
     }
 
-    const featureLayers = snappingLayerIds.flatMap((layerId) => {
+    const featureLayers = snappingLayerIdsRef.current.flatMap((layerId) => {
       const layer = mapView?.map?.findLayerById(layerId);
 
       if (!layer || layer.type !== 'feature') {
@@ -262,7 +264,7 @@ export default function FeatureGeometryEditor({
         featureLayers.map((layer) => new FeatureSnappingLayerSource({ layer, enabled: true })),
       ),
     });
-  }, [mapView, snappingLayerIds]);
+  }, [mapView]);
 
   const setDraftGeometryState = useCallback((nextGeometries: Geometry[]) => {
     geometriesRef.current = nextGeometries;
@@ -609,7 +611,7 @@ export default function FeatureGeometryEditor({
 
   useEffect(() => {
     syncSnappingOptions();
-  }, [syncSnappingOptions]);
+  }, [snappingLayerIds, syncSnappingOptions]);
 
   useEffect(() => {
     if (drawingState !== 'editing' || !mapView || !graphicsLayerRef.current) {

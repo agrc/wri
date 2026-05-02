@@ -78,7 +78,7 @@
     "concurrently": "^9.2.1",
     "cpy-cli": "^7.0.0",
     "cross-env": "^10.1.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.2",
     "firebase-tools": "^15.15.0",
     "lucide-react": "^0.563.0",
     "postcss": "^8.5.10",

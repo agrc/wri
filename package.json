@@ -80,7 +80,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^9.39.2",
     "firebase-tools": "^15.15.0",
-    "lucide-react": "^0.563.0",
+    "lucide-react": "^0.577.0",
     "postcss": "^8.5.10",
     "prettier": "^3.8.3",
     "prettier-plugin-organize-imports": "^4.3.0",

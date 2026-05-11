@@ -28,6 +28,14 @@ This is required for the export to PDF functionality. We need our own service to
 
 After the service has been published, you can update the layout by exporting the Layout to `Layout.pagx` (overwrite) in the ArcGIS Server directory (e.g. `arcgisserver\directories\arcgissystem\arcgisinput\WRI\ExportWebMap.GPServer\extracted\cd\layouts`). No need to republish the service.
 
+#### Features & Projects
+
+The Pro project is on the "D" drive.
+
+#### ToolboxAsync
+
+See `gptasks/Readme.md`
+
 ## Deployment
 
 - secret DATABASE_INFORMATION needs to be accessible with

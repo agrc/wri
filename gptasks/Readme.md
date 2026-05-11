@@ -21,5 +21,4 @@ Content -> ToolboxAsync -> Download -> project id strings -> Remove default valu
 
 ## Post Publish
 
-1. Browse to `arcgisserver\directories\arcgissystem\arcgisinput\WRI\ToolboxAsync.GPServer\extracted\v101\`
-1. Copy the `sql` and `data` folders to `extracted\p30\download\`
+1. Copy the `sql` and `data` folders to `arcgisserver\directories\arcgissystem\arcgisinput\WRI\ToolboxAsync.GPServer\extracted\p30\download\`

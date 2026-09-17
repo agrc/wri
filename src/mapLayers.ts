@@ -642,6 +642,7 @@ export const points = new FeatureLayer({
   url: `${baseUrl}/arcgis/rest/services/WRI/Features/MapServer/0`,
   outFields: ['Project_ID', 'StatusDescription', 'Title'],
   visible: false,
+  labelsVisible: true,
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
     uniqueValueInfos: [
@@ -815,6 +816,27 @@ export const points = new FeatureLayer({
       },
     },
   }),
+  labelingInfo: [
+    {
+      symbol: {
+        type: 'text',
+        color: 'white',
+        haloColor: [43, 80, 78, 255],
+        haloSize: 0.7,
+        font: {
+          family: 'Arial',
+          size: 10,
+          weight: 'normal',
+        },
+      },
+      labelPlacement: 'above-right',
+      labelExpressionInfo: {
+        expression: '"Project id: " + $feature.Project_ID',
+      },
+      minScale: 0,
+      maxScale: 0,
+    },
+  ],
 });
 export const lines = new FeatureLayer({
   title: 'Lines',

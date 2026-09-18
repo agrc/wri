@@ -429,6 +429,8 @@ export default function FeatureGeometryEditor({
       }
 
       if (event.detail.state === 'active') {
+        // keep geometry state live during the drag so a submit mid-drag never uses stale geometry
+        syncGraphicsFromLayer();
         setSelectedDraftCount(event.detail.graphics.length);
 
         return;

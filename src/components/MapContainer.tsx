@@ -162,6 +162,8 @@ export const MapContainer = () => {
       { name: 'Title', type: 'string' as const },
     ];
     const outFields = outFieldDefs.map((f) => f.name);
+    let cancelled = false;
+    const addedLayerIds: string[] = [];
 
     const getFeatures = async () => {
       for (const layer of operationalLayers.current) {
@@ -219,12 +221,29 @@ export const MapContainer = () => {
           spatialReference: layer.spatialReference,
         });
 
+        if (cancelled) {
+          return;
+        }
+
+        // guard against duplicate layers from a prior run of this effect (e.g. StrictMode's
+        // dev-mode double-invoke) so edits always land on the single layer actually being rendered
+        const staleLayer = activeMap.findLayerById(featureLayer.id);
+        if (staleLayer) {
+          activeMap.remove(staleLayer);
+          staleLayer.destroy();
+        }
+
         activeMap.add(featureLayer);
+        addedLayerIds.push(featureLayer.id);
       }
     };
 
     getFeatures()
       .then(() => {
+        if (cancelled) {
+          return;
+        }
+
         const promises: Promise<ExtentQueryResult>[] = [];
         activeMap.layers.forEach((layer) => {
           if (layer.id.startsWith(`project-${currentProject}-`)) {
@@ -257,6 +276,17 @@ export const MapContainer = () => {
       .catch((error) => {
         console.error('Error fetching features for operational layers:', error);
       });
+
+    return () => {
+      cancelled = true;
+      addedLayerIds.forEach((id) => {
+        const addedLayer = activeMap.findLayerById(id);
+        if (addedLayer) {
+          activeMap.remove(addedLayer);
+          addedLayer.destroy();
+        }
+      });
+    };
   }, [currentProject, isReady, layersReady]);
 
   // remove project specific layers when the project changes

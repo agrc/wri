@@ -16,6 +16,12 @@ Staging: [wri-stage.at.utah.gov](https://wri-stage.at.utah.gov)
 
 Set `DEV_USER_EMAIL` in `.env.local` if you want `npm start` to inject your local edit credentials from the dev database.
 
+### Running Locally
+
+1. Run `gcloud auth application-default login` and authenticate
+1. Run `cloud-sql-proxy ut-dnr-dwr-wri-app-at:us-west3:nrgcwridbt -p 7777`
+1. In a new tab, run `npm run start`
+
 ### Publishing Services to ArcGIS Server
 
 #### Export Web Map

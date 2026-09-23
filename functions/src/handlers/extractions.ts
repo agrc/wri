@@ -1,5 +1,6 @@
 import type Multipoint from '@arcgis/core/geometry/Multipoint.js';
 import { execute as area } from '@arcgis/core/geometry/operators/areaOperator.js';
+import { execute as generalize } from '@arcgis/core/geometry/operators/generalizeOperator.js';
 import { accelerateGeometry, execute as intersect } from '@arcgis/core/geometry/operators/intersectionOperator.js';
 import { execute as length } from '@arcgis/core/geometry/operators/lengthOperator.js';
 import {
@@ -25,6 +26,13 @@ type QueryParams = Omit<IQueryFeaturesOptions, 'url'>;
 type ProjectableGeometry = Polygon | Polyline | Multipoint;
 
 const FEATURE_QUERY_TIMEOUT_MS = 60000;
+
+// Geometries denser than this (e.g. shapefile uploads with many vertices) are generalized before
+// being sent to external feature services, which can reject or fail on very large request bodies.
+const FEATURE_QUERY_VERTEX_THRESHOLD = 2000;
+// Use aggressive simplification (50m deviation) to significantly reduce geometry complexity for external service queries.
+// This doesn't affect accuracy of intersection calculations (which use the full-resolution geometry).
+const FEATURE_QUERY_GENERALIZE_MAX_DEVIATION_METERS = 50;
 
 type SerializableParam =
   | string
@@ -548,6 +556,31 @@ export async function extractIntersections(
 
   await accelerateGeometry(clip);
 
+  // Use a generalized copy of the clip geometry for the external feature service queries only.
+  // Intersection area/length calculations below still use the full-resolution `clip` geometry.
+  const clipJson = clip.toJSON() as Record<string, unknown>;
+  const clipVertexCount = getGeometryPointCount(clipJson);
+
+  let queryGeometry: ProjectableGeometry = clip;
+  if (clipVertexCount > FEATURE_QUERY_VERTEX_THRESHOLD) {
+    const generalized = generalize(clip as GeometryUnion, FEATURE_QUERY_GENERALIZE_MAX_DEVIATION_METERS);
+    if (generalized && isProjectableGeometry(generalized)) {
+      queryGeometry = generalized;
+      const generalizedJson = generalized.toJSON() as Record<string, unknown>;
+      const generalizedVertexCount = getGeometryPointCount(generalizedJson);
+      const reductionPercent = (((clipVertexCount - generalizedVertexCount) / clipVertexCount) * 100).toFixed(1);
+      logger.info('Geometry simplified for feature service queries', {
+        originalVertices: clipVertexCount,
+        simplifiedVertices: generalizedVertexCount,
+        reductionPercent,
+      });
+    } else {
+      logger.warn('Geometry simplification failed, using original', {
+        vertexCount: clipVertexCount,
+      });
+    }
+  }
+
   // Process each layer in the criteria
   for (const [layerName, layerCriteria] of Object.entries(criteria)) {
     const layer = layerName as LayerName;
@@ -563,7 +596,7 @@ export async function extractIntersections(
 
     try {
       // Response features are returned in UTM Zone 12N (26912) as specified by outSR parameter
-      const featureSet = await queryFeatureService(config.url, clip, layerCriteria.attributes);
+      const featureSet = await queryFeatureService(config.url, queryGeometry, layerCriteria.attributes);
       const graphics = (featureSet && (featureSet.features as Graphic[])) || [];
 
       if (graphics.length === 0) {

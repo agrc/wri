@@ -257,6 +257,10 @@ export const MapContainer = () => {
         });
 
         Promise.all(promises).then((results) => {
+          if (cancelled) {
+            return;
+          }
+
           let combinedExtent: Extent | null = null;
           results
             .filter((x): x is ExtentQueryResult & { extent: Extent } => x.count > 0 && x.extent != null)

@@ -70,8 +70,14 @@ const measurePiece = (piece: SupportedDraftGeometry, table: CuttableFeatureTable
     : Math.abs(lengthOperator.execute(piece as Polyline));
 };
 
-const toSingleParts = (geometry: Geometry): SupportedDraftGeometry[] => {
-  return multiPartToSinglePartOperator.executeMany([geometry as SupportedDraftGeometry]) as SupportedDraftGeometry[];
+export const toSinglePartDraftGeometries = (geometries: Geometry[]): Geometry[] => {
+  return geometries.flatMap((geometry) => {
+    if (!isPolygonGeometry(geometry) && !isPolylineGeometry(geometry)) {
+      return [geometry];
+    }
+
+    return multiPartToSinglePartOperator.executeMany([geometry]) as SupportedDraftGeometry[];
+  });
 };
 
 export const cutDraftGeometries = ({
@@ -84,7 +90,7 @@ export const cutDraftGeometries = ({
   const nextGeometries = geometries.flatMap((geometry): Geometry[] => {
     // cutOperator groups every left-side part into a single output geometry, so a multipart draft
     // has to be cut one part at a time to keep parts the cut line never touched.
-    return toSingleParts(geometry).flatMap((part): Geometry[] => {
+    return (toSinglePartDraftGeometries([geometry]) as SupportedDraftGeometry[]).flatMap((part): Geometry[] => {
       const pieces = (cutOperator.execute(part, cutGeometry) ?? [])
         .filter((piece): piece is SupportedDraftGeometry => piece != null)
         .map((piece) => ({ piece, size: measurePiece(piece, table) }))

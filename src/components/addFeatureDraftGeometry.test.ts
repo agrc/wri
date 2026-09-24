@@ -10,6 +10,7 @@ import {
   CUT_DRAFT_NOOP_ERROR,
   cutDraftGeometries,
   INVALID_BUFFER_DISTANCE_ERROR,
+  toSinglePartDraftGeometries,
 } from './addFeatureDraftGeometry';
 
 const SR = new SpatialReference({ wkid: 26912 });
@@ -60,6 +61,60 @@ const verticalCut = new Polyline({
 });
 
 describe('addFeatureDraftGeometry helpers', () => {
+  it('splits disconnected multipart polygons into independently editable geometries', () => {
+    const multipart = new Polygon({
+      rings: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+          [0, 0],
+        ],
+        [
+          [20, 0],
+          [30, 0],
+          [30, 10],
+          [20, 10],
+          [20, 0],
+        ],
+      ],
+      spatialReference: SR,
+    });
+
+    const parts = toSinglePartDraftGeometries([multipart]) as Polygon[];
+
+    expect(parts).toHaveLength(2);
+    expect(parts.map((part) => part.extent!.xmin).sort((a, b) => a - b)).toEqual([0, 20]);
+  });
+
+  it('preserves an interior polygon ring as a hole in its containing part', () => {
+    const polygonWithHole = new Polygon({
+      rings: [
+        [
+          [0, 0],
+          [0, 20],
+          [20, 20],
+          [20, 0],
+          [0, 0],
+        ],
+        [
+          [5, 5],
+          [15, 5],
+          [15, 15],
+          [5, 15],
+          [5, 5],
+        ],
+      ],
+      spatialReference: SR,
+    });
+
+    const parts = toSinglePartDraftGeometries([polygonWithHole]) as Polygon[];
+
+    expect(parts).toHaveLength(1);
+    expect(parts[0]!.rings).toHaveLength(2);
+  });
+
   it('only allows cutting when there is draft geometry for a line or polygon', () => {
     expect(canCutDraftGeometries('POINT', [])).toBe(false);
     expect(canCutDraftGeometries('POLY', [])).toBe(false);

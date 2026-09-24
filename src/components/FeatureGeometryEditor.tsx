@@ -41,6 +41,7 @@ import {
   canBufferDraftGeometries,
   canCutDraftGeometries,
   cutDraftGeometries,
+  toSinglePartDraftGeometries,
 } from './addFeatureDraftGeometry';
 import {
   getDraftGeometriesFromGraphics,
@@ -310,8 +311,14 @@ export default function FeatureGeometryEditor({
         return;
       }
 
-      replaceDraftLayerGraphics(graphicsLayer, nextGeometries, (geometry) => getDefaultSymbol(geometry) ?? undefined);
-      setDraftGeometryState(nextGeometries);
+      const singlePartGeometries = toSinglePartDraftGeometries(nextGeometries);
+
+      replaceDraftLayerGraphics(
+        graphicsLayer,
+        singlePartGeometries,
+        (geometry) => getDefaultSymbol(geometry) ?? undefined,
+      );
+      setDraftGeometryState(singlePartGeometries);
     },
     [setDraftGeometryState],
   );

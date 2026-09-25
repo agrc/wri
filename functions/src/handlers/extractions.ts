@@ -7,7 +7,7 @@ import {
   load as projectLoad,
   executeMany as projectMany,
 } from '@arcgis/core/geometry/operators/projectOperator.js';
-import { execute as union } from '@arcgis/core/geometry/operators/unionOperator.js';
+import { executeMany as unionMany } from '@arcgis/core/geometry/operators/unionOperator.js';
 import type Polygon from '@arcgis/core/geometry/Polygon.js';
 import type Polyline from '@arcgis/core/geometry/Polyline.js';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference.js';
@@ -25,6 +25,12 @@ type QueryParams = Omit<IQueryFeaturesOptions, 'url'>;
 type ProjectableGeometry = Polygon | Polyline | Multipoint;
 
 const FEATURE_QUERY_TIMEOUT_MS = 60000;
+
+// Geometries denser than this (e.g. shapefile uploads with many vertices) are queried against
+// external feature services via their bounding box instead of their exact shape — sending every
+// vertex of a very dense geometry can be slow or fail outright. Candidate features found this way
+// are always re-checked with an exact intersects test against the full-resolution geometry.
+const FEATURE_QUERY_VERTEX_THRESHOLD = 5000;
 
 type SerializableParam =
   | string
@@ -367,6 +373,76 @@ export async function queryFeatureService(
 }
 
 /**
+ * Builds a rectangular polygon covering a geometry's bounding box, for use as a spatial pre-filter.
+ * The bbox always fully contains the source geometry, so it can never exclude a true intersection —
+ * at most it returns extra candidates, which the exact `calculateIntersection` check filters out later.
+ * @param geometry - Geometry to compute a bounding box for
+ * @returns A rectangular polygon matching the geometry's extent, or null if no extent is available
+ */
+function buildBoundingBoxQueryGeometry(geometry: ProjectableGeometry): ProjectableGeometry | null {
+  const extent = geometry.extent;
+
+  if (!extent) {
+    return null;
+  }
+
+  const spatialReference = extent.spatialReference?.toJSON();
+  const ring = [
+    [extent.xmin, extent.ymin],
+    [extent.xmax, extent.ymin],
+    [extent.xmax, extent.ymax],
+    [extent.xmin, extent.ymax],
+    [extent.xmin, extent.ymin],
+  ];
+
+  const bbox = geometryFromJSON({ rings: [ring], spatialReference } as unknown as IGeometry);
+
+  return isProjectableGeometry(bbox) ? bbox : null;
+}
+
+/**
+ * Queries a feature service for candidate features that might intersect a geometry.
+ * Dense geometries (e.g. shapefile uploads with many vertices) are queried via their bounding
+ * box instead of their exact shape, since sending every vertex to an external service can be slow
+ * or fail outright. This never misses a true intersection — the caller always re-checks candidates
+ * against the original full-resolution geometry with `calculateIntersection`.
+ * @param serviceUrl - URL of the feature service layer
+ * @param geometry - Full-resolution input geometry to find candidates for
+ * @param outFields - Array of field names to return
+ * @returns Candidate feature graphics
+ */
+export async function queryFeatureServiceForCandidates(
+  serviceUrl: string,
+  geometry: ProjectableGeometry,
+  outFields: string[],
+): Promise<Graphic[]> {
+  const vertexCount = getGeometryPointCount(geometry.toJSON() as Record<string, unknown>);
+
+  let queryGeometry = geometry;
+
+  if (vertexCount > FEATURE_QUERY_VERTEX_THRESHOLD) {
+    const bbox = buildBoundingBoxQueryGeometry(geometry);
+
+    if (bbox) {
+      logger.info('Using bounding-box pre-filter for dense geometry feature service query', {
+        serviceUrl,
+        vertexCount,
+      });
+      queryGeometry = bbox;
+    } else {
+      logger.warn('Failed to compute bounding box for dense geometry, querying exact geometry instead', {
+        serviceUrl,
+        vertexCount,
+      });
+    }
+  }
+
+  const featureSet = await queryFeatureService(serviceUrl, queryGeometry, outFields);
+
+  return (featureSet.features as Graphic[]) || [];
+}
+
+/**
  * Projects geometries to a different spatial reference using client-side projection
  * @param geometries - Array of geometries to project
  * @param toSR - Target spatial reference
@@ -403,29 +479,11 @@ export async function unionGeometries(geometries: ProjectableGeometry[]): Promis
 
   logger.debug('Performing a union on geometries', { count: geometries.length });
 
-  // Union geometries pairwise
-  let unioned = geometries[0];
-  for (let i = 1; i < geometries.length; i++) {
-    const nextGeom = geometries[i];
+  // executeMany unions the whole set in one optimized pass — the naive pairwise loop this replaced
+  // grows increasingly slow as `unioned` accumulates complexity, and times out on large geometry sets.
+  const result = unionMany(geometries as GeometryUnion[]);
 
-    if (!unioned || !nextGeom) {
-      return null;
-    }
-
-    const result = union(unioned, nextGeom);
-
-    if (!result) {
-      return null;
-    }
-
-    if (!isProjectableGeometry(result)) {
-      return null;
-    }
-
-    unioned = result;
-  }
-
-  return isProjectableGeometry(unioned) ? unioned : null;
+  return result && isProjectableGeometry(result) ? result : null;
 }
 
 /**
@@ -562,9 +620,9 @@ export async function extractIntersections(
     logger.debug(`Processing layer: ${layer}`);
 
     try {
-      // Response features are returned in UTM Zone 12N (26912) as specified by outSR parameter
-      const featureSet = await queryFeatureService(config.url, clip, layerCriteria.attributes);
-      const graphics = (featureSet && (featureSet.features as Graphic[])) || [];
+      // Response features are returned in UTM Zone 12N (26912) as specified by outSR parameter.
+      // Uses the full-resolution `clip`; large geometries are transparently chunked internally.
+      const graphics = await queryFeatureServiceForCandidates(config.url, clip, layerCriteria.attributes);
 
       if (graphics.length === 0) {
         logger.debug(`No intersections found for layer: ${layer}`);

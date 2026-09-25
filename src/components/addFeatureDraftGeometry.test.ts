@@ -10,6 +10,7 @@ import {
   CUT_DRAFT_NOOP_ERROR,
   cutDraftGeometries,
   INVALID_BUFFER_DISTANCE_ERROR,
+  toSinglePartDraftGeometries,
 } from './addFeatureDraftGeometry';
 
 const SR = new SpatialReference({ wkid: 26912 });
@@ -60,6 +61,60 @@ const verticalCut = new Polyline({
 });
 
 describe('addFeatureDraftGeometry helpers', () => {
+  it('splits disconnected multipart polygons into independently editable geometries', () => {
+    const multipart = new Polygon({
+      rings: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+          [0, 0],
+        ],
+        [
+          [20, 0],
+          [30, 0],
+          [30, 10],
+          [20, 10],
+          [20, 0],
+        ],
+      ],
+      spatialReference: SR,
+    });
+
+    const parts = toSinglePartDraftGeometries([multipart]) as Polygon[];
+
+    expect(parts).toHaveLength(2);
+    expect(parts.map((part) => part.extent!.xmin).sort((a, b) => a - b)).toEqual([0, 20]);
+  });
+
+  it('preserves an interior polygon ring as a hole in its containing part', () => {
+    const polygonWithHole = new Polygon({
+      rings: [
+        [
+          [0, 0],
+          [0, 20],
+          [20, 20],
+          [20, 0],
+          [0, 0],
+        ],
+        [
+          [5, 5],
+          [15, 5],
+          [15, 15],
+          [5, 15],
+          [5, 5],
+        ],
+      ],
+      spatialReference: SR,
+    });
+
+    const parts = toSinglePartDraftGeometries([polygonWithHole]) as Polygon[];
+
+    expect(parts).toHaveLength(1);
+    expect(parts[0]!.rings).toHaveLength(2);
+  });
+
   it('only allows cutting when there is draft geometry for a line or polygon', () => {
     expect(canCutDraftGeometries('POINT', [])).toBe(false);
     expect(canCutDraftGeometries('POLY', [])).toBe(false);
@@ -83,15 +138,12 @@ describe('addFeatureDraftGeometry helpers', () => {
       table: 'POLY',
     });
 
-    const survivingPolygon = result.geometries[0] as Polygon;
-    const [ring] = survivingPolygon.rings;
-    const xValues = (ring?.map(([x]) => x) ?? []).filter((value): value is number => value != null);
+    const survivor = (result.geometries[0] as Polygon).extent!;
 
     expect(result.changed).toBe(true);
     expect(result.error).toBeNull();
-    expect(xValues.length).toBeGreaterThan(0);
-    expect(Math.min(...xValues)).toBe(0);
-    expect(Math.max(...xValues)).toBe(6);
+    expect(result.geometries).toHaveLength(1);
+    expect([survivor.xmin, survivor.xmax]).toEqual([0, 6]);
   });
 
   it('keeps the longest line segment after a cut', async () => {
@@ -103,15 +155,12 @@ describe('addFeatureDraftGeometry helpers', () => {
       table: 'LINE',
     });
 
-    const survivingLine = result.geometries[0] as Polyline;
-    const [path] = survivingLine.paths;
-    const xValues = (path?.map(([x]) => x) ?? []).filter((value): value is number => value != null);
+    const survivor = (result.geometries[0] as Polyline).extent!;
 
     expect(result.changed).toBe(true);
     expect(result.error).toBeNull();
-    expect(xValues.length).toBeGreaterThan(0);
-    expect(Math.min(...xValues)).toBe(0);
-    expect(Math.max(...xValues)).toBe(6);
+    expect(result.geometries).toHaveLength(1);
+    expect([survivor.xmin, survivor.xmax]).toEqual([0, 6]);
   });
 
   it('preserves untouched draft parts when only one part is cut', async () => {
@@ -124,8 +173,73 @@ describe('addFeatureDraftGeometry helpers', () => {
       table: 'POLY',
     });
 
+    const untouchedExtent = (result.geometries.at(-1) as Polygon).extent!;
+
     expect(result.changed).toBe(true);
-    expect((result.geometries[1] as Polygon).toJSON()).toEqual(untouchedPolygon.toJSON());
+    expect(result.geometries).toHaveLength(2);
+    expect([untouchedExtent.xmin, untouchedExtent.xmax]).toEqual([20, 30]);
+  });
+
+  it('keeps the largest piece when the rings are counter-clockwise', async () => {
+    const counterClockwisePolygon = new Polygon({
+      rings: [
+        [
+          [0, 0],
+          [0, 4],
+          [10, 4],
+          [10, 0],
+          [0, 0],
+        ],
+      ],
+      spatialReference: SR,
+    });
+
+    const result = await cutDraftGeometries({
+      geometries: [counterClockwisePolygon],
+      cutGeometry: verticalCut,
+      table: 'POLY',
+    });
+
+    const survivor = (result.geometries[0] as Polygon).extent!;
+
+    expect(result.changed).toBe(true);
+    expect(result.geometries).toHaveLength(1);
+    expect([survivor.xmin, survivor.xmax]).toEqual([0, 6]);
+  });
+
+  it('preserves untouched parts of a multipart draft polygon', async () => {
+    const multipart = new Polygon({
+      rings: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 4],
+          [0, 4],
+          [0, 0],
+        ],
+        [
+          [20, 0],
+          [30, 0],
+          [30, 4],
+          [20, 4],
+          [20, 0],
+        ],
+      ],
+      spatialReference: SR,
+    });
+
+    const result = await cutDraftGeometries({
+      geometries: [multipart],
+      cutGeometry: verticalCut,
+      table: 'POLY',
+    });
+
+    const extents = (result.geometries as Polygon[]).map((piece) => piece.extent!).sort((a, b) => a.xmin - b.xmin);
+
+    expect(result.changed).toBe(true);
+    expect(result.geometries).toHaveLength(2);
+    expect([extents[0]!.xmin, extents[0]!.xmax]).toEqual([0, 6]);
+    expect([extents[1]!.xmin, extents[1]!.xmax]).toEqual([20, 30]);
   });
 
   it('returns a no-op result when the cut does not split any draft geometry', async () => {

@@ -2,6 +2,7 @@ import Collection from '@arcgis/core/core/Collection.js';
 import type { ResourceHandle } from '@arcgis/core/core/Handles.js';
 import { watch } from '@arcgis/core/core/reactiveUtils';
 import type Geometry from '@arcgis/core/geometry/Geometry.js';
+import type Multipoint from '@arcgis/core/geometry/Multipoint.js';
 import type Polyline from '@arcgis/core/geometry/Polyline.js';
 import Graphic from '@arcgis/core/Graphic.js';
 import type FeatureLayer from '@arcgis/core/layers/FeatureLayer.js';
@@ -40,6 +41,7 @@ import {
   canBufferDraftGeometries,
   canCutDraftGeometries,
   cutDraftGeometries,
+  toSinglePartDraftGeometries,
 } from './addFeatureDraftGeometry';
 import {
   getDraftGeometriesFromGraphics,
@@ -89,6 +91,28 @@ const getDefaultSymbol = (geometry: Geometry) => {
     default:
       return null;
   }
+};
+
+// Detects a sketch graphic that has no meaningful vertices (e.g. an auto-started
+// continuous-mode create operation that was force-completed before the user drew anything).
+const isDegenerateGraphic = (graphic: Graphic | null | undefined): boolean => {
+  const geometry = graphic?.geometry;
+
+  if (!geometry) {
+    return true;
+  }
+
+  if (geometry.type === 'multipoint') {
+    return (geometry as Multipoint).points.length === 0;
+  }
+
+  if (geometry.type === 'point') {
+    return false;
+  }
+
+  const extent = geometry.extent;
+
+  return !extent || (extent.width === 0 && extent.height === 0);
 };
 
 const normalizeInitialGeometries = (initialGeometry?: Geometry | Geometry[] | null): Geometry[] => {
@@ -287,8 +311,14 @@ export default function FeatureGeometryEditor({
         return;
       }
 
-      replaceDraftLayerGraphics(graphicsLayer, nextGeometries, (geometry) => getDefaultSymbol(geometry) ?? undefined);
-      setDraftGeometryState(nextGeometries);
+      const singlePartGeometries = toSinglePartDraftGeometries(nextGeometries);
+
+      replaceDraftLayerGraphics(
+        graphicsLayer,
+        singlePartGeometries,
+        (geometry) => getDefaultSymbol(geometry) ?? undefined,
+      );
+      setDraftGeometryState(singlePartGeometries);
     },
     [setDraftGeometryState],
   );
@@ -429,6 +459,8 @@ export default function FeatureGeometryEditor({
       }
 
       if (event.detail.state === 'active') {
+        // keep geometry state live during the drag so a submit mid-drag never uses stale geometry
+        syncGraphicsFromLayer();
         setSelectedDraftCount(event.detail.graphics.length);
 
         return;
@@ -838,7 +870,18 @@ export default function FeatureGeometryEditor({
         return;
       }
 
+      // Continuous drawing mode auto-starts a new, empty sketch after every shape completes.
+      // Completing that empty sketch would add a degenerate zero-vertex graphic, so cancel it instead.
+      const shouldDiscardActiveSketch = isDegenerateGraphic(sketch.createGraphic);
+
       sketch.creationMode = 'single';
+
+      if (shouldDiscardActiveSketch) {
+        void sketch.cancel();
+
+        return;
+      }
+
       void sketch.complete();
     });
   };

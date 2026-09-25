@@ -3,6 +3,7 @@ import * as areaOperator from '@arcgis/core/geometry/operators/areaOperator.js';
 import * as cutOperator from '@arcgis/core/geometry/operators/cutOperator.js';
 import * as geodesicBufferOperator from '@arcgis/core/geometry/operators/geodesicBufferOperator.js';
 import * as lengthOperator from '@arcgis/core/geometry/operators/lengthOperator.js';
+import * as multiPartToSinglePartOperator from '@arcgis/core/geometry/operators/multiPartToSinglePartOperator.js';
 import type Polygon from '@arcgis/core/geometry/Polygon.js';
 import type Polyline from '@arcgis/core/geometry/Polyline.js';
 import type { FeatureTable } from '@ugrc/wri-shared/types';
@@ -62,23 +63,21 @@ export const canBufferDraftGeometries = (table: FeatureTable | undefined, geomet
   return table === 'POLY' && geometries.some(isPolylineGeometry);
 };
 
-const chooseDominantGeometry = (
-  pieces: SupportedDraftGeometry[],
-  table: CuttableFeatureTable,
-): SupportedDraftGeometry | null => {
-  let bestGeometry: SupportedDraftGeometry | null = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
+// areaOperator returns a signed value, so counter-clockwise rings would otherwise score lowest.
+const measurePiece = (piece: SupportedDraftGeometry, table: CuttableFeatureTable): number => {
+  return table === 'POLY'
+    ? Math.abs(areaOperator.execute(piece as Polygon))
+    : Math.abs(lengthOperator.execute(piece as Polyline));
+};
 
-  for (const piece of pieces) {
-    const score = table === 'POLY' ? areaOperator.execute(piece as Polygon) : lengthOperator.execute(piece as Polyline);
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestGeometry = piece;
+export const toSinglePartDraftGeometries = (geometries: Geometry[]): Geometry[] => {
+  return geometries.flatMap((geometry) => {
+    if (!isPolygonGeometry(geometry) && !isPolylineGeometry(geometry)) {
+      return [geometry];
     }
-  }
 
-  return bestGeometry;
+    return multiPartToSinglePartOperator.executeMany([geometry]) as SupportedDraftGeometry[];
+  });
 };
 
 export const cutDraftGeometries = ({
@@ -88,31 +87,39 @@ export const cutDraftGeometries = ({
 }: CutDraftGeometriesParams): CutDraftGeometriesResult => {
   let changed = false;
 
-  const nextGeometries = geometries.map((geometry) => {
-    const currentGeometry = geometry as SupportedDraftGeometry;
-    const pieces = (cutOperator.execute(currentGeometry, cutGeometry) ?? []).filter(
-      (piece) => piece != null,
-    ) as SupportedDraftGeometry[];
+  const nextGeometries = geometries.flatMap((geometry): Geometry[] => {
+    // cutOperator groups every left-side part into a single output geometry, so a multipart draft
+    // has to be cut one part at a time to keep parts the cut line never touched.
+    return (toSinglePartDraftGeometries([geometry]) as SupportedDraftGeometry[]).flatMap((part): Geometry[] => {
+      const pieces = (cutOperator.execute(part, cutGeometry) ?? [])
+        .filter((piece): piece is SupportedDraftGeometry => piece != null)
+        .map((piece) => ({ piece, size: measurePiece(piece, table) }))
+        .filter(({ size }) => size > 0);
 
-    if (pieces.length < 2) {
-      return geometry;
-    }
+      if (pieces.length < 2) {
+        return [part];
+      }
 
-    const dominantGeometry = chooseDominantGeometry(pieces, table);
+      changed = true;
 
-    if (!dominantGeometry) {
-      throw new Error('Unable to determine which cut geometry should survive.');
-    }
+      const survivor = pieces.reduce((best, candidate) => (candidate.size > best.size ? candidate : best));
 
-    changed = true;
-
-    return dominantGeometry;
+      return [survivor.piece];
+    });
   });
+
+  if (!changed) {
+    return {
+      geometries,
+      changed: false,
+      error: CUT_DRAFT_NOOP_ERROR,
+    };
+  }
 
   return {
     geometries: nextGeometries,
-    changed,
-    error: changed ? null : CUT_DRAFT_NOOP_ERROR,
+    changed: true,
+    error: null,
   };
 };
 

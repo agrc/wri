@@ -35,7 +35,7 @@ vi.mock('@arcgis/core/geometry/operators/intersectionOperator.js', () => ({
 }));
 
 vi.mock('@arcgis/core/geometry/operators/unionOperator.js', () => ({
-  execute: vi.fn(),
+  executeMany: vi.fn(),
 }));
 
 /**

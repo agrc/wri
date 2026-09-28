@@ -483,7 +483,7 @@ export async function unionGeometries(geometries: ProjectableGeometry[]): Promis
   // grows increasingly slow as `unioned` accumulates complexity, and times out on large geometry sets.
   const result = unionMany(geometries as GeometryUnion[]);
 
-  return result && isProjectableGeometry(result) ? result : null;
+  return isProjectableGeometry(result) ? result : null;
 }
 
 /**

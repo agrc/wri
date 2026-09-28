@@ -4,12 +4,12 @@
   "type": "module",
   "main": "lib/index.js",
   "scripts": {
-    "build": "npm run build:shared && npm run clean && tsc",
+    "build": "pnpm build:shared && pnpm clean && tsc",
     "build:shared": "tsc -p shared/tsconfig.json",
     "build:shared:watch": "tsc -p shared/tsconfig.json --watch",
-    "build:watch": "npm run build:shared:watch && tsc --watch",
+    "build:watch": "pnpm build:shared:watch && tsc --watch",
     "build:watch:only": "tsc --watch",
-    "check": "npm run build:shared && tsc -b && tsc -p tsconfig.tools.json --noEmit",
+    "check": "pnpm build:shared && tsc -b && tsc -p tsconfig.tools.json --noEmit",
     "check:proxy": "node --import tsx/esm scripts/check-db-proxy.ts",
     "clean": "rimraf lib",
     "clean:shared": "rimraf shared/dist shared/tsconfig.tsbuildinfo",
@@ -20,9 +20,9 @@
     "deploy": "firebase deploy --only functions",
     "lint": "eslint .",
     "logs": "firebase functions:log",
-    "serve": "npm run build && firebase emulators:start --only functions",
-    "shell": "npm run build && firebase functions:shell",
-    "start": "npm run serve",
+    "serve": "pnpm build && firebase emulators:start --only functions",
+    "shell": "pnpm build && firebase functions:shell",
+    "start": "pnpm serve",
     "start:local": "node --import tsx/esm scripts/start-local-dev.ts"
   },
   "dependencies": {

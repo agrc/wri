@@ -4,26 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build:shared && tsc -b && vite build",
+    "build": "pnpm build:shared && tsc -b && vite build",
     "build:shared": "tsc -p functions/shared/tsconfig.json",
     "build:shared:watch": "tsc -p functions/shared/tsconfig.json --watch",
     "build-storybook": "storybook build",
-    "check": "npm run build:shared && tsc -b",
+    "check": "pnpm build:shared && tsc -b",
     "clean:shared": "rimraf functions/shared/dist functions/shared/tsconfig.tsbuildinfo",
     "copy:arcgis": "cpy \"./node_modules/@arcgis/core/assets/**\" ./public/js/ugrc/assets",
-    "dev:extractions-test": "npm run build:shared && vite --open /extractions.test.html",
+    "dev:extractions-test": "pnpm build:shared && vite --open /extractions.test.html",
     "dev:firebase-emulators": "./scripts/start-emulators.sh",
-    "dev:vite": "npm run build:shared && vite",
+    "dev:vite": "pnpm build:shared && vite",
     "dev:vite:stack": "vite",
     "format": "prettier . --write",
     "postinstall": "pnpm copy:arcgis",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "start": "pnpm --filter @ugrc/wri-functions start:local",
-    "start:ci": "npm run build:shared && vite --host",
-    "start:stack": "pnpm run build:shared && concurrently 'pnpm run build:shared:watch' 'pnpm --filter @ugrc/wri-functions build:watch:only' 'pnpm run dev:firebase-emulators' 'wait-on http://127.0.0.1:5001/ut-dnr-dwr-wri-app-at/us-west3/healthCheck && pnpm run dev:vite:stack'",
+    "start:ci": "pnpm build:shared && vite --host",
+    "start:stack": "pnpm build:shared && concurrently 'pnpm build:shared:watch' 'pnpm --filter @ugrc/wri-functions build:watch:only' 'pnpm dev:firebase-emulators' 'wait-on http://127.0.0.1:5001/ut-dnr-dwr-wri-app-at/us-west3/healthCheck && pnpm dev:vite:stack'",
     "storybook": "storybook dev -p 6006",
-    "test": "npm run build:shared && vitest"
+    "test": "pnpm build:shared && vitest"
   },
   "browserslist": {
     "production": [

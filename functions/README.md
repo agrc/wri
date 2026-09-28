@@ -10,15 +10,15 @@ This directory contains Firebase Cloud Functions for the WRI (Watershed Restorat
 
 ## Available Scripts
 
-### `npm run build`
+### `pnpm run build`
 
 Builds the Firebase Functions TypeScript source into `lib/`.
 
-### `npm run build:watch`
+### `pnpm run build:watch`
 
 Watches the Firebase Functions TypeScript source and rebuilds on change.
 
-### `npm run serve`
+### `pnpm run serve`
 
 Builds the functions and starts the local Firebase Functions emulator.
 
@@ -36,7 +36,7 @@ The functions use Knex.js for runtime database operations.
 
 ## Local Development — Auth & `allowEdits`
 
-In production the Java app injects `UserKey` and `Token` into a hidden `#user-data` form before the Vite bundle loads. Locally that form is empty, so `npm start` can optionally inject credentials from the dev database when `DEV_USER_EMAIL` is configured.
+In production the Java app injects `UserKey` and `Token` into a hidden `#user-data` form before the Vite bundle loads. Locally that form is empty, so `pnpm start` can optionally inject credentials from the dev database when `DEV_USER_EMAIL` is configured.
 
 Prerequisites:
 
@@ -50,7 +50,7 @@ Set this optional value in root `.env.local` if you want local edit credentials:
 DEV_USER_EMAIL=your.email@example.com
 ```
 
-When `DEV_USER_EMAIL` is set, `npm start` reads `UserKey` and `Token` for that user from the dev database and injects them into the local app session. If `DEV_USER_EMAIL` is omitted, the app still starts but runs without local credentials, which means edit operations remain unavailable.
+When `DEV_USER_EMAIL` is set, `pnpm start` reads `UserKey` and `Token` for that user from the dev database and injects them into the local app session. If `DEV_USER_EMAIL` is omitted, the app still starts but runs without local credentials, which means edit operations remain unavailable.
 
 ### Local Development — Database Ownership
 
@@ -68,10 +68,10 @@ Available commands:
 
 ```bash
 cd functions
-npm run db:migrate:status
-npm run db:migrate:latest
-npm run db:migrate:rollback
-npm run db:migrate:make -- migration_name
+pnpm run db:migrate:status
+pnpm run db:migrate:latest
+pnpm run db:migrate:rollback
+pnpm run db:migrate:make -- migration_name
 ```
 
 Notes:

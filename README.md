@@ -13,14 +13,15 @@ Staging: [wri-stage.at.utah.gov](https://wri-stage.at.utah.gov)
 1. Duplicate `.env.example` as `.env.local` in the root directory and fill in the required values
 1. Start your Cloud SQL proxy for the at database
 1. See `functions/README.md` for the local Firebase Functions and database requirements
+1. Install dependencies with `pnpm install` in the root directory and `cd functions && pnpm install`
 
-Set `DEV_USER_EMAIL` in `.env.local` if you want `npm start` to inject your local edit credentials from the dev database.
+Set `DEV_USER_EMAIL` in `.env.local` if you want `pnpm start` to inject your local edit credentials from the dev database.
 
 ### Running Locally
 
 1. Run `gcloud auth application-default login` and authenticate
 1. Run `cloud-sql-proxy ut-dnr-dwr-wri-app-at:us-west3:nrgcwridbt -p 7777`
-1. In a new tab, make sure you are in the WRI repo, and run `npm start`
+1. In a new tab, make sure you are in the WRI repo, and run `pnpm start`
 1. Navigate to http://localhost:5173/
 
 ### Publishing Services to ArcGIS Server
@@ -56,7 +57,7 @@ See `gptasks/Readme.md`
   ```
 
 > [!WARNING]
-> This project is currently using NPM. If it is switched to PNPM, then we will need to coordinate with DTS to update the deployment pipeline in Jenkins.
+> This project uses PNPM. Deployment pipelines should install dependencies with `pnpm install --frozen-lockfile`.
 
 ## Attribution
 

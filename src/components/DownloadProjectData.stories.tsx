@@ -13,7 +13,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const meta = {
+const meta: Meta<typeof DownloadProjectData> = {
   title: 'Components/DownloadProjectData',
   component: DownloadProjectData,
   tags: ['autodocs'],
@@ -29,7 +29,7 @@ const meta = {
       </QueryClientProvider>
     ),
   ],
-} satisfies Meta<typeof DownloadProjectData>;
+};
 
 export default meta;
 type Story = StoryObj<typeof meta>;

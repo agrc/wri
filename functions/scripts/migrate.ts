@@ -3,7 +3,7 @@ import { createMigrationDatabase } from './migration-db.ts';
 const command = process.argv[2] ?? 'help';
 
 const printUsage = () => {
-  console.log('Usage: npm run db:migrate:<command>');
+  console.log('Usage: pnpm --filter @ugrc/wri-functions db:migrate:<command>');
   console.log('Commands: latest, rollback, status');
   console.log('Connection source: DATABASE_INFORMATION env var or functions/.secret.local');
 };

@@ -10,15 +10,17 @@ This directory contains Firebase Cloud Functions for the WRI (Watershed Restorat
 
 ## Available Scripts
 
-### `pnpm run build`
+Run these commands from the repository root, targeting the Functions workspace package:
+
+### `pnpm --filter @ugrc/wri-functions build`
 
 Builds the Firebase Functions TypeScript source into `lib/`.
 
-### `pnpm run build:watch`
+### `pnpm --filter @ugrc/wri-functions build:watch`
 
 Watches the Firebase Functions TypeScript source and rebuilds on change.
 
-### `pnpm run serve`
+### `pnpm --filter @ugrc/wri-functions serve`
 
 Builds the functions and starts the local Firebase Functions emulator.
 
@@ -67,11 +69,10 @@ The functions package now includes a forward-only Knex migration framework for n
 Available commands:
 
 ```bash
-cd functions
-pnpm run db:migrate:status
-pnpm run db:migrate:latest
-pnpm run db:migrate:rollback
-pnpm run db:migrate:make -- migration_name
+pnpm --filter @ugrc/wri-functions db:migrate:status
+pnpm --filter @ugrc/wri-functions db:migrate:latest
+pnpm --filter @ugrc/wri-functions db:migrate:rollback
+pnpm --filter @ugrc/wri-functions db:migrate:make -- migration_name
 ```
 
 Notes:

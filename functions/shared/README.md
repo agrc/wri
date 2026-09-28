@@ -26,8 +26,9 @@ Do not add a barrel export for this package.
 
 ## Development
 
-- Root build: `pnpm run build:shared`
-- Root watch: `pnpm run build:shared:watch`
-- Functions-local build: `cd functions && pnpm run build:shared`
+Build and watch commands are defined in the repository root package scripts. Run them from the repository root:
+
+- `pnpm build:shared`
+- `pnpm build:shared:watch`
 
 Tests for shared helpers should live in this package so code and test ownership stay aligned.

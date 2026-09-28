@@ -42,8 +42,8 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0(react@19.3.0)
       '@ugrc/wri-shared':
-        specifier: file:./functions/shared
-        version: file:functions/shared
+        specifier: link:./functions/shared
+        version: link:functions/shared
       betterknown:
         specifier: ^1.2.0
         version: 1.2.0
@@ -2056,9 +2056,6 @@ packages:
     resolution: {integrity: sha512-0UrVUEFlj32/u2dzWzel7BoxuqkhX2r6uLG+jTQ1hCQFd/lwQYQEHiV/uSDz4XKcWbiA39oe5NM7/7KXFH4blA==}
     peerDependencies:
       react: '>=16.8.0'
-
-  '@ugrc/wri-shared@file:functions/shared':
-    resolution: {directory: functions/shared, type: directory}
 
   '@vaadin/a11y-base@25.1.14':
     resolution: {integrity: sha512-YpS8DCJTziSuCVvEh7K7AWM4TVFxWKu1V/Q4lx8+cbTb3qLqGngR2w1i03bxsI+mPVk8r0h/qF1xuC6Kftv2cg==}
@@ -8420,8 +8417,6 @@ snapshots:
       react: 19.3.0
     transitivePeerDependencies:
       - '@lit/context'
-
-  '@ugrc/wri-shared@file:functions/shared': {}
 
   '@vaadin/a11y-base@25.1.14':
     dependencies:

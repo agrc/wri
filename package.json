@@ -21,7 +21,7 @@
     "preview": "vite preview",
     "start": "pnpm --filter @ugrc/wri-functions start:local",
     "start:ci": "npm run build:shared && vite --host",
-    "start:stack": "npm run build:shared && concurrently 'npm run build:shared:watch' 'pnpm --filter @ugrc/wri-functions build:watch:only' 'npm run dev:firebase-emulators' 'wait-on http://127.0.0.1:5001/ut-dnr-dwr-wri-app-at/us-west3/healthCheck && npm run dev:vite:stack'",
+    "start:stack": "pnpm run build:shared && concurrently 'pnpm run build:shared:watch' 'pnpm --filter @ugrc/wri-functions build:watch:only' 'pnpm run dev:firebase-emulators' 'wait-on http://127.0.0.1:5001/ut-dnr-dwr-wri-app-at/us-west3/healthCheck && pnpm run dev:vite:stack',
     "storybook": "storybook dev -p 6006",
     "test": "npm run build:shared && vitest"
   },

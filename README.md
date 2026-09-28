@@ -13,7 +13,7 @@ Staging: [wri-stage.at.utah.gov](https://wri-stage.at.utah.gov)
 1. Duplicate `.env.example` as `.env.local` in the root directory and fill in the required values
 1. Start your Cloud SQL proxy for the at database
 1. See `functions/README.md` for the local Firebase Functions and database requirements
-1. Install dependencies with `pnpm install` in the root directory and `cd functions && pnpm install`
+1. Install dependencies with `pnpm install` in the root directory; this installs all workspace packages.
 
 Set `DEV_USER_EMAIL` in `.env.local` if you want `pnpm start` to inject your local edit credentials from the dev database.
 

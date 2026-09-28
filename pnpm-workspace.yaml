@@ -1,9 +1,14 @@
+packages:
+  - functions
+  - functions/shared
 allowBuilds:
   '@firebase/util': true
+  '@parcel/watcher': set this to true or false
   '@vaadin/vaadin-usage-statistics': true
   esbuild: true
   protobufjs: true
   re2: true
+  unrs-resolver: set this to true or false
 overrides:
   react-stately: 3.50.0
 minimumReleaseAge: 10080

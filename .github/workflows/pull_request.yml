@@ -22,14 +22,19 @@ jobs:
         with:
           show-progress: false
 
+      - name: 📦 Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
-          cache: npm
+          cache: pnpm
 
       - name: 📥 Download dependencies
-        run: npm ci && cd functions && npm ci
+        run: pnpm install --frozen-lockfile && cd functions && pnpm install --frozen-lockfile
 
       - name: 🧶 Lint
         run: npm run lint
@@ -47,14 +52,19 @@ jobs:
         with:
           show-progress: false
 
+      - name: 📦 Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
       - name: ⎔ Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
-          cache: npm
+          cache: pnpm
 
       - name: 📥 Download dependencies
-        run: npm ci && cd functions && npm ci
+        run: pnpm install --frozen-lockfile && cd functions && pnpm install --frozen-lockfile
 
       - name: 🧪 Run tests
         run: npm test

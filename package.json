@@ -48,7 +48,7 @@
     "@ugrc/esri-theme-toggle": "^2.0.0",
     "@ugrc/utah-design-system": "^3.0.0",
     "@ugrc/utilities": "^4.0.0",
-    "@ugrc/wri-shared": "file:./functions/shared",
+    "@ugrc/wri-shared": "link:./functions/shared",
     "betterknown": "^1.2.0",
     "clsx": "^2.1.1",
     "firebase": "^12.12.0",

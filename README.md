@@ -56,9 +56,6 @@ See `gptasks/Readme.md`
   }
   ```
 
-> [!WARNING]
-> This project uses PNPM. Deployment pipelines should install dependencies with `pnpm install --frozen-lockfile`.
-
 ## Attribution
 
 This project was developed with the assistance of [GitHub Copilot](https://github.com/features/copilot).

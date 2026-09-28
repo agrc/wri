@@ -15,5 +15,8 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "devDependencies": {
+    "@total-typescript/tsconfig": "^1.0.4"
+  }
 }

@@ -642,6 +642,8 @@ export const points = new FeatureLayer({
   url: `${baseUrl}/arcgis/rest/services/WRI/Features/MapServer/0`,
   outFields: ['Project_ID', 'StatusDescription', 'Title'],
   visible: false,
+  // match nothing until FilterProvider applies the real filter, avoiding aborted tile loads
+  definitionExpression: '1=0',
   labelsVisible: true,
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
@@ -845,7 +847,7 @@ export const lines = new FeatureLayer({
   outFields: ['Project_ID', 'StatusDescription', 'Title'],
   visible: false,
   labelsVisible: true,
-  definitionExpression: '',
+  definitionExpression: '1=0',
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
     uniqueValueInfos: [
@@ -934,7 +936,7 @@ export const polygons = new FeatureLayer({
   outFields: ['Project_ID', 'StatusDescription', 'Title'],
   visible: false,
   labelsVisible: true,
-  definitionExpression: '',
+  definitionExpression: '1=0',
   opacity: POLY_OPACITY,
   renderer: new UniqueValueRenderer({
     field: 'StatusDescription',
@@ -1046,7 +1048,7 @@ export const centroids = new FeatureLayer({
   url: `${baseUrl}/arcgis/rest/services/WRI/Projects/MapServer/0`,
   outFields: ['Project_ID', 'Status', 'Title'],
   visible: true,
-  definitionExpression: '',
+  definitionExpression: '1=0',
   renderer: new UniqueValueRenderer({
     field: 'Status',
     uniqueValueInfos: [

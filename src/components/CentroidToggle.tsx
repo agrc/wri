@@ -30,10 +30,11 @@ export const CentroidToggle = () => {
   const { currentMapScale, mapView } = useMap();
 
   useEffect(() => {
-    if (!locked && currentMapScale !== undefined) {
+    // currentMapScale is stale while the view animates (e.g. Home from a project); wait until it settles
+    if (!locked && currentMapScale !== undefined && mapView?.stationary !== false) {
       setSelected(currentMapScale >= defaultSwitchScale);
     }
-  }, [currentMapScale, locked]);
+  }, [currentMapScale, locked, mapView]);
 
   useEffect(() => {
     if (!mapView || !mapView?.map || selected === null) {

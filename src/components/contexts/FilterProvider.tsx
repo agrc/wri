@@ -177,6 +177,9 @@ export const FilterProvider = ({
   } else if (filterOptions && initializedFilters.current) {
     const expressions = generateDefinitionExpression(state, filterOptions);
     setDefinitionExpression(featureLayers, expressions);
+  } else if (editingDomainsQuery.isError) {
+    // filter options unavailable; show unfiltered rather than leaving the initial match-nothing filter
+    setDefinitionExpression(featureLayers, { centroids: '', point: '', line: '', poly: '' });
   }
 
   return (

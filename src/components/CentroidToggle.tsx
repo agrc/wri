@@ -24,18 +24,19 @@ const toggle = (mapView: MapView, layerId: string, selected: boolean) => {
 };
 
 export const CentroidToggle = () => {
-  const [selected, setSelected] = useState<boolean>(false);
+  // null until the first map scale arrives so layers aren't toggled on and immediately off
+  const [selected, setSelected] = useState<boolean | null>(null);
   const [locked, setLocked] = useState<boolean>(false);
   const { currentMapScale, mapView } = useMap();
 
   useEffect(() => {
-    if (!locked) {
-      setSelected((currentMapScale ?? 0) >= defaultSwitchScale);
+    if (!locked && currentMapScale !== undefined) {
+      setSelected(currentMapScale >= defaultSwitchScale);
     }
   }, [currentMapScale, locked]);
 
   useEffect(() => {
-    if (!mapView || !mapView?.map) {
+    if (!mapView || !mapView?.map || selected === null) {
       return;
     }
 
@@ -51,7 +52,12 @@ export const CentroidToggle = () => {
 
   return (
     <div>
-      <Switch aria-label="Toggle project centroids" isSelected={selected} onChange={setSelected} isDisabled={locked}>
+      <Switch
+        aria-label="Toggle project centroids"
+        isSelected={selected ?? false}
+        onChange={setSelected}
+        isDisabled={locked}
+      >
         Project centroids
       </Switch>
       <div className="flex items-center gap-1 pl-2">

@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Button } from '@ugrc/utah-design-system/src/components/Button';
 import { Spinner } from '@ugrc/utah-design-system/src/components/Spinner';
 import { TextField } from '@ugrc/utah-design-system/src/components/TextField';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 type PrintMapProps = {
   view: MapView;
@@ -57,6 +57,11 @@ async function executePrint({ view, title }: { view: MapView; title: string }) {
 
 export function PrintMap({ view, slot }: PrintMapProps) {
   const [title, setTitle] = useState<string>('');
+  const expandRef = useRef<HTMLElementTagNameMap['arcgis-expand'] | null>(null);
+
+  const closePrintPanel = () => {
+    expandRef.current?.collapse();
+  };
 
   const { data, error, mutate, isPending } = useMutation({
     mutationFn: executePrint,
@@ -69,6 +74,7 @@ export function PrintMap({ view, slot }: PrintMapProps) {
 
   return (
     <arcgis-expand
+      ref={expandRef}
       slot={slot ?? 'top-right'}
       expandIcon="print"
       expandTooltip="Export Map to PDF"
@@ -89,7 +95,7 @@ export function PrintMap({ view, slot }: PrintMapProps) {
             )}
           </Button>
           {data && (
-            <a className="text-center" href={data} target="_blank" rel="noopener noreferrer">
+            <a className="text-center" href={data} target="_blank" rel="noopener noreferrer" onClick={closePrintPanel}>
               Download PDF
             </a>
           )}

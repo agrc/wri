@@ -400,6 +400,26 @@ export const sageGrouse = new FeatureLayer({
   outFields: ['Area_name'],
   visible: false,
   labelsVisible: false,
+  labelingInfo: [
+    {
+      symbol: {
+        type: 'text',
+        color: 'black',
+        haloColor: 'white',
+        haloSize: 2,
+        font: {
+          family: 'Ubuntu Mono',
+          size: 12,
+          weight: 'normal',
+        },
+      },
+      labelExpressionInfo: {
+        expression: '$feature.Area_name',
+      },
+      minScale: 0,
+      maxScale: 0,
+    },
+  ],
   renderer: new UniqueValueRenderer({
     field: 'Area_name',
     defaultSymbol: new SimpleFillSymbol({

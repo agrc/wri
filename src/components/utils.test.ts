@@ -26,8 +26,13 @@ describe('isVisible', () => {
     expect(isVisible(21, 20, 10)).toBe(false);
   });
 
+  it('should treat minScale 0 as unlimited with a maxScale', () => {
+    expect(isVisible(200_000, 0, 144_447)).toBe(true);
+    expect(isVisible(100_000, 0, 144_447)).toBe(false);
+  });
+
   it('should throw an error if maxScale is greater than minScale', () => {
-    expect(() => isVisible(25, 0, 10)).toThrowError('maxScale must be less than minScale');
+    expect(() => isVisible(25, 10, 20)).toThrowError('maxScale must be less than minScale');
   });
 
   it('should throw an error if maxScale is equal to minScale', () => {

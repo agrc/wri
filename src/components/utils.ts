@@ -11,10 +11,12 @@ export const randomize = <T>(items: T[]): { item: T; index: number } => {
 };
 
 export const isVisible = (scale: number, minScale: number = Infinity, maxScale: number = 0) => {
+  if (minScale === 0) {
+    minScale = Infinity;
+  }
+
   if (maxScale > minScale) {
     throw new Error('maxScale must be less than minScale');
-  } else if (minScale === 0 && maxScale === 0) {
-    minScale = Infinity;
   } else if (maxScale === minScale) {
     throw new Error('maxScale and minScale cannot be equal');
   }

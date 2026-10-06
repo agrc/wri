@@ -2,6 +2,7 @@ import type { Feature, PolygonFeatures } from '@ugrc/wri-shared/types';
 import { describe, expect, it } from 'vitest';
 import {
   getFeatureKindFromLayerId,
+  getFeatureSelectionIdentity,
   getProjectFeatureLayerId,
   parseFeatureKey,
   resolveSelectedFeature,
@@ -73,6 +74,25 @@ describe('featureSelection helpers', () => {
     expect(layerId).toBe('project-7-feature-point');
     expect(getFeatureKindFromLayerId(layerId)).toBe('point');
     expect(getFeatureKindFromLayerId('reference-land-ownership')).toBeUndefined();
+  });
+
+  it('resolves current and adjacent map-layer hits to project feature identities', () => {
+    expect(getFeatureSelectionIdentity('project-7-feature-poly', { FeatureID: 10 }, 7)).toEqual({
+      projectId: 7,
+      kind: 'poly',
+      id: 10,
+    });
+    expect(getFeatureSelectionIdentity('feature-line', { FeatureID: '20', Project_ID: '8' }, 7)).toEqual({
+      projectId: 8,
+      kind: 'line',
+      id: 20,
+    });
+  });
+
+  it('rejects unrelated and current-project base-layer hits', () => {
+    expect(getFeatureSelectionIdentity('project-8-feature-point', { FeatureID: 30 }, 7)).toBeNull();
+    expect(getFeatureSelectionIdentity('feature-point', { FeatureID: 30, Project_ID: 7 }, 7)).toBeNull();
+    expect(getFeatureSelectionIdentity('reference-land-ownership', { FeatureID: 30, Project_ID: 8 }, 7)).toBeNull();
   });
 
   it('resolves polygon selections with enriched details', () => {

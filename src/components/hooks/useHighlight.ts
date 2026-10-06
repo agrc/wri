@@ -19,12 +19,13 @@ const MUTED_EFFECT = 'grayscale(70%) opacity(70%) invert(10%)';
 const HIGHLIGHT_EFFECT = 'drop-shadow(0px 0px 10px white) saturate(150%) opacity(100%)';
 const FEATURE_ID_FIELD = 'FeatureID';
 
-const isProjectFeatureLayerId = (id?: string | null): boolean =>
-  typeof id === 'string' && id.startsWith('project-') && id.includes('-feature-');
+const isSelectableFeatureLayerId = (id?: string | null): boolean =>
+  typeof id === 'string' &&
+  ((id.startsWith('project-') && id.includes('-feature-')) || /^feature-(poly|line|point)$/.test(id));
 
 const clearFeatureEffects = (map: EsriMap | nullish) => {
   map?.allLayers.forEach((layer) => {
-    if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
+    if (layer.type === 'feature' && isSelectableFeatureLayerId(layer.id)) {
       const featureLayer = layer as FeatureLayer;
       featureLayer.featureEffect = null;
     }
@@ -33,7 +34,7 @@ const clearFeatureEffects = (map: EsriMap | nullish) => {
 
 const muteAllFeatures = (map: EsriMap | nullish) => {
   map?.allLayers.forEach((layer) => {
-    if (layer.type === 'feature' && isProjectFeatureLayerId(layer.id)) {
+    if (layer.type === 'feature' && isSelectableFeatureLayerId(layer.id)) {
       const featureLayer = layer as FeatureLayer;
       featureLayer.featureEffect = {
         excludedEffect: MUTED_EFFECT,

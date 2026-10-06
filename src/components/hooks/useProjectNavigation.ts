@@ -34,9 +34,10 @@ export const useProjectNavigation = (
     throw new Error('useProjectNavigation must be used within a ProjectContext');
   }
 
+  const setProjectIdInContext = context.setProjectId;
   const setProjectId = useCallback(() => {
-    context.setProjectId(handleHashChange(window.location.hash));
-  }, [context]);
+    setProjectIdInContext(handleHashChange(window.location.hash));
+  }, [setProjectIdInContext]);
 
   const updateProjectId = useCallback(
     (id: number | null) => {
@@ -44,10 +45,10 @@ export const useProjectNavigation = (
         return;
       }
 
-      context.setProjectId(id);
+      setProjectIdInContext(id);
       window.location.hash = `id=${id}`;
     },
-    [context],
+    [setProjectIdInContext],
   );
 
   // only run on load

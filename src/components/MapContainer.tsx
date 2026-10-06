@@ -33,7 +33,7 @@ import {
   watershedAreas,
 } from '../mapLayers.ts';
 import { ProjectContext, useFeatureSelection } from './contexts';
-import { getFeatureKindFromLayerId } from './featureSelection';
+import { getFeatureSelectionIdentity } from './featureSelection';
 import { useMap, useProjectNavigation } from './hooks';
 import { MapButton } from './MapButton';
 import { NavigationHistory } from './NavigationHistory';
@@ -56,7 +56,7 @@ export const MapContainer = () => {
   const hasAddedLayers = useRef(false);
   const projectFeatureClickHandler = useRef<ResourceHandle | null>(null);
   const projectContext = useContext(ProjectContext);
-  const { clearSelection, isMapSelectionEnabled, selectFeature } = useFeatureSelection();
+  const { clearSelection, isMapSelectionEnabled, selectFeature, selectFeatureFromMap } = useFeatureSelection();
   let currentProject = 0;
 
   if (projectContext) {
@@ -333,7 +333,11 @@ export const MapContainer = () => {
     if (!projectFeatureClickHandler.current) {
       projectFeatureClickHandler.current = mapView.current.on('click', (event) => {
         const include = mapNode.current?.map?.layers
-          .filter((layer) => layer.id.startsWith(`project-${currentProject}-feature-`))
+          .filter(
+            (layer) =>
+              layer.id.startsWith(`project-${currentProject}-feature-`) ||
+              (layer.id.startsWith('feature-') && layer.visible),
+          )
           .toArray() as FeatureLayer[] | undefined;
 
         if (!include || include.length === 0) {
@@ -344,9 +348,9 @@ export const MapContainer = () => {
           .current!.hitTest(event, { include })
           .then((response) => {
             const match = response.results.find((result) => {
-              const layerId = (result as GraphicHit).graphic?.layer?.id;
+              const graphic = (result as GraphicHit).graphic;
 
-              return typeof layerId === 'string' && layerId.startsWith(`project-${currentProject}-feature-`);
+              return Boolean(getFeatureSelectionIdentity(graphic?.layer?.id, graphic?.attributes, currentProject));
             }) as GraphicHit | undefined;
 
             if (!match) {
@@ -355,17 +359,23 @@ export const MapContainer = () => {
               return;
             }
 
-            const layerId = typeof match.graphic.layer?.id === 'string' ? match.graphic.layer.id : undefined;
-            const kind = getFeatureKindFromLayerId(layerId);
-            const featureId = Number(match.graphic.attributes?.FeatureID);
+            const identity = getFeatureSelectionIdentity(
+              match.graphic.layer?.id,
+              match.graphic.attributes,
+              currentProject,
+            );
 
-            if (!kind || !Number.isFinite(featureId)) {
+            if (!identity) {
               clearSelection();
 
               return;
             }
 
-            selectFeature({ projectId: currentProject, kind, id: featureId }, 'map');
+            if (String(match.graphic.layer?.id).startsWith('feature-')) {
+              selectFeatureFromMap(identity);
+            } else {
+              selectFeature(identity, 'map');
+            }
           })
           .catch((error) => {
             console.error('Error selecting project feature from map click:', error);
@@ -379,7 +389,15 @@ export const MapContainer = () => {
         projectFeatureClickHandler.current = null;
       }
     };
-  }, [clearSelection, currentProject, isMapSelectionEnabled, isReady, layersReady, selectFeature]);
+  }, [
+    clearSelection,
+    currentProject,
+    isMapSelectionEnabled,
+    isReady,
+    layersReady,
+    selectFeature,
+    selectFeatureFromMap,
+  ]);
 
   useProjectNavigation(mapView, operationalLayers, currentProject === 0 && layersReady);
 

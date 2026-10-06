@@ -28,7 +28,7 @@ import type {
   UpdateFeatureResponse,
 } from '@ugrc/wri-shared/types';
 import { DiamondIcon } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Group } from 'react-aria-components';
 import { List } from 'react-content-loader';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -46,7 +46,7 @@ import {
   titleCase,
   type ReferenceLayer,
 } from './';
-import { useFeatureSelection } from './contexts';
+import { ProjectContext, useFeatureSelection } from './contexts';
 import { ErrorFallback } from './ErrorFallBack';
 import FeatureForm, { type FeatureFormInitialValues } from './FeatureForm';
 import { getProjectFeatureLayerId, resolveSelectedFeature, type FeatureSelectionIdentity } from './featureSelection';
@@ -236,6 +236,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const [editingInitialValues, setEditingInitialValues] = useState<FeatureFormInitialValues | null>(null);
   const [projectLayerVersion, setProjectLayerVersion] = useState(0);
   const { mapView, currentMapScale } = useMap();
+  const projectContext = useContext(ProjectContext);
   const { highlight, clear } = useHighlight(mapView);
   const {
     clearSelection,
@@ -509,6 +510,21 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     enabled: projectId > 0,
   });
 
+  const selectedNeighborId =
+    selectedFeatureIdentity?.projectId !== projectId ? (selectedFeatureIdentity?.projectId ?? null) : null;
+  const loadSelectedNeighbor = useCallback(async () => {
+    if (selectedNeighborId == null) {
+      throw new Error('A neighboring project must be selected before requesting project details.');
+    }
+
+    return getProjectInfo({ id: selectedNeighborId });
+  }, [getProjectInfo, selectedNeighborId]);
+  const { data: selectedNeighborData, status: selectedNeighborStatus } = useQuery<ProjectResponse>({
+    queryKey: ['project', selectedNeighborId],
+    queryFn: loadSelectedNeighbor,
+    enabled: selectedNeighborId != null,
+  });
+
   const editingDomainsQuery = useEditingDomains(data?.allowEdits ?? false);
   const selectedFeatureId = selectedFeature?.id ?? null;
   const selectedFeatureType = selectedFeature?.type?.toLowerCase() ?? null;
@@ -524,26 +540,38 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   }, [getFeatureInfo, selectedFeatureId, selectedFeatureType]);
 
   const { data: featureData, status: featureStatus } = useQuery<FeatureIntersections>({
-    queryKey: ['featureDetails', projectId, selectedFeatureId, selectedFeatureType],
+    queryKey: [
+      'featureDetails',
+      selectedFeatureIdentity?.projectId ?? projectId,
+      selectedFeatureId,
+      selectedFeatureType,
+    ],
     queryFn: loadFeatureInfo,
     enabled: selectedFeatureId != null,
   });
 
   const resolveProjectSelection = useCallback(
     (selection: FeatureSelectionIdentity) => {
-      if (status !== 'success' || selection.projectId !== projectId) {
+      const selectedProject =
+        selection.projectId === projectId && status === 'success'
+          ? data
+          : selection.projectId === selectedNeighborId && selectedNeighborStatus === 'success'
+            ? selectedNeighborData
+            : undefined;
+
+      if (!selectedProject) {
         return null;
       }
 
       return resolveSelectedFeature({
         kind: selection.kind,
         id: selection.id,
-        polygons: data.polygons ?? {},
-        lines: data.lines ?? [],
-        points: data.points ?? [],
+        polygons: selectedProject.polygons ?? {},
+        lines: selectedProject.lines ?? [],
+        points: selectedProject.points ?? [],
       });
     },
-    [data, projectId, status],
+    [data, projectId, selectedNeighborData, selectedNeighborId, selectedNeighborStatus, status],
   );
 
   useEffect(() => {
@@ -551,12 +579,12 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   }, [selected]);
 
   useEffect(() => {
-    registerResolver(status === 'success' ? resolveProjectSelection : null);
+    registerResolver(resolveProjectSelection);
 
     return () => {
       registerResolver(null);
     };
-  }, [registerResolver, resolveProjectSelection, status]);
+  }, [registerResolver, resolveProjectSelection]);
 
   useEffect(() => {
     setMapSelectionEnabled(!(isCreating || isEditing));
@@ -593,17 +621,22 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
     };
   }, [mapView, projectId]);
 
+  const selectionProjectLoaded =
+    selectedFeatureIdentity?.projectId === projectId
+      ? status === 'success'
+      : selectedFeatureIdentity?.projectId === selectedNeighborId && selectedNeighborStatus === 'success';
+
   useEffect(() => {
-    if (!selectedFeatureIdentity || selectedFeatureIdentity.projectId !== projectId || status !== 'success') {
+    if (!selectedFeatureIdentity || !selectionProjectLoaded) {
       return;
     }
 
     refreshSelection();
-  }, [data, projectId, refreshSelection, selectedFeatureIdentity, status]);
+  }, [data, projectId, refreshSelection, selectedFeatureIdentity, selectionProjectLoaded, selectedNeighborData]);
 
   useEffect(() => {
-    if (selectedFeatureIdentity?.projectId === projectId && selectionOrigin === 'map') {
-      setSelectedTab('features');
+    if (selectedFeatureIdentity && selectionOrigin === 'map') {
+      setSelectedTab(selectedFeatureIdentity.projectId === projectId ? 'features' : 'featureDetails');
     }
   }, [projectId, selectedFeatureIdentity, selectionOrigin]);
 
@@ -668,18 +701,21 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   );
 
   useEffect(() => {
-    if (!selectedFeature) {
+    if (!selectedFeature || !selectedFeatureIdentity) {
       clear();
 
       return;
     }
 
+    const isNeighbor = selectedFeatureIdentity.projectId !== projectId;
     highlight(
       {
-        layer: getProjectFeatureLayerId(projectId, selectedFeature.kind),
+        layer: isNeighbor
+          ? `feature-${selectedFeature.kind}`
+          : getProjectFeatureLayerId(projectId, selectedFeature.kind),
         id: selectedFeature.id,
       },
-      { enabled: zoomSelectionRef.current, extentScale: 1.1 },
+      { enabled: !isNeighbor && zoomSelectionRef.current, extentScale: 1.1 },
     );
   }, [clear, highlight, projectId, projectLayerVersion, selectedFeature, selectedFeatureIdentity]);
 
@@ -905,9 +941,37 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                   {deleteMutation.isPending ? (
                     <List className="w-96" />
                   ) : !selectedFeature ? (
-                    <>Select a feature to view details</>
+                    selectedFeatureIdentity ? (
+                      selectedNeighborId != null && selectedNeighborStatus === 'error' ? (
+                        <p role="status">Unable to load details for this neighboring project.</p>
+                      ) : (
+                        <List className="w-96" />
+                      )
+                    ) : (
+                      <>Select a feature to view details</>
+                    )
                   ) : (
                     <>
+                      {selectedNeighborId != null && (
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="font-semibold">
+                            {selectedNeighborData?.title ?? `Project ${selectedNeighborId}`}
+                          </p>
+                          {projectContext && (
+                            <Button
+                              variant="secondary"
+                              onPress={() => {
+                                clearSelection();
+                                setSelectedTab('project');
+                                projectContext.setProjectId(selectedNeighborId);
+                                window.location.hash = `id=${selectedNeighborId}`;
+                              }}
+                            >
+                              Open Project
+                            </Button>
+                          )}
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <p className="font-bold">{selectedFeature.type}</p>
                         {selectedFeature.size && (
@@ -995,7 +1059,13 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                   <AdjacentProjects
                     mapView={mapView}
                     isSelected={adjacentProjectsVisible}
-                    onChange={setAdjacentProjectsVisible}
+                    onChange={(visible) => {
+                      setAdjacentProjectsVisible(visible);
+
+                      if (!visible && selectedFeatureIdentity?.projectId !== projectId) {
+                        clearSelection();
+                      }
+                    }}
                   />
                   {referenceLayers.length > 0 ? (
                     <div>

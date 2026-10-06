@@ -579,7 +579,8 @@ export const sageGrouse = new FeatureLayer({
     ],
   }),
   opacity: 0.7,
-  maxScale: 144_447,
+  minScale: 0,
+  maxScale: 0,
 });
 export const stewardship = new FeatureLayer({
   title: 'Shared Stewardship Priority',

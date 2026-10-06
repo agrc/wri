@@ -63,6 +63,32 @@ export const getFeatureKindFromLayerId = (layerId?: string | null): FeatureKind 
   return undefined;
 };
 
+export const getFeatureSelectionIdentity = (
+  layerId: string | number | null | undefined,
+  attributes: Record<string, unknown> | undefined,
+  currentProjectId: number,
+): FeatureSelectionIdentity | null => {
+  const normalizedLayerId = layerId == null ? undefined : String(layerId);
+  const kind = getFeatureKindFromLayerId(normalizedLayerId);
+  const featureId = Number(attributes?.FeatureID);
+  const isCurrentProjectLayer = normalizedLayerId?.startsWith(`project-${currentProjectId}-feature-`) ?? false;
+  const isAdjacentProjectLayer = normalizedLayerId?.startsWith('feature-') ?? false;
+  const projectId = isCurrentProjectLayer ? currentProjectId : Number(attributes?.Project_ID);
+
+  if (
+    !kind ||
+    (!isCurrentProjectLayer && !isAdjacentProjectLayer) ||
+    !Number.isFinite(featureId) ||
+    !Number.isFinite(projectId) ||
+    projectId <= 0 ||
+    (isAdjacentProjectLayer && projectId === currentProjectId)
+  ) {
+    return null;
+  }
+
+  return { projectId, kind, id: featureId };
+};
+
 type EnrichFeatureParams =
   | { kind: 'poly'; feature: PolygonFeature; polyGroup: PolygonFeature[] }
   | { kind: 'line'; feature: Feature }

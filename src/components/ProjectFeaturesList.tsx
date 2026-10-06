@@ -75,7 +75,11 @@ export const ProjectFeaturesList: React.FC<Props> = ({
   featureError,
   onDismissFeatureError,
 }) => {
-  const { clearSelection, selectedFeatureKey, selectFeature } = useFeatureSelection();
+  const { clearSelection, selectedFeatureIdentity, selectFeature } = useFeatureSelection();
+  const selectedFeatureKey =
+    selectedFeatureIdentity?.projectId === projectId
+      ? serializeFeatureKey(selectedFeatureIdentity.kind, selectedFeatureIdentity.id)
+      : null;
   const listRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useLayoutEffect(() => {

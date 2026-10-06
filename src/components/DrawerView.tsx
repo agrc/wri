@@ -11,7 +11,7 @@ export const DrawerView = () => {
   }
 
   if (projectId > 0) {
-    return <ProjectSpecificView projectId={projectId} />;
+    return <ProjectSpecificView key={projectId} projectId={projectId} />;
   }
 
   return <GeneralView />;

@@ -10,6 +10,7 @@ type FeatureSelectionContextType = {
   selectedFeature: SelectedFeature | null;
   selectionOrigin: FeatureSelectionOrigin | null;
   selectFeature: (selection: FeatureSelectionIdentity, origin?: FeatureSelectionOrigin) => SelectedFeature | null;
+  selectFeatureFromMap: (selection: FeatureSelectionIdentity) => void;
   refreshSelection: () => SelectedFeature | null;
   clearSelection: () => void;
   registerResolver: (resolver: FeatureSelectionResolver | null) => void;
@@ -82,6 +83,28 @@ export const FeatureSelectionProvider = ({ children }: FeatureSelectionProviderP
     [clearSelection],
   );
 
+  const selectFeatureFromMap = useCallback(
+    (selection: FeatureSelectionIdentity) => {
+      const currentSelection = selectedFeatureIdentityRef.current;
+
+      if (
+        currentSelection?.projectId === selection.projectId &&
+        currentSelection.kind === selection.kind &&
+        currentSelection.id === selection.id
+      ) {
+        clearSelection();
+
+        return;
+      }
+
+      selectedFeatureIdentityRef.current = selection;
+      setSelectedFeatureIdentity(selection);
+      setSelectedFeature(null);
+      setSelectionOrigin('map');
+    },
+    [clearSelection],
+  );
+
   const refreshSelection = useCallback(() => {
     const currentSelection = selectedFeatureIdentityRef.current;
 
@@ -112,6 +135,7 @@ export const FeatureSelectionProvider = ({ children }: FeatureSelectionProviderP
         selectedFeature,
         selectionOrigin,
         selectFeature,
+        selectFeatureFromMap,
         refreshSelection,
         clearSelection,
         registerResolver,

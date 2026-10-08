@@ -56,7 +56,13 @@ export const MapContainer = () => {
   const hasAddedLayers = useRef(false);
   const projectFeatureClickHandler = useRef<ResourceHandle | null>(null);
   const projectContext = useContext(ProjectContext);
-  const { clearSelection, isMapSelectionEnabled, selectFeature, selectFeatureFromMap } = useFeatureSelection();
+  const {
+    clearSelection,
+    isMapSelectionEnabled,
+    selectFeature,
+    selectFeatureFromMap,
+    selectedFeatureIdentity,
+  } = useFeatureSelection();
   let currentProject = 0;
 
   if (projectContext) {
@@ -371,7 +377,21 @@ export const MapContainer = () => {
               return;
             }
 
-            if (String(match.graphic.layer?.id).startsWith('feature-')) {
+            const isAdjacentFeature = String(match.graphic.layer?.id).startsWith('feature-');
+
+            if (isAdjacentFeature) {
+              const isAlreadySelected =
+                selectedFeatureIdentity?.projectId === identity.projectId &&
+                selectedFeatureIdentity.kind === identity.kind &&
+                selectedFeatureIdentity.id === identity.id;
+
+              if (!isAlreadySelected && match.graphic.geometry) {
+                mapView.current?.animation?.stop();
+                void mapView.current
+                  ?.goTo(match.graphic.geometry, { duration: 1000 })
+                  .catch((error) => console.error('Error zooming to adjacent project feature:', error));
+              }
+
               selectFeatureFromMap(identity);
             } else {
               selectFeature(identity, 'map');
@@ -397,6 +417,7 @@ export const MapContainer = () => {
     layersReady,
     selectFeature,
     selectFeatureFromMap,
+    selectedFeatureIdentity,
   ]);
 
   useProjectNavigation(mapView, operationalLayers, currentProject === 0 && layersReady);

@@ -12,6 +12,7 @@ import { useRef, useState } from 'react';
 
 type PrintMapProps = {
   view: MapView;
+  projectId: number | null;
   slot?: ComponentOptions['position'];
 };
 
@@ -22,7 +23,7 @@ type ArcGISServerError = {
   messages?: { description: string }[];
 };
 
-async function executePrint({ view, title }: { view: MapView; title: string }) {
+async function executePrint({ view, title, projectId }: { view: MapView; title: string; projectId: number | null }) {
   const template = new PrintTemplate({
     exportOptions: {
       dpi: 300,
@@ -52,10 +53,10 @@ async function executePrint({ view, title }: { view: MapView; title: string }) {
     throw new Error(`Failed to generate PDF. Please try again later.`);
   }
 
-  return result.url;
+  return { url: result.url, projectId };
 }
 
-export function PrintMap({ view, slot }: PrintMapProps) {
+export function PrintMap({ view, projectId, slot }: PrintMapProps) {
   const [title, setTitle] = useState<string>('');
   const expandRef = useRef<HTMLElementTagNameMap['arcgis-expand'] | null>(null);
 
@@ -69,7 +70,7 @@ export function PrintMap({ view, slot }: PrintMapProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutate({ view, title: title.trim() });
+    mutate({ view, title: title.trim(), projectId });
   };
 
   return (
@@ -94,9 +95,15 @@ export function PrintMap({ view, slot }: PrintMapProps) {
               'Export to PDF'
             )}
           </Button>
-          {data && (
-            <a className="text-center" href={data} target="_blank" rel="noopener noreferrer" onClick={closePrintPanel}>
-              Download PDF
+          {data?.url && (
+            <a
+              className="text-center"
+              href={data.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={closePrintPanel}
+            >
+              {data.projectId ? `Download Project ${data.projectId} PDF` : 'Download PDF'}
             </a>
           )}
           {error && <div className="text-red-500">{error.message}</div>}

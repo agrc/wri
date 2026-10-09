@@ -440,7 +440,7 @@ export const MapContainer = () => {
           />
         )}
         {mapView.current && <NavigationHistory view={mapView.current} />}
-        {mapView.current && <PrintMap view={mapView.current} slot="top-right" />}
+        {mapView.current && <PrintMap view={mapView.current} projectId={projectContext?.projectId ?? null} slot="top-right" />}
         <LayerSelector
           basemaps={['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR', 'High Contrast']}
           quadWord={import.meta.env.VITE_DISCOVER}

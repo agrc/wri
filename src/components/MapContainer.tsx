@@ -56,13 +56,8 @@ export const MapContainer = () => {
   const hasAddedLayers = useRef(false);
   const projectFeatureClickHandler = useRef<ResourceHandle | null>(null);
   const projectContext = useContext(ProjectContext);
-  const {
-    clearSelection,
-    isMapSelectionEnabled,
-    selectFeature,
-    selectFeatureFromMap,
-    selectedFeatureIdentity,
-  } = useFeatureSelection();
+  const { clearSelection, isMapSelectionEnabled, selectFeature, selectFeatureFromMap, selectedFeatureIdentity } =
+    useFeatureSelection();
   let currentProject = 0;
 
   if (projectContext) {

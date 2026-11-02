@@ -79,14 +79,14 @@
     "@types/terraformer__arcgis": "^2.0.5",
     "@ugrc/tsconfigs": "^1.0.4",
     "@vitejs/plugin-react": "^6.1.2",
-    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/coverage-v8": "^5.0.5",
     "autoprefixer": "^10.6.2",
-    "concurrently": "^9.2.5",
+    "concurrently": "^10.0.6",
     "cpy-cli": "^7.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
     "firebase-tools": "^15.34.1",
-    "lucide-react": "^0.563.0",
+    "lucide-react": "^1.61.0",
     "postcss": "^8.5.32",
     "prettier": "^3.9.10",
     "prettier-plugin-organize-imports": "^4.3.0",
@@ -99,7 +99,7 @@
     "typescript": "^6.0.3",
     "vite": "^8.3.5",
     "vite-plugin-package-version": "^1.1.0",
-    "vitest": "^4.1.12",
+    "vitest": "^5.0.5",
     "wait-on": "^9.5.1"
   }
 }

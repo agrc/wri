@@ -16,3 +16,4 @@ minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   - '@ugrc/*'
+  - joi@18.3.1

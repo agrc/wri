@@ -10,7 +10,7 @@ allowBuilds:
   re2: true
   unrs-resolver: true
 overrides:
-  react-stately: 3.50.0
+  react-stately: 3.51.0
 minimumReleaseAge: 10080
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeStrict: true

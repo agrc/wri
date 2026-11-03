@@ -60,7 +60,7 @@
     "react-content-loader": "^7.1.2",
     "react-dom": "^19.3.1",
     "react-error-boundary": "^6.1.6",
-    "react-stately": "^3.51.0",
+    "react-stately": "3.51.0",
     "shpjs": "^6.2.0",
     "tailwind-merge": "2.6.1",
     "tailwind-variants": "0.3.1",

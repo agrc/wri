@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  react-stately: 3.50.0
+
 importers:
 
   .:
@@ -75,8 +78,8 @@ importers:
         specifier: ^6.1.6
         version: 6.1.6(@types/react@19.3.0)(react@19.3.1)
       react-stately:
-        specifier: ^3.51.0
-        version: 3.51.0(react@19.3.1)
+        specifier: 3.50.0
+        version: 3.50.0(react@19.3.1)
       shpjs:
         specifier: ^6.2.0
         version: 6.2.0
@@ -6373,13 +6376,8 @@ packages:
   react-is@19.3.1:
     resolution: {integrity: sha512-RRieF6IyxQBkcK6pP8xOHprLTPW6QjRkbGdImtqNme+/hYVwCZkLQLdlZGOhUqXwkS9IEynaGvPJtv6XB/cz0Q==}
 
-  react-stately@3.46.0:
-    resolution: {integrity: sha512-OdxhWvHgs2L4OJGIs7hnuTr5WjjMM6enhNEAMRqiekhF8+ITvA2LRwNftOZwcogaoCslGYq5S2VQTQwnm0GbCA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
-
-  react-stately@3.51.0:
-    resolution: {integrity: sha512-YJcmkAXu2XOQP97hO/qz/cC3qv9kni3oVhwBlxWr358BHePJUpY15XwL3YSRMKxYt4EkslPqAz11JRirMfANGw==}
+  react-stately@3.50.0:
+    resolution: {integrity: sha512-TnckvpDQGU0672wEaLZqdzvhuSeXWjgW6vijMWxiKOxc8CosQUfPGISdcZyfHqjX3XMjEtRxj4w9HumvX4h4mw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
@@ -10296,7 +10294,7 @@ snapshots:
       react: 19.3.1
       react-aria: 3.53.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react-aria-components: 1.22.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      react-stately: 3.46.0(react@19.3.1)
+      react-stately: 3.50.0(react@19.3.1)
       tailwind-merge: 2.6.0
       tailwind-variants: 0.3.0(tailwindcss@3.4.19(tsx@4.23.15)(yaml@2.9.1))
       ts-md5: 2.0.1
@@ -15292,7 +15290,7 @@ snapshots:
       react: 19.3.1
       react-aria: 3.53.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react-dom: 19.3.1(react@19.3.1)
-      react-stately: 3.51.0(react@19.3.1)
+      react-stately: 3.50.0(react@19.3.1)
       use-sync-external-store: 1.7.0(react@19.3.1)
 
   react-aria@3.53.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
@@ -15306,7 +15304,7 @@ snapshots:
       clsx: 2.1.1
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      react-stately: 3.51.0(react@19.3.1)
+      react-stately: 3.50.0(react@19.3.1)
       use-sync-external-store: 1.7.0(react@19.3.1)
 
   react-content-loader@7.1.2(react@19.3.1):
@@ -15351,17 +15349,7 @@ snapshots:
 
   react-is@19.3.1: {}
 
-  react-stately@3.46.0(react@19.3.1):
-    dependencies:
-      '@internationalized/date': 3.12.4
-      '@internationalized/number': 3.6.9
-      '@internationalized/string': 3.2.10
-      '@react-types/shared': 3.37.0(react@19.3.1)
-      '@swc/helpers': 0.5.23
-      react: 19.3.1
-      use-sync-external-store: 1.7.0(react@19.3.1)
-
-  react-stately@3.51.0(react@19.3.1):
+  react-stately@3.50.0(react@19.3.1):
     dependencies:
       '@internationalized/date': 3.12.4
       '@internationalized/number': 3.6.9

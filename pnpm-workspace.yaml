@@ -9,6 +9,8 @@ allowBuilds:
   protobufjs: true
   re2: true
   unrs-resolver: true
+overrides:
+  react-stately: 3.50.0
 minimumReleaseAge: 10080
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeStrict: true

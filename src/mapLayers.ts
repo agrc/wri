@@ -1,5 +1,7 @@
 import type { FeatureLayerProperties } from '@arcgis/core/layers/FeatureLayer.js';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer.js';
+import type { ImageryTileLayerProperties } from '@arcgis/core/layers/ImageryTileLayer.js';
+import ImageryTileLayer from '@arcgis/core/layers/ImageryTileLayer.js';
 import type { VectorTileLayerProperties } from '@arcgis/core/layers/VectorTileLayer.js';
 import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer.js';
 import type { WebTileLayerProperties } from '@arcgis/core/layers/WebTileLayer.js';
@@ -19,6 +21,7 @@ import config from './config';
 type LegendMetadata = (VectorTileLayerProperties | FeatureLayerProperties | WebTileLayerProperties) & {
   legendDescription?: string;
 };
+type ImageryTileLayerMetadata = ImageryTileLayerProperties & { legendDescription?: string };
 
 const black = [0, 0, 0, 255];
 export const POLY_OPACITY = 0.7;
@@ -582,13 +585,11 @@ export const sageGrouse = new FeatureLayer({
   minScale: 0,
   maxScale: 0,
 });
-export const stewardship = new FeatureLayer({
-  title: 'Shared Stewardship Priority',
-  id: 'reference-stewardship',
-  url: 'https://services.arcgis.com/ZzrwjTRez6FJiOq4/arcgis/rest/services/SharedStewardshipPriorityAreas_Public/FeatureServer/0',
-  outFields: ['HU_12_NAME'],
+export const ecosystemScore = new ImageryTileLayer({
+  title: 'Ecosystem Condition Score',
+  id: 'reference-ecosystem-score',
+  url: 'https://tiledimageservices.arcgis.com/ZzrwjTRez6FJiOq4/arcgis/rest/services/UT_ECOScore2024/ImageServer',
   visible: false,
-  labelsVisible: false,
   renderer: new ClassBreaksRenderer({
     visualVariables: [
       new SizeVariable({
@@ -656,8 +657,8 @@ export const stewardship = new FeatureLayer({
       }),
     ],
   }),
-  legendDescription: 'Total Composite Score',
-} as LegendMetadata);
+  legendDescription: 'Ecosystem Condition Score',
+} as ImageryTileLayerMetadata);
 export const points = new FeatureLayer({
   title: 'Points',
   id: 'feature-point',

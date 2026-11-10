@@ -17,6 +17,7 @@ import config from '../config';
 import {
   blmDistricts,
   centroids,
+  ecosystemScore,
   fireThreats,
   forestService,
   landOwnership,
@@ -28,7 +29,6 @@ import {
   rangeSites,
   regions,
   sageGrouse,
-  stewardship,
   streams,
   watershedAreas,
 } from '../mapLayers.ts';
@@ -131,7 +131,7 @@ export const MapContainer = () => {
       blmDistricts,
       forestService,
       sageGrouse,
-      stewardship,
+      ecosystemScore,
     ];
     operationalLayers.current = [polygons, lines, points, centroids];
 
@@ -440,7 +440,9 @@ export const MapContainer = () => {
           />
         )}
         {mapView.current && <NavigationHistory view={mapView.current} />}
-        {mapView.current && <PrintMap view={mapView.current} projectId={projectContext?.projectId ?? null} slot="top-right" />}
+        {mapView.current && (
+          <PrintMap view={mapView.current} projectId={projectContext?.projectId ?? null} slot="top-right" />
+        )}
         <LayerSelector
           basemaps={['Hybrid', 'Lite', 'Terrain', 'Topo', 'Color IR', 'High Contrast']}
           quadWord={import.meta.env.VITE_DISCOVER}

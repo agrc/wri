@@ -7,11 +7,12 @@ import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer.js';
 import type { WebTileLayerProperties } from '@arcgis/core/layers/WebTileLayer.js';
 import WebTileLayer from '@arcgis/core/layers/WebTileLayer.js';
 import ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer.js';
+import RasterStretchRenderer from '@arcgis/core/renderers/RasterStretchRenderer.js';
 import SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer.js';
 import ClassBreakInfo from '@arcgis/core/renderers/support/ClassBreakInfo.js';
 import UniqueValueInfo from '@arcgis/core/renderers/support/UniqueValueInfo.js';
 import UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer.js';
-import SizeVariable from '@arcgis/core/renderers/visualVariables/SizeVariable.js';
+import MultipartColorRamp from '@arcgis/core/rest/support/MultipartColorRamp.js';
 import { createRenderer } from '@arcgis/core/smartMapping/renderers/type.js';
 import SimpleFillSymbol from '@arcgis/core/symbols/SimpleFillSymbol.js';
 import SimpleLineSymbol from '@arcgis/core/symbols/SimpleLineSymbol.js';
@@ -590,72 +591,24 @@ export const ecosystemScore = new ImageryTileLayer({
   id: 'reference-ecosystem-score',
   url: 'https://tiledimageservices.arcgis.com/ZzrwjTRez6FJiOq4/arcgis/rest/services/UT_ECOScore2024/ImageServer',
   visible: false,
-  renderer: new ClassBreaksRenderer({
-    visualVariables: [
-      new SizeVariable({
-        target: 'outline',
-        valueExpression: '$view.scale',
-        stops: [
-          { size: 1.5, value: 274762 },
-          { size: 0.75, value: 858632 },
-          { size: 0.375, value: 3434527 },
-          { size: 0, value: 6869055 },
-        ],
-      }),
-    ],
-    field: 'Composite',
-    classBreakInfos: [
-      new ClassBreakInfo({
-        symbol: new SimpleFillSymbol({
-          color: [248, 227, 194, 255],
-          outline: new SimpleLineSymbol({ color: [194, 194, 194, 64], width: 0.75, style: 'solid' }),
-          style: 'solid',
-        }),
-        label: '0 - 81',
-        minValue: 0,
-        maxValue: 81,
-      }),
-      new ClassBreakInfo({
-        symbol: new SimpleFillSymbol({
-          color: [229, 153, 140, 255],
-          outline: new SimpleLineSymbol({ color: [194, 194, 194, 64], width: 0.75, style: 'solid' }),
-          style: 'solid',
-        }),
-        label: '> 81 - 95',
-        minValue: 81,
-        maxValue: 95,
-      }),
-      new ClassBreakInfo({
-        symbol: new SimpleFillSymbol({
-          color: [216, 104, 104, 255],
-          outline: new SimpleLineSymbol({ color: [194, 194, 194, 64], width: 0.75, style: 'solid' }),
-          style: 'solid',
-        }),
-        label: '> 95 - 111',
-        minValue: 95,
-        maxValue: 111,
-      }),
-      new ClassBreakInfo({
-        symbol: new SimpleFillSymbol({
-          color: [175, 70, 93, 255],
-          outline: new SimpleLineSymbol({ color: [194, 194, 194, 64], width: 0.75, style: 'solid' }),
-          style: 'solid',
-        }),
-        label: '> 111 - 128',
-        minValue: 111,
-        maxValue: 128,
-      }),
-      new ClassBreakInfo({
-        symbol: new SimpleFillSymbol({
-          color: [135, 35, 81, 255],
-          outline: new SimpleLineSymbol({ color: [194, 194, 194, 64], width: 0.75, style: 'solid' }),
-          style: 'solid',
-        }),
-        label: '> 128 - 217',
-        minValue: 128,
-        maxValue: 217,
-      }),
-    ],
+  bandIds: [0],
+  interpolation: 'bilinear',
+  renderer: new RasterStretchRenderer({
+    stretchType: 'min-max',
+    customStatistics: [{ min: 1.6849349737167358, max: 100, avg: 55.7860086205702, stddev: 20.230919207988805 }],
+    dynamicRangeAdjustment: false,
+    outputMin: 0,
+    outputMax: 255,
+    computeGamma: false,
+    useGamma: false,
+    gamma: [1],
+    numberOfStandardDeviations: 2,
+    colorRamp: new MultipartColorRamp({
+      colorRamps: [
+        { algorithm: 'hsv', fromColor: [56, 168, 0, 255], toColor: [255, 255, 0, 255] },
+        { algorithm: 'hsv', fromColor: [255, 255, 0, 255], toColor: [255, 0, 0, 255] },
+      ],
+    }),
   }),
   legendDescription: 'Ecosystem Condition Score',
 } as ImageryTileLayerMetadata);

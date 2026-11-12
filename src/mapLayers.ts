@@ -610,7 +610,6 @@ export const ecosystemScore = new ImageryTileLayer({
       ],
     }),
   }),
-  legendDescription: 'Ecosystem Condition Score',
 } as ImageryTileLayerMetadata);
 export const points = new FeatureLayer({
   title: 'Points',

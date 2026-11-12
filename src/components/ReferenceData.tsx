@@ -1,15 +1,19 @@
 import Collection from '@arcgis/core/core/Collection';
 import type { FeatureLayerProperties } from '@arcgis/core/layers/FeatureLayer';
 import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import ImageryTileLayer from '@arcgis/core/layers/ImageryTileLayer';
 import type Layer from '@arcgis/core/layers/Layer';
 import type { ScaleRangeLayer } from '@arcgis/core/layers/mixins/ScaleRangeLayer';
 import type Field from '@arcgis/core/layers/support/Field';
 import type ClassBreaksRenderer from '@arcgis/core/renderers/ClassBreaksRenderer';
+import type RasterStretchRenderer from '@arcgis/core/renderers/RasterStretchRenderer';
 import type SimpleRenderer from '@arcgis/core/renderers/SimpleRenderer';
 import type ClassBreakInfo from '@arcgis/core/renderers/support/ClassBreakInfo';
 import type UniqueValueGroup from '@arcgis/core/renderers/support/UniqueValueGroup';
 import type { RendererUnion } from '@arcgis/core/renderers/types';
 import type UniqueValueRenderer from '@arcgis/core/renderers/UniqueValueRenderer';
+import AlgorithmicColorRamp from '@arcgis/core/rest/support/AlgorithmicColorRamp';
+import MultipartColorRamp from '@arcgis/core/rest/support/MultipartColorRamp';
 import { renderPreviewHTML } from '@arcgis/core/symbols/support/symbolUtils';
 import type { SymbolUnion } from '@arcgis/core/symbols/types';
 import { Button } from '@ugrc/utah-design-system/src/components/Button';
@@ -148,6 +152,36 @@ const ClassBreakSwatches = ({ infos }: { infos: ClassBreakInfo[] }) => {
   );
 };
 
+export const RasterStretchSwatch = ({ renderer }: { renderer: RasterStretchRenderer }) => {
+  const ramp = renderer.colorRamp;
+  const ramps =
+    ramp instanceof MultipartColorRamp ? (ramp.colorRamps ?? []) : ramp instanceof AlgorithmicColorRamp ? [ramp] : [];
+  const colors = ramps.flatMap((part, index) =>
+    part instanceof AlgorithmicColorRamp && part.fromColor && part.toColor
+      ? index === 0
+        ? [part.fromColor.toCss(), part.toColor.toCss()]
+        : [part.toColor.toCss()]
+      : [],
+  );
+  const statistics = renderer.customStatistics?.[0];
+
+  if (!colors.length) {
+    return null;
+  }
+
+  return (
+    <div>
+      <div className="h-4 w-full" style={{ background: `linear-gradient(to right, ${colors.join(', ')})` }} />
+      {statistics && (
+        <div className="flex justify-between text-sm">
+          <span>{Number(statistics.min.toFixed(2))}</span>
+          <span>{Number(statistics.max.toFixed(2))}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Swatches = ({ renderer }: { renderer: RendererUnion }) => {
   switch (renderer.type) {
     case 'simple': {
@@ -184,6 +218,9 @@ export const ReferenceDataLegend = ({ layer }: { layer: ReferenceLayerWithMetada
     }
   }
 
+  const rasterRenderer =
+    layer instanceof ImageryTileLayer && layer.renderer?.type === 'raster-stretch' ? layer.renderer : null;
+
   return (
     <DialogTrigger>
       <Button variant="icon" aria-label="Legend" slot="remove" className="min-h-0 px-0">
@@ -198,6 +235,7 @@ export const ReferenceDataLegend = ({ layer }: { layer: ReferenceLayerWithMetada
             <p className="pb-2 text-sm font-semibold italic text-zinc-500">{layer.legendDescription}</p>
           )}
           {renderer && fields && <Swatches renderer={renderer} />}
+          {rasterRenderer && <RasterStretchSwatch renderer={rasterRenderer} />}
         </Dialog>
       </Popover>
     </DialogTrigger>

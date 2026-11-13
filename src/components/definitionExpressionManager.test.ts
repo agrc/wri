@@ -2,7 +2,10 @@ import { type Key } from 'react-aria';
 import { type Selection } from 'react-stately';
 import { describe, expect, it } from 'vitest';
 import type { FilterOptions } from './data/filters';
-import { generateDefinitionExpression } from './definitionExpressionManager';
+import {
+  generateAdjacentProjectDefinitionExpression,
+  generateDefinitionExpression,
+} from './definitionExpressionManager';
 
 const emptySet = new Set([]);
 const all = 'all' as const;
@@ -39,6 +42,38 @@ const filterOptions: FilterOptions = {
     { featureType: 'Water development point feature', kind: 'point' },
   ],
 };
+
+describe('generateAdjacentProjectDefinitionExpression', () => {
+  it('filters every adjacent geometry by the shared statuses and excludes the open project', () => {
+    expect(generateAdjacentProjectDefinitionExpression(new Set(['Current', 'Completed']), filterOptions, 42)).toEqual({
+      centroids: '1=0',
+      point: "StatusDescription in('Current','Completed') and Project_ID!=42",
+      line: "StatusDescription in('Current','Completed') and Project_ID!=42",
+      poly: "StatusDescription in('Current','Completed') and Project_ID!=42",
+    });
+  });
+
+  it('shows no adjacent features when no statuses are selected', () => {
+    expect(generateAdjacentProjectDefinitionExpression(new Set(), filterOptions, 42)).toEqual({
+      centroids: '1=0',
+      point: '1=0',
+      line: '1=0',
+      poly: '1=0',
+    });
+  });
+
+  it.each([all, new Set(filterOptions.projectStatus.map(({ value }) => value))])(
+    'only excludes the open project when all statuses are selected (%s)',
+    (projects) => {
+      expect(generateAdjacentProjectDefinitionExpression(projects, filterOptions, 42)).toEqual({
+        centroids: '1=0',
+        point: 'Project_ID!=42',
+        line: 'Project_ID!=42',
+        poly: 'Project_ID!=42',
+      });
+    },
+  );
+});
 
 describe('createDefinitionExpression', () => {
   it('should request no records when no filters are selected', () => {

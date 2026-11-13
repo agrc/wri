@@ -30,7 +30,6 @@ export const ProjectStatus = ({ status }: { status: ProjectStatuses[] }) => {
     <>
       <TagGroup
         selectionMode="multiple"
-        defaultSelectedKeys={defaultProjectState}
         selectedKeys={selectedProjects}
         onSelectionChange={(value) =>
           dispatch({

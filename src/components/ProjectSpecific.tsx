@@ -39,6 +39,7 @@ import {
   AdjacentProjects,
   DownloadProjectData,
   OpacityManager,
+  ProjectStatus,
   ProjectStatusTag,
   ReferenceData,
   ReferenceLabelSwitch,
@@ -46,7 +47,7 @@ import {
   titleCase,
   type ReferenceLayer,
 } from './';
-import { ProjectContext, useFeatureSelection } from './contexts';
+import { FilterContext, ProjectContext, useFeatureSelection } from './contexts';
 import { ErrorFallback } from './ErrorFallBack';
 import FeatureForm, { type FeatureFormInitialValues } from './FeatureForm';
 import { getProjectFeatureLayerId, resolveSelectedFeature, type FeatureSelectionIdentity } from './featureSelection';
@@ -222,6 +223,10 @@ const buildDisplayGeometry = (geometry: CreateFeatureData['geometry']): Geometry
   throw new Error('Unsupported multipart geometry payload.');
 };
 
+const FilterErrorMessage = ({ message }: { message: string }) => {
+  return <p className="text-sm text-red-600 dark:text-red-400">{message}</p>;
+};
+
 const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const tabRef = useRef<HTMLDivElement | null>(null);
   const [selected, setSelected] = useState<boolean>(true);
@@ -254,7 +259,7 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   const deleteFeatureFn = useAuthedCallable<DeleteFeatureRequest, DeleteFeatureResponse>('deleteFeature');
   const createFeatureFn = useAuthedCallable<CreateFeatureRequest, CreateFeatureResponse>('createFeature');
   const updateFeatureFn = useAuthedCallable<UpdateFeatureRequest, UpdateFeatureResponse>('updateFeature');
-
+  const { filtersError, filtersLoading, projectStatus } = useContext(FilterContext);
   const queryClient = useQueryClient();
 
   const logDeleteFeatureResult = (results: EditsResult, featureId: number) => {
@@ -501,6 +506,8 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
   });
 
   const allLayers = mapView?.map?.layers ?? new Collection();
+  const featureLayers = allLayers.filter((layer) => layer.id.startsWith('feature')) as Collection<FeatureLayer>;
+
   const referenceLayers = allLayers.filter((layer) => layer.id.startsWith('reference')) as Collection<ReferenceLayer>;
   const loadProjectInfo = useCallback(async () => getProjectInfo({ id: projectId }), [getProjectInfo, projectId]);
 
@@ -1067,6 +1074,22 @@ const ProjectSpecificContent = ({ projectId }: { projectId: number }) => {
                       }
                     }}
                   />
+                  <ErrorBoundary FallbackComponent={ErrorFallback}>
+                    {adjacentProjectsVisible ? <h5 className="dark:text-zinc-200">Project Status</h5> : null}
+                    {adjacentProjectsVisible &&
+                      (featureLayers.length > 0 ? (
+                        filtersLoading ? (
+                          <TagGroupLoader />
+                        ) : filtersError ? (
+                          <FilterErrorMessage message={filtersError} />
+                        ) : (
+                          <ProjectStatus status={projectStatus} />
+                        )
+                      ) : (
+                        <TagGroupLoader />
+                      ))}
+                  </ErrorBoundary>
+                  <h5 className="dark:text-zinc-200">Map Reference Data</h5>
                   {referenceLayers.length > 0 ? (
                     <div>
                       <ReferenceData layers={referenceLayers} currentMapScale={currentMapScale ?? 0} />

@@ -24,6 +24,13 @@ Set `DEV_USER_EMAIL` in `.env.local` if you want `pnpm start` to inject your loc
 1. In a new tab, make sure you are in the WRI repo, and run `pnpm start`
 1. Navigate to http://localhost:5173/
 
+### Project status filters
+
+The map controls and the Project Specific window's Adjacent Projects controls share the same project status selection,
+including active colors and Reset. Defaults are initialized even when opening a project directly.
+Adjacent projects are filtered by those statuses, excluding the open project; general-map feature type and funding
+filters do not apply to adjacent projects. The open project's own features are unaffected.
+
 ### Publishing Services to ArcGIS Server
 
 #### Export Web Map

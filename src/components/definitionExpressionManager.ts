@@ -343,3 +343,24 @@ export const generateDefinitionExpression = (
 
   return expressions;
 };
+
+export const generateAdjacentProjectDefinitionExpression = (
+  projects: Selection,
+  filterOptions: FilterOptions,
+  projectId: number,
+): { centroids: string; point: string; line: string; poly: string } => {
+  const expressions = generateDefinitionExpression(
+    { projects, features: all, join: or, wriFunding: false },
+    filterOptions,
+  );
+  const excludeProject = `Project_ID!=${projectId}`;
+  const excludeSelectedProject = (expression: string) =>
+    expression === noRecords ? noRecords : expression ? `${expression} and ${excludeProject}` : excludeProject;
+
+  return {
+    centroids: noRecords,
+    point: excludeSelectedProject(expressions.point),
+    line: excludeSelectedProject(expressions.line),
+    poly: excludeSelectedProject(expressions.poly),
+  };
+};

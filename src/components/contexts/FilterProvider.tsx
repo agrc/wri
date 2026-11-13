@@ -6,7 +6,10 @@ import { useImmerReducer } from 'use-immer';
 import { FilterContext, ProjectContext } from '.';
 import { useEditingDomains } from '../../hooks/useEditingDomains';
 import { getDefaultFeatureState, getDefaultProjectState, normalizeFilterOptions } from '../data/filters';
-import { generateDefinitionExpression } from '../definitionExpressionManager';
+import {
+  generateAdjacentProjectDefinitionExpression,
+  generateDefinitionExpression,
+} from '../definitionExpressionManager';
 
 type Filter = {
   projects?: Set<Key>;
@@ -145,7 +148,7 @@ export const FilterProvider = ({
   }, [filterOptions]);
 
   useEffect(() => {
-    if (projectId > 0 || !filterOptions || initializedFilters.current) {
+    if (!filterOptions || initializedFilters.current) {
       return;
     }
 
@@ -158,7 +161,7 @@ export const FilterProvider = ({
         join: defaultJoin,
       },
     });
-  }, [dispatch, filterOptions, normalizedDefaultFeatureState, normalizedDefaultProjectState, projectId]);
+  }, [dispatch, filterOptions, normalizedDefaultFeatureState, normalizedDefaultProjectState]);
 
   const filtersLoading = editingDomainsQuery.isPending;
   const filtersError = editingDomainsQuery.isError
@@ -168,12 +171,17 @@ export const FilterProvider = ({
     : null;
 
   if (projectId > 0) {
-    setDefinitionExpression(featureLayers, {
-      centroids: `1=0`,
-      point: `Project_ID!=${projectId}`,
-      line: `Project_ID!=${projectId}`,
-      poly: `Project_ID!=${projectId}`,
-    });
+    setDefinitionExpression(
+      featureLayers,
+      filterOptions && initializedFilters.current
+        ? generateAdjacentProjectDefinitionExpression(state.projects, filterOptions, projectId)
+        : {
+            centroids: `1=0`,
+            point: `Project_ID!=${projectId}`,
+            line: `Project_ID!=${projectId}`,
+            poly: `Project_ID!=${projectId}`,
+          },
+    );
   } else if (filterOptions && initializedFilters.current) {
     const expressions = generateDefinitionExpression(state, filterOptions);
     setDefinitionExpression(featureLayers, expressions);
